@@ -23,11 +23,15 @@ from app.database.redis_client import get_redis
 from app.models.user import Role, UserDocument
 from app.repositories.admissions import AdmissionsRepository
 from app.repositories.audit_logs import AuditLogsRepository
+from app.repositories.beds import BedsRepository
 from app.repositories.patients import PatientsRepository
+from app.repositories.resources import ResourcesRepository
 from app.repositories.users import UserRepository
 from app.services.admissions import AdmissionService
 from app.services.auth import AuthService
+from app.services.beds import BedService
 from app.services.patients import PatientService
+from app.services.resources import ResourceService
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +67,18 @@ def get_audit_log_repository(
     return AuditLogsRepository(db)
 
 
+def get_beds_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> BedsRepository:
+    return BedsRepository(db)
+
+
+def get_resources_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> ResourcesRepository:
+    return ResourcesRepository(db)
+
+
 def get_auth_service(
     user_repo: Annotated[UserRepository, Depends(get_user_repository)],
     redis: Annotated[Redis, Depends(get_redis)],  # type: ignore[type-arg]
@@ -83,6 +99,21 @@ def get_admission_service(
     audit_repo: Annotated[AuditLogsRepository, Depends(get_audit_log_repository)],
 ) -> AdmissionService:
     return AdmissionService(admission_repo, patient_repo, audit_repo)
+
+
+def get_bed_service(
+    beds_repo: Annotated[BedsRepository, Depends(get_beds_repository)],
+    patient_repo: Annotated[PatientsRepository, Depends(get_patient_repository)],
+    audit_repo: Annotated[AuditLogsRepository, Depends(get_audit_log_repository)],
+) -> BedService:
+    return BedService(beds_repo, patient_repo, audit_repo)
+
+
+def get_resource_service(
+    resources_repo: Annotated[ResourcesRepository, Depends(get_resources_repository)],
+    audit_repo: Annotated[AuditLogsRepository, Depends(get_audit_log_repository)],
+) -> ResourceService:
+    return ResourceService(resources_repo, audit_repo)
 
 
 # ── Authentication ────────────────────────────────────────────────────────────
