@@ -1,0 +1,128 @@
+# HospitalOps AI — Local Development Environment
+#
+# Services:
+#   frontend  — React + Vite dev server        (http://localhost:5173)
+#   backend   — FastAPI + Uvicorn              (http://localhost:8000)
+#   mongodb   — MongoDB                        (localhost:27017)
+#   redis     — Redis                          (localhost:6379)
+#
+# Usage:
+#   docker compose up --build         Start all services
+#   docker compose up backend         Start backend only
+#   docker compose logs -f backend    Tail backend logs
+#   docker compose down -v            Stop and remove volumes
+
+services:
+
+  # ── Frontend ────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: hospitalops-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules          # Prevent host node_modules from overriding
+    environment:
+      - VITE_API_BASE_URL=/api/v1
+      # VITE_API_TARGET tells the Vite dev server proxy where to forward /api requests.
+      # Inside Docker this must use the Docker service name, not localhost.
+      - VITE_API_TARGET=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - hospitalops-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Backend ─────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: hospitalops-backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app             # Live reload support
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - APP_NAME=${APP_NAME:-HospitalOps AI}
+      - API_PREFIX=${API_PREFIX:-/api/v1}
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-hospitalops}
+      - REDIS_URL=redis://redis:6379
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hospitalops-network
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: hospitalops-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    networks:
+      - hospitalops-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: hospitalops-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - hospitalops-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+# ── Networks ────────────────────────────────────────────────────────────────
+networks:
+  hospitalops-network:
+    driver: bridge
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  mongodb-data:
+    driver: local
+  mongodb-config:
+    driver: local
+  redis-data:
+    driver: local
