@@ -18,6 +18,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis.asyncio import Redis
 
 from app.core.security import decode_access_token, get_permissions_for_role
+from app.data_ingestion.repositories import (
+    DataIngestionRunRepository,
+    HistoricalAdmissionsRepository,
+    HistoricalHospitalCapacityRepository,
+)
 from app.database.client import get_database
 from app.database.redis_client import get_redis
 from app.models.user import Role, UserDocument
@@ -77,6 +82,24 @@ def get_resources_repository(
     db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
 ) -> ResourcesRepository:
     return ResourcesRepository(db)
+
+
+def get_data_ingestion_run_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> DataIngestionRunRepository:
+    return DataIngestionRunRepository(db)
+
+
+def get_historical_admissions_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> HistoricalAdmissionsRepository:
+    return HistoricalAdmissionsRepository(db)
+
+
+def get_historical_capacity_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> HistoricalHospitalCapacityRepository:
+    return HistoricalHospitalCapacityRepository(db)
 
 
 def get_auth_service(

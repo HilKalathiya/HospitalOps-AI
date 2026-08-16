@@ -272,6 +272,41 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── data_ingestion_runs ───────────────────────────────────────────────────
+    # run_id: unique identifier for an ingestion run.
+    # source_hash: support idempotency checks.
+    # dataset_name: querying runs by type.
+    await db["data_ingestion_runs"].create_indexes(
+        [
+            IndexModel([("run_id", ASCENDING)], unique=True, name="ingestion_run_id_unique"),
+            IndexModel([("source_hash", ASCENDING)], name="ingestion_source_hash"),
+            IndexModel([("dataset_name", ASCENDING)], name="ingestion_dataset_name"),
+        ]
+    )
+
+    # ── historical_admissions ─────────────────────────────────────────────────
+    # source_record_id: unique lookup for idempotency.
+    # admission_date: filtering by time.
+    await db["historical_admissions"].create_indexes(
+        [
+            IndexModel([("source_record_id", ASCENDING)], unique=True, name="hist_adm_source_record_id_unique"),
+            IndexModel([("admission_date", ASCENDING)], name="hist_adm_date"),
+        ]
+    )
+
+    # ── historical_hospital_capacity ──────────────────────────────────────────
+    # week_ending_date + geographic_aggregation: unique natural key.
+    await db["historical_hospital_capacity"].create_indexes(
+        [
+            IndexModel(
+                [("week_ending_date", ASCENDING), ("geographic_aggregation", ASCENDING)],
+                unique=True,
+                name="hist_cap_week_geo_unique",
+            ),
+            IndexModel([("week_ending_date", ASCENDING)], name="hist_cap_week"),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 

@@ -75,7 +75,7 @@ async def list_resources(
         status=resource_status,
         criticality=criticality,
     )
-    
+
     return {
         "data": [ResourceResponse(**r.model_dump()) for r in resources],
         "meta": {
