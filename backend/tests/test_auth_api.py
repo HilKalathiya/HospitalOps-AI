@@ -24,16 +24,14 @@ def test_login_success():
         role=Role.ADMIN,
     )
     mock_auth_service.create_tokens.return_value = AuthTokens(
-        access_token="mock_access_token",
-        refresh_token="mock_refresh_token"
+        access_token="mock_access_token", refresh_token="mock_refresh_token"
     )
 
     app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
 
     client = TestClient(app)
     response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "test@example.com", "password": "password123"}
+        "/api/v1/auth/login", json={"email": "test@example.com", "password": "password123"}
     )
 
     # Restore overrides
@@ -58,8 +56,7 @@ def test_login_failure():
 
     client = TestClient(app)
     response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "wrong@example.com", "password": "wrong"}
+        "/api/v1/auth/login", json={"email": "wrong@example.com", "password": "wrong"}
     )
 
     app.dependency_overrides.clear()
@@ -72,8 +69,7 @@ def test_refresh_success():
     """Test refreshing an access token."""
     mock_auth_service = AsyncMock()
     mock_auth_service.refresh_session.return_value = AuthTokens(
-        access_token="new_access_token",
-        refresh_token="new_refresh_token"
+        access_token="new_access_token", refresh_token="new_refresh_token"
     )
 
     app.dependency_overrides[get_auth_service] = lambda: mock_auth_service

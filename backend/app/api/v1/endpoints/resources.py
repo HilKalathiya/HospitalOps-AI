@@ -62,7 +62,9 @@ async def list_resources(
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     department_id: str | None = Query(None, description="Filter by department"),
     resource_type: ResourceType | None = Query(None, description="Filter by resource type"),
-    resource_status: ResourceStatus | None = Query(None, alias="status", description="Filter by status"),
+    resource_status: ResourceStatus | None = Query(
+        None, alias="status", description="Filter by status"
+    ),
     criticality: ResourceCriticality | None = Query(None, description="Filter by criticality"),
 ) -> dict:
     """List resources with operational filters."""

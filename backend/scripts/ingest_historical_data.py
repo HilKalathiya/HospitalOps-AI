@@ -81,10 +81,19 @@ async def run_ingestion(dataset: str, filepath: str, batch_size: int, dry_run: b
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest historical datasets.")
-    parser.add_argument("--dataset", choices=["hero_dmc", "nhsn_hrd"], required=True, help="Which dataset to ingest.")
+    parser.add_argument(
+        "--dataset",
+        choices=["hero_dmc", "nhsn_hrd"],
+        required=True,
+        help="Which dataset to ingest.",
+    )
     parser.add_argument("--file", required=True, help="Path to the source CSV file.")
-    parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for MongoDB upserts.")
-    parser.add_argument("--dry-run", action="store_true", help="Process data without modifying the database.")
+    parser.add_argument(
+        "--batch-size", type=int, default=1000, help="Batch size for MongoDB upserts."
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Process data without modifying the database."
+    )
 
     args = parser.parse_args()
 

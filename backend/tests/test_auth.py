@@ -45,11 +45,7 @@ def test_expired_access_token():
     user_id = "12345"
     role = Role.DOCTOR.value
     # Create token that expired 1 minute ago
-    token = create_access_token(
-        subject=user_id,
-        role=role,
-        expires_delta=timedelta(minutes=-1)
-    )
+    token = create_access_token(subject=user_id, role=role, expires_delta=timedelta(minutes=-1))
 
     with pytest.raises(jwt.ExpiredSignatureError):
         decode_access_token(token)
@@ -75,6 +71,7 @@ async def test_auth_service_rate_limit():
     auth_service = AuthService(user_repo, redis)
 
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as exc_info:
         await auth_service.authenticate_user("test@example.com", "pass")
 

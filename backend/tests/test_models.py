@@ -227,8 +227,10 @@ class TestAdmissionModel:
     def test_all_admission_types_valid(self) -> None:
         for atype in AdmissionType:
             a = AdmissionCreate(
-                patient_id="p", department_id="d",
-                admission_type=atype, severity=AdmissionSeverity.MEDIUM,
+                patient_id="p",
+                department_id="d",
+                admission_type=atype,
+                severity=AdmissionSeverity.MEDIUM,
             )
             assert a.admission_type == atype
 
@@ -321,8 +323,10 @@ class TestResourceModel:
     def test_all_resource_types_valid(self) -> None:
         for rtype in ResourceType:
             r = ResourceCreate(
-                name="Test", resource_type=rtype,
-                quantity_total=1, quantity_available=1,
+                name="Test",
+                resource_type=rtype,
+                quantity_total=1,
+                quantity_available=1,
             )
             assert r.resource_type == rtype
 
@@ -385,8 +389,10 @@ class TestPredictionModel:
             model_version="1.0.0",
             predictions=[
                 PredictionPoint(
-                    timestamp=now, value=15.0,
-                    lower_bound=12.0, upper_bound=18.0,
+                    timestamp=now,
+                    value=15.0,
+                    lower_bound=12.0,
+                    upper_bound=18.0,
                     confidence=0.9,
                 ),
             ],
@@ -399,8 +405,11 @@ class TestPredictionModel:
         for ptype in PredictionType:
             p = PredictionCreate(
                 prediction_type=ptype,
-                forecast_start=now, forecast_end=now, generated_at=now,
-                model_name="test", model_version="1.0",
+                forecast_start=now,
+                forecast_end=now,
+                generated_at=now,
+                model_name="test",
+                model_version="1.0",
             )
             assert p.prediction_type == ptype
 
@@ -526,7 +535,8 @@ class TestTimestampBehaviour:
 
     def test_admission_create_default_admitted_at_utc(self) -> None:
         admission = AdmissionCreate(
-            patient_id="p", department_id="d",
+            patient_id="p",
+            department_id="d",
             admission_type=AdmissionType.OTHER,
             severity=AdmissionSeverity.LOW,
         )
@@ -536,6 +546,7 @@ class TestTimestampBehaviour:
         alert = AlertCreate(
             alert_type=AlertType.SYSTEM,
             severity=AlertSeverity.INFO,
-            title="T", message="M",
+            title="T",
+            message="M",
         )
         assert alert.triggered_at.tzinfo is not None

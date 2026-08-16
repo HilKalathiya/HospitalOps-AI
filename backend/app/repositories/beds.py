@@ -69,20 +69,18 @@ class BedsRepository(BaseRepository):
 
     async def update(self, bed_id: str, update_data: dict) -> bool:
         """Update a bed document."""
-        result = await self.collection.update_one(
-            {"bed_id": bed_id},
-            {"$set": update_data}
-        )
+        result = await self.collection.update_one({"bed_id": bed_id}, {"$set": update_data})
         return result.modified_count > 0
 
-    async def update_status_atomic(self, bed_id: str, expected_status: str, update_data: dict) -> bool:
+    async def update_status_atomic(
+        self, bed_id: str, expected_status: str, update_data: dict
+    ) -> bool:
         """
         Atomically update a bed only if it is in the expected status.
         Returns True if successful, False if the bed was not found or the status changed.
         """
         result = await self.collection.update_one(
-            {"bed_id": bed_id, "status": expected_status},
-            {"$set": update_data}
+            {"bed_id": bed_id, "status": expected_status}, {"$set": update_data}
         )
         return result.modified_count > 0
 
@@ -91,7 +89,7 @@ class BedsRepository(BaseRepository):
         skip: int = 0,
         limit: int = 20,
         filters: dict | None = None,
-        sort: list[tuple[str, int]] | None = None
+        sort: list[tuple[str, int]] | None = None,
     ) -> list["BedDocument"]:
         """List beds with pagination and filters."""
         cursor = self.collection.find(filters or {})
@@ -116,33 +114,45 @@ class BedsRepository(BaseRepository):
         if match_stage:
             pipeline.append({"$match": match_stage})
 
-        pipeline.append({
-            "$group": {
-                "_id": None,
-                "total": {"$sum": 1},
-                "available": {"$sum": {"$cond": [{"$eq": ["$status", "AVAILABLE"]}, 1, 0]}},
-                "occupied": {"$sum": {"$cond": [{"$eq": ["$status", "OCCUPIED"]}, 1, 0]}},
-                "reserved": {"$sum": {"$cond": [{"$eq": ["$status", "RESERVED"]}, 1, 0]}},
-                "maintenance": {"$sum": {"$cond": [{"$eq": ["$status", "MAINTENANCE"]}, 1, 0]}},
-                "icu_total": {"$sum": {"$cond": [{"$eq": ["$is_icu", True]}, 1, 0]}},
-                "icu_available": {
-                    "$sum": {
-                        "$cond": [
-                            {"$and": [{"$eq": ["$status", "AVAILABLE"]}, {"$eq": ["$is_icu", True]}]},
-                            1,
-                            0
-                        ]
-                    }
+        pipeline.append(
+            {
+                "$group": {
+                    "_id": None,
+                    "total": {"$sum": 1},
+                    "available": {"$sum": {"$cond": [{"$eq": ["$status", "AVAILABLE"]}, 1, 0]}},
+                    "occupied": {"$sum": {"$cond": [{"$eq": ["$status", "OCCUPIED"]}, 1, 0]}},
+                    "reserved": {"$sum": {"$cond": [{"$eq": ["$status", "RESERVED"]}, 1, 0]}},
+                    "maintenance": {"$sum": {"$cond": [{"$eq": ["$status", "MAINTENANCE"]}, 1, 0]}},
+                    "icu_total": {"$sum": {"$cond": [{"$eq": ["$is_icu", True]}, 1, 0]}},
+                    "icu_available": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$and": [
+                                        {"$eq": ["$status", "AVAILABLE"]},
+                                        {"$eq": ["$is_icu", True]},
+                                    ]
+                                },
+                                1,
+                                0,
+                            ]
+                        }
+                    },
                 }
             }
-        })
+        )
 
         cursor = self.collection.aggregate(pipeline)
         results = await cursor.to_list(length=1)
         if not results:
             return {
-                "total": 0, "available": 0, "occupied": 0,
-                "reserved": 0, "maintenance": 0, "icu_total": 0, "icu_available": 0
+                "total": 0,
+                "available": 0,
+                "occupied": 0,
+                "reserved": 0,
+                "maintenance": 0,
+                "icu_total": 0,
+                "icu_available": 0,
             }
 
         doc = results[0]

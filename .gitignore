@@ -78,3 +78,7 @@ data/
 *.pid
 *.seed
 *.pid.lock
+
+# ─── Machine Learning ─────────────────────────────────────────────────────────
+backend/ml/artifacts/
+backend/ml/runs/

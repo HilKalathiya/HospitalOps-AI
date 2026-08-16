@@ -36,7 +36,9 @@ class AdmissionService:
         self.patient_repo = patient_repo
         self.audit_repo = audit_repo
 
-    async def _audit(self, action: str, entity_id: str, actor: UserDocument, details: dict | None = None) -> None:
+    async def _audit(
+        self, action: str, entity_id: str, actor: UserDocument, details: dict | None = None
+    ) -> None:
         """Helper to create an audit log entry."""
         audit_doc = AuditLogDocument(
             audit_id=str(uuid.uuid4()),
@@ -59,7 +61,9 @@ class AdmissionService:
                 detail="Access denied. Admission is not in your department.",
             )
 
-    async def create_admission(self, data: AdmissionCreate, current_user: UserDocument) -> AdmissionDocument:
+    async def create_admission(
+        self, data: AdmissionCreate, current_user: UserDocument
+    ) -> AdmissionDocument:
         """Create a new admission and update patient status."""
         # Enforce scope on creation
         await self._enforce_doctor_scope(data.department_id, current_user)
@@ -79,10 +83,7 @@ class AdmissionService:
             )
 
         # Create admission document
-        admission_doc = AdmissionDocument(
-            admission_id=str(uuid.uuid4()),
-            **data.model_dump()
-        )
+        admission_doc = AdmissionDocument(admission_id=str(uuid.uuid4()), **data.model_dump())
         await self.admission_repo.create(admission_doc)
 
         # Update patient operational status
@@ -96,19 +97,24 @@ class AdmissionService:
                 "icu_required": admission_doc.icu_required,
                 "severity": admission_doc.severity,
                 "admitted_at": admission_doc.admitted_at,
-                "updated_at": datetime.now(tz=UTC)
-            }
+                "updated_at": datetime.now(tz=UTC),
+            },
         )
 
         await self._audit(
             action="ADMISSION_CREATED",
             entity_id=admission_doc.admission_id,
             actor=current_user,
-            details={"patient_id": patient.patient_id, "department_id": admission_doc.department_id}
+            details={
+                "patient_id": patient.patient_id,
+                "department_id": admission_doc.department_id,
+            },
         )
         return admission_doc
 
-    async def get_admission(self, admission_id: str, current_user: UserDocument) -> AdmissionDocument:
+    async def get_admission(
+        self, admission_id: str, current_user: UserDocument
+    ) -> AdmissionDocument:
         """Get an admission by ID."""
         admission = await self.admission_repo.find_by_admission_id(admission_id)
         if not admission:
@@ -154,8 +160,8 @@ class AdmissionService:
                 {
                     "admission_status": PatientAdmissionStatus.DISCHARGED,
                     "discharged_at": update_dict["discharged_at"],
-                    "updated_at": datetime.now(tz=UTC)
-                }
+                    "updated_at": datetime.now(tz=UTC),
+                },
             )
 
         updated_admission = await self.admission_repo.find_by_admission_id(admission_id)
@@ -166,7 +172,7 @@ class AdmissionService:
             action="ADMISSION_UPDATED",
             entity_id=admission_id,
             actor=current_user,
-            details={"updated_fields": list(update_dict.keys()), "new_status": new_status}
+            details={"updated_fields": list(update_dict.keys()), "new_status": new_status},
         )
         return updated_admission
 

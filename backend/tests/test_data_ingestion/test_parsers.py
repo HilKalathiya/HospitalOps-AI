@@ -16,17 +16,20 @@ def test_hero_parse_date():
     assert hero_parse_date("null") is None
     assert hero_parse_date("invalid") is None
 
+
 def test_hero_parse_int():
     assert hero_parse_int("45") == 45
     assert hero_parse_int("45.0") == 45
     assert hero_parse_int("") is None
     assert hero_parse_int("na") is None
 
+
 def test_nhsn_parse_date():
     assert nhsn_parse_date("12/31/2021") == datetime(2021, 12, 31, tzinfo=UTC)
     assert nhsn_parse_date("2021-12-31") == datetime(2021, 12, 31, tzinfo=UTC)
     assert nhsn_parse_date("2021-12-31T00:00:00") == datetime(2021, 12, 31, tzinfo=UTC)
     assert nhsn_parse_date("invalid") is None
+
 
 def test_nhsn_parse_int():
     assert nhsn_parse_int("1,234") == 1234

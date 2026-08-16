@@ -77,6 +77,7 @@ class AdmissionsRepository(BaseRepository):
         """Find an admission by MongoDB ObjectId."""
         from bson import ObjectId
         from bson.errors import InvalidId
+
         try:
             doc = await self.collection.find_one({"_id": ObjectId(document_id)})
         except InvalidId:
@@ -91,8 +92,7 @@ class AdmissionsRepository(BaseRepository):
     async def update(self, admission_id: str, update_data: dict) -> bool:
         """Update an admission document."""
         result = await self.collection.update_one(
-            {"admission_id": admission_id},
-            {"$set": update_data}
+            {"admission_id": admission_id}, {"$set": update_data}
         )
         return result.modified_count > 0
 
@@ -101,7 +101,7 @@ class AdmissionsRepository(BaseRepository):
         skip: int = 0,
         limit: int = 20,
         filters: dict | None = None,
-        sort: list[tuple[str, int]] | None = None
+        sort: list[tuple[str, int]] | None = None,
     ) -> list["AdmissionDocument"]:
         """
         List admissions with pagination and optional filters.

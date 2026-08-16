@@ -27,7 +27,9 @@ class PatientService:
         self.patient_repo = patient_repo
         self.audit_repo = audit_repo
 
-    async def _audit(self, action: str, entity_id: str, actor: UserDocument, details: dict | None = None) -> None:
+    async def _audit(
+        self, action: str, entity_id: str, actor: UserDocument, details: dict | None = None
+    ) -> None:
         """Helper to create an audit log entry."""
         audit_doc = AuditLogDocument(
             audit_id=str(uuid.uuid4()),
@@ -42,7 +44,9 @@ class PatientService:
         )
         await self.audit_repo.create_audit_log(audit_doc)
 
-    async def create_patient(self, data: PatientCreate, current_user: UserDocument) -> PatientDocument:
+    async def create_patient(
+        self, data: PatientCreate, current_user: UserDocument
+    ) -> PatientDocument:
         """Create a new patient with validation and audit logging."""
         if data.external_patient_id:
             existing = await self.patient_repo.find_by_external_patient_id(data.external_patient_id)
@@ -52,17 +56,14 @@ class PatientService:
                     detail=f"Patient with external ID {data.external_patient_id} already exists.",
                 )
 
-        patient_doc = PatientDocument(
-            patient_id=str(uuid.uuid4()),
-            **data.model_dump()
-        )
+        patient_doc = PatientDocument(patient_id=str(uuid.uuid4()), **data.model_dump())
         await self.patient_repo.create(patient_doc)
 
         await self._audit(
             action="PATIENT_CREATED",
             entity_id=patient_doc.patient_id,
             actor=current_user,
-            details={"external_patient_id": patient_doc.external_patient_id}
+            details={"external_patient_id": patient_doc.external_patient_id},
         )
         return patient_doc
 
@@ -85,7 +86,9 @@ class PatientService:
 
         return patient
 
-    async def update_patient(self, patient_id: str, update_data: PatientUpdate, current_user: UserDocument) -> PatientDocument:
+    async def update_patient(
+        self, patient_id: str, update_data: PatientUpdate, current_user: UserDocument
+    ) -> PatientDocument:
         """Update a patient, enforcing scope and creating an audit log."""
         patient = await self.get_patient(patient_id, current_user)
 
@@ -105,7 +108,7 @@ class PatientService:
             action="PATIENT_UPDATED",
             entity_id=patient_id,
             actor=current_user,
-            details={"updated_fields": list(update_dict.keys())}
+            details={"updated_fields": list(update_dict.keys())},
         )
         return updated_patient
 
@@ -134,6 +137,7 @@ class PatientService:
         if search:
             # Simple case-insensitive search on name or external_patient_id
             import re
+
             search_regex = re.compile(re.escape(search), re.IGNORECASE)
             filters["$or"] = [
                 {"name": search_regex},

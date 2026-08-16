@@ -62,6 +62,7 @@ class PatientsRepository(BaseRepository):
         """Find a patient by MongoDB ObjectId."""
         from bson import ObjectId
         from bson.errors import InvalidId
+
         try:
             doc = await self.collection.find_one({"_id": ObjectId(document_id)})
         except InvalidId:
@@ -80,10 +81,7 @@ class PatientsRepository(BaseRepository):
 
     async def update(self, patient_id: str, update_data: dict) -> bool:
         """Update a patient document."""
-        result = await self.collection.update_one(
-            {"patient_id": patient_id},
-            {"$set": update_data}
-        )
+        result = await self.collection.update_one({"patient_id": patient_id}, {"$set": update_data})
         return result.modified_count > 0
 
     async def list_patients(
@@ -91,7 +89,7 @@ class PatientsRepository(BaseRepository):
         skip: int = 0,
         limit: int = 20,
         filters: dict | None = None,
-        sort: list[tuple[str, int]] | None = None
+        sort: list[tuple[str, int]] | None = None,
     ) -> list["PatientDocument"]:
         """
         List patients with pagination and optional filters.

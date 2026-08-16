@@ -69,6 +69,7 @@ async def seed_users() -> None:
 
         # Convert to UserDocument
         from app.models.user import UserDocument
+
         doc = UserDocument(
             user_id=str(uuid.uuid4()),
             email=user_data.email,

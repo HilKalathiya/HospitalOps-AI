@@ -21,6 +21,7 @@ def mock_admin_user():
         role=Role.ADMIN,
     )
 
+
 def mock_doctor_user():
     return UserDocument(
         user_id="doc123",
@@ -28,8 +29,9 @@ def mock_doctor_user():
         name="Doctor",
         password_hash="hash",
         role=Role.DOCTOR,
-        department_id="DEPT-1"
+        department_id="DEPT-1",
     )
+
 
 def test_create_patient_success():
     """Test patient creation with admin role."""
@@ -46,10 +48,7 @@ def test_create_patient_success():
     app.dependency_overrides[get_current_user] = mock_admin_user
 
     client = TestClient(app)
-    response = client.post(
-        "/api/v1/patients",
-        json={"name": "John Doe", "gender": "MALE"}
-    )
+    response = client.post("/api/v1/patients", json={"name": "John Doe", "gender": "MALE"})
 
     app.dependency_overrides.clear()
 

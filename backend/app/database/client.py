@@ -289,7 +289,11 @@ async def init_indexes() -> None:
     # admission_date: filtering by time.
     await db["historical_admissions"].create_indexes(
         [
-            IndexModel([("source_record_id", ASCENDING)], unique=True, name="hist_adm_source_record_id_unique"),
+            IndexModel(
+                [("source_record_id", ASCENDING)],
+                unique=True,
+                name="hist_adm_source_record_id_unique",
+            ),
             IndexModel([("admission_date", ASCENDING)], name="hist_adm_date"),
         ]
     )

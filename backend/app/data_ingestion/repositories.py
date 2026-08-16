@@ -36,8 +36,7 @@ class DataIngestionRunRepository(BaseRepository):
     async def update_run(self, run: DataIngestionRunDocument) -> DataIngestionRunDocument:
         """Update an existing ingestion run."""
         await self.collection.update_one(
-            {"run_id": run.run_id},
-            {"$set": run.model_dump(by_alias=True, exclude_none=True)}
+            {"run_id": run.run_id}, {"$set": run.model_dump(by_alias=True, exclude_none=True)}
         )
         return run
 
@@ -79,9 +78,7 @@ class HistoricalAdmissionsRepository(BaseRepository):
 
             operations.append(
                 UpdateOne(
-                    {"source_record_id": doc.source_record_id},
-                    {"$set": doc_dict},
-                    upsert=True
+                    {"source_record_id": doc.source_record_id}, {"$set": doc_dict}, upsert=True
                 )
             )
 
@@ -89,7 +86,7 @@ class HistoricalAdmissionsRepository(BaseRepository):
         return {
             "inserted": result.upserted_count,
             "updated": result.modified_count,
-            "skipped": len(docs) - (result.upserted_count + result.modified_count)
+            "skipped": len(docs) - (result.upserted_count + result.modified_count),
         }
 
 
@@ -126,7 +123,7 @@ class HistoricalHospitalCapacityRepository(BaseRepository):
                         "geographic_aggregation": doc.geographic_aggregation,
                     },
                     {"$set": doc_dict},
-                    upsert=True
+                    upsert=True,
                 )
             )
 
@@ -134,5 +131,5 @@ class HistoricalHospitalCapacityRepository(BaseRepository):
         return {
             "inserted": result.upserted_count,
             "updated": result.modified_count,
-            "skipped": len(docs) - (result.upserted_count + result.modified_count)
+            "skipped": len(docs) - (result.upserted_count + result.modified_count),
         }

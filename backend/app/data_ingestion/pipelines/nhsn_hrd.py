@@ -104,19 +104,23 @@ class NHSNHRDIngestionPipeline(BaseIngestionPipeline):
 
                     if not week_ending_str or not geo_agg:
                         run.rows_invalid += 1
-                        run.error_summary.append({
-                            "row": run.rows_read,
-                            "error": "Missing identifying fields (Week Ending Date or Geographic aggregation)"
-                        })
+                        run.error_summary.append(
+                            {
+                                "row": run.rows_read,
+                                "error": "Missing identifying fields (Week Ending Date or Geographic aggregation)",
+                            }
+                        )
                         continue
 
                     week_ending_date = parse_date(week_ending_str)
                     if not week_ending_date:
                         run.rows_invalid += 1
-                        run.error_summary.append({
-                            "row": run.rows_read,
-                            "error": f"Invalid date format: {week_ending_str}"
-                        })
+                        run.error_summary.append(
+                            {
+                                "row": run.rows_read,
+                                "error": f"Invalid date format: {week_ending_str}",
+                            }
+                        )
                         continue
 
                     try:
@@ -126,29 +130,50 @@ class NHSNHRDIngestionPipeline(BaseIngestionPipeline):
                             week_ending_date=week_ending_date,
                             geographic_aggregation=geo_agg,
                             inpatient_beds=parse_int(row.get("Number of Inpatient Beds", "")),
-                            inpatient_beds_occupied=parse_int(row.get("Number of Inpatient Beds Occupied", "")),
+                            inpatient_beds_occupied=parse_int(
+                                row.get("Number of Inpatient Beds Occupied", "")
+                            ),
                             icu_beds=parse_int(row.get("Number of ICU Beds", "")),
                             icu_beds_occupied=parse_int(row.get("Number of ICU Beds Occupied", "")),
-                            pediatric_inpatient_beds=parse_int(row.get("Number of Pediatric Inpatient beds", "")),
-                            pediatric_inpatient_beds_occupied=parse_int(row.get("Number of Pediatric Inpatient Beds Occupied", "")),
-                            adult_inpatient_beds=parse_int(row.get("Number of Adult Inpatient Beds", "")),
-                            adult_inpatient_beds_occupied=parse_int(row.get("Number of Adult Inpatient Beds Occupied", "")),
+                            pediatric_inpatient_beds=parse_int(
+                                row.get("Number of Pediatric Inpatient beds", "")
+                            ),
+                            pediatric_inpatient_beds_occupied=parse_int(
+                                row.get("Number of Pediatric Inpatient Beds Occupied", "")
+                            ),
+                            adult_inpatient_beds=parse_int(
+                                row.get("Number of Adult Inpatient Beds", "")
+                            ),
+                            adult_inpatient_beds_occupied=parse_int(
+                                row.get("Number of Adult Inpatient Beds Occupied", "")
+                            ),
                             adult_icu_beds=parse_int(row.get("Number of Adult ICU Beds", "")),
-                            adult_icu_beds_occupied=parse_int(row.get("Number of Adult ICU Beds Occupied", "")),
-                            pediatric_icu_beds=parse_int(row.get("Number of Pediatric ICU Beds", "")),
-                            pediatric_icu_beds_occupied=parse_int(row.get("Number of Pediatric ICU Beds Occupied", "")),
-                            total_covid_admissions=parse_int(row.get("Total Patients Hospitalized with COVID-19", "")),
-                            total_influenza_admissions=parse_int(row.get("Total Patients Hospitalized with Influenza", "")),
-                            total_rsv_admissions=parse_int(row.get("Total Patients Hospitalized with RSV", "")),
+                            adult_icu_beds_occupied=parse_int(
+                                row.get("Number of Adult ICU Beds Occupied", "")
+                            ),
+                            pediatric_icu_beds=parse_int(
+                                row.get("Number of Pediatric ICU Beds", "")
+                            ),
+                            pediatric_icu_beds_occupied=parse_int(
+                                row.get("Number of Pediatric ICU Beds Occupied", "")
+                            ),
+                            total_covid_admissions=parse_int(
+                                row.get("Total Patients Hospitalized with COVID-19", "")
+                            ),
+                            total_influenza_admissions=parse_int(
+                                row.get("Total Patients Hospitalized with Influenza", "")
+                            ),
+                            total_rsv_admissions=parse_int(
+                                row.get("Total Patients Hospitalized with RSV", "")
+                            ),
                         )
                         batch.append(doc)
                         run.rows_valid += 1
                     except Exception as e:
                         run.rows_invalid += 1
-                        run.error_summary.append({
-                            "row": run.rows_read,
-                            "error": f"Validation failed: {str(e)}"
-                        })
+                        run.error_summary.append(
+                            {"row": run.rows_read, "error": f"Validation failed: {str(e)}"}
+                        )
 
                     if len(batch) >= batch_size:
                         if not dry_run:

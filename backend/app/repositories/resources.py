@@ -62,8 +62,7 @@ class ResourcesRepository(BaseRepository):
     async def update(self, resource_id: str, update_data: dict) -> bool:
         """Update a resource document."""
         result = await self.collection.update_one(
-            {"resource_id": resource_id},
-            {"$set": update_data}
+            {"resource_id": resource_id}, {"$set": update_data}
         )
         return result.modified_count > 0
 
@@ -74,16 +73,8 @@ class ResourcesRepository(BaseRepository):
         Returns True if successful, False if insufficient availability.
         """
         result = await self.collection.update_one(
-            {
-                "resource_id": resource_id,
-                "quantity_available": {"$gte": amount}
-            },
-            {
-                "$inc": {
-                    "quantity_available": -amount,
-                    "quantity_reserved": amount
-                }
-            }
+            {"resource_id": resource_id, "quantity_available": {"$gte": amount}},
+            {"$inc": {"quantity_available": -amount, "quantity_reserved": amount}},
         )
         return result.modified_count > 0
 
@@ -94,16 +85,8 @@ class ResourcesRepository(BaseRepository):
         Returns True if successful, False if insufficient reserved quantity.
         """
         result = await self.collection.update_one(
-            {
-                "resource_id": resource_id,
-                "quantity_reserved": {"$gte": amount}
-            },
-            {
-                "$inc": {
-                    "quantity_available": amount,
-                    "quantity_reserved": -amount
-                }
-            }
+            {"resource_id": resource_id, "quantity_reserved": {"$gte": amount}},
+            {"$inc": {"quantity_available": amount, "quantity_reserved": -amount}},
         )
         return result.modified_count > 0
 
@@ -112,7 +95,7 @@ class ResourcesRepository(BaseRepository):
         skip: int = 0,
         limit: int = 20,
         filters: dict | None = None,
-        sort: list[tuple[str, int]] | None = None
+        sort: list[tuple[str, int]] | None = None,
     ) -> list["ResourceDocument"]:
         """List resources with pagination and filters."""
         cursor = self.collection.find(filters or {})
@@ -137,32 +120,36 @@ class ResourcesRepository(BaseRepository):
         if match_stage:
             pipeline.append({"$match": match_stage})
 
-        pipeline.append({
-            "$group": {
-                "_id": None,
-                "types_count": {"$sum": 1},
-                "total_quantity": {"$sum": "$quantity_total"},
-                "available_quantity": {"$sum": "$quantity_available"},
-                "reserved_quantity": {"$sum": "$quantity_reserved"},
-                "unavailable_quantity": {
-                    "$sum": {
-                        "$cond": [{"$ne": ["$status", "OPERATIONAL"]}, "$quantity_total", 0]
-                    }
-                },
-                "critical_resources": {
-                    "$sum": {
-                        "$cond": [{"$in": ["$criticality", ["HIGH", "CRITICAL"]]}, 1, 0]
-                    }
+        pipeline.append(
+            {
+                "$group": {
+                    "_id": None,
+                    "types_count": {"$sum": 1},
+                    "total_quantity": {"$sum": "$quantity_total"},
+                    "available_quantity": {"$sum": "$quantity_available"},
+                    "reserved_quantity": {"$sum": "$quantity_reserved"},
+                    "unavailable_quantity": {
+                        "$sum": {
+                            "$cond": [{"$ne": ["$status", "OPERATIONAL"]}, "$quantity_total", 0]
+                        }
+                    },
+                    "critical_resources": {
+                        "$sum": {"$cond": [{"$in": ["$criticality", ["HIGH", "CRITICAL"]]}, 1, 0]}
+                    },
                 }
             }
-        })
+        )
 
         cursor = self.collection.aggregate(pipeline)
         results = await cursor.to_list(length=1)
         if not results:
             return {
-                "types_count": 0, "total_quantity": 0, "available_quantity": 0,
-                "reserved_quantity": 0, "unavailable_quantity": 0, "critical_resources": 0
+                "types_count": 0,
+                "total_quantity": 0,
+                "available_quantity": 0,
+                "reserved_quantity": 0,
+                "unavailable_quantity": 0,
+                "critical_resources": 0,
             }
 
         doc = results[0]

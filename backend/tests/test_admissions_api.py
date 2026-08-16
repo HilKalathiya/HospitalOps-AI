@@ -50,8 +50,8 @@ def test_create_admission_success():
             "patient_id": "PAT-123",
             "department_id": "DEPT-1",
             "admission_type": "EMERGENCY",
-            "severity": "HIGH"
-        }
+            "severity": "HIGH",
+        },
     )
 
     app.dependency_overrides.clear()

@@ -21,6 +21,7 @@ def mock_admin_user():
         role=Role.ADMIN,
     )
 
+
 def test_create_resource_success():
     """Test resource creation with admin role."""
     mock_service = AsyncMock()
@@ -47,14 +48,15 @@ def test_create_resource_success():
             "name": "Ventilator",
             "resource_type": "VENTILATOR",
             "quantity_total": 10,
-            "quantity_available": 10
-        }
+            "quantity_available": 10,
+        },
     )
 
     app.dependency_overrides.clear()
 
     assert response.status_code == 201
     assert response.json()["resource_id"] == "RES-123"
+
 
 def test_reserve_resource_success():
     """Test resource reservation."""

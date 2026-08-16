@@ -19,3 +19,8 @@ httpx==0.28.1
 
 # Linting / formatting
 ruff==0.8.4
+
+# Machine Learning
+pandas==2.2.3
+scikit-learn==1.6.0
+tabulate==0.9.0

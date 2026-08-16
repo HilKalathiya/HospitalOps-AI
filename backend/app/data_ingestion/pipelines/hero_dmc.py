@@ -108,10 +108,12 @@ class HeroDMCIngestionPipeline(BaseIngestionPipeline):
 
                     if not mrd and not doa:
                         run.rows_invalid += 1
-                        run.error_summary.append({
-                            "row": run.rows_read,
-                            "error": "Missing identifying fields (MRD No. or D.O.A)"
-                        })
+                        run.error_summary.append(
+                            {
+                                "row": run.rows_read,
+                                "error": "Missing identifying fields (MRD No. or D.O.A)",
+                            }
+                        )
                         continue
 
                     # Composite fingerprint
@@ -127,19 +129,21 @@ class HeroDMCIngestionPipeline(BaseIngestionPipeline):
                             age=parse_int(row.get("AGE", "")),
                             gender=row.get("GENDER", "").strip() or None,
                             rural=row.get("RURAL", "").strip() or None,
-                            admission_type=row.get("TYPE OF ADMISSION-EMERGENCY/OPD", "").strip() or None,
+                            admission_type=row.get("TYPE OF ADMISSION-EMERGENCY/OPD", "").strip()
+                            or None,
                             outcome=row.get("OUTCOME", "").strip() or None,
                             duration_of_stay=parse_int(row.get("DURATION OF STAY", "")),
-                            duration_of_icu_stay=parse_int(row.get("duration of intensive unit stay", "")),
+                            duration_of_icu_stay=parse_int(
+                                row.get("duration of intensive unit stay", "")
+                            ),
                         )
                         batch.append(doc)
                         run.rows_valid += 1
                     except Exception as e:
                         run.rows_invalid += 1
-                        run.error_summary.append({
-                            "row": run.rows_read,
-                            "error": f"Validation failed: {str(e)}"
-                        })
+                        run.error_summary.append(
+                            {"row": run.rows_read, "error": f"Validation failed: {str(e)}"}
+                        )
 
                     # Write batch
                     if len(batch) >= batch_size:

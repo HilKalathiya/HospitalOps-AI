@@ -35,6 +35,7 @@ class DataIngestionRunDocument(TimestampedModel):
     Tracks a data ingestion run.
     Stored in 'data_ingestion_runs'.
     """
+
     id: str | None = Field(default=None, alias="_id", description="MongoDB document ID.")
     run_id: str = Field(description="Unique identifier for the run.")
     dataset_name: DatasetName = Field(description="Which dataset this run processed.")
@@ -60,6 +61,7 @@ class HistoricalAdmissionDocument(HospitalOpsBaseModel):
     Normalized historical admission record from Hero DMC.
     Stored in 'historical_admissions'.
     """
+
     id: str | None = Field(default=None, alias="_id")
     ingestion_run_id: str = Field(description="Reference to data_ingestion_runs.run_id.")
     source_record_id: str = Field(description="Stable identifier (e.g. MRD No + Date or SNO).")
@@ -88,6 +90,7 @@ class HistoricalCapacityDocument(HospitalOpsBaseModel):
     Normalized historical hospital capacity from NHSN.
     Stored in 'historical_hospital_capacity'.
     """
+
     id: str | None = Field(default=None, alias="_id")
     ingestion_run_id: str = Field(description="Reference to data_ingestion_runs.run_id.")
     source_hash: str = Field(description="Source file hash.")

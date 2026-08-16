@@ -30,9 +30,7 @@ class BedService:
         self.patients_repo = patients_repo
         self.audit_repo = audit_repo
 
-    def _enforce_department_scope(
-        self, user: UserDocument, department_id: str
-    ) -> None:
+    def _enforce_department_scope(self, user: UserDocument, department_id: str) -> None:
         """Enforce that DOCTOR role can only act within their department."""
         if user.role == Role.DOCTOR and user.department_id != department_id:
             raise HTTPException(
@@ -84,7 +82,9 @@ class BedService:
         )
 
         await self.beds_repo.create(bed_doc)
-        await self._audit("BED_CREATED", bed_id, current_user, {"department_id": data.department_id})
+        await self._audit(
+            "BED_CREATED", bed_id, current_user, {"department_id": data.department_id}
+        )
         return bed_doc
 
     async def get_bed(self, bed_id: str, current_user: UserDocument) -> BedDocument:
@@ -145,11 +145,15 @@ class BedService:
         """Partially update a bed (e.g. room, floor). Excludes explicit state transitions."""
         await self.get_bed(bed_id, current_user)
 
-        update_data = data.model_dump(exclude_unset=True, exclude={"status", "patient_id", "reserved_until"})
+        update_data = data.model_dump(
+            exclude_unset=True, exclude={"status", "patient_id", "reserved_until"}
+        )
         if update_data:
             update_data["updated_at"] = datetime.now(tz=UTC)
             await self.beds_repo.update(bed_id, update_data)
-            await self._audit("BED_UPDATED", bed_id, current_user, {"fields": list(update_data.keys())})
+            await self._audit(
+                "BED_UPDATED", bed_id, current_user, {"fields": list(update_data.keys())}
+            )
 
         return await self.get_bed(bed_id, current_user)
 
@@ -173,11 +177,12 @@ class BedService:
         )
         if not success:
             raise HTTPException(
-                status_code=409,
-                detail="Bed is not AVAILABLE or was modified concurrently."
+                status_code=409, detail="Bed is not AVAILABLE or was modified concurrently."
             )
 
-        await self._audit("BED_RESERVED", bed_id, current_user, {"reserved_until": reserved_until.isoformat()})
+        await self._audit(
+            "BED_RESERVED", bed_id, current_user, {"reserved_until": reserved_until.isoformat()}
+        )
         return await self.get_bed(bed_id, current_user)
 
     async def assign_bed(
@@ -206,18 +211,14 @@ class BedService:
             "updated_at": datetime.now(tz=UTC),
         }
 
-        success = await self.beds_repo.update_status_atomic(
-            bed_id, bed.status.value, update_data
-        )
+        success = await self.beds_repo.update_status_atomic(bed_id, bed.status.value, update_data)
         if not success:
             raise HTTPException(status_code=409, detail="Concurrent bed state modification.")
 
         await self._audit("BED_ASSIGNED", bed_id, current_user, {"patient_id": patient_id})
         return await self.get_bed(bed_id, current_user)
 
-    async def release_bed(
-        self, bed_id: str, current_user: UserDocument
-    ) -> BedDocument:
+    async def release_bed(self, bed_id: str, current_user: UserDocument) -> BedDocument:
         """Release an OCCUPIED or RESERVED bed to AVAILABLE."""
         bed = await self.get_bed(bed_id, current_user)
 
@@ -233,18 +234,16 @@ class BedService:
             "updated_at": datetime.now(tz=UTC),
         }
 
-        success = await self.beds_repo.update_status_atomic(
-            bed_id, bed.status.value, update_data
-        )
+        success = await self.beds_repo.update_status_atomic(bed_id, bed.status.value, update_data)
         if not success:
             raise HTTPException(status_code=409, detail="Concurrent bed state modification.")
 
-        await self._audit("BED_RELEASED", bed_id, current_user, {"previous_status": bed.status.value})
+        await self._audit(
+            "BED_RELEASED", bed_id, current_user, {"previous_status": bed.status.value}
+        )
         return await self.get_bed(bed_id, current_user)
 
-    async def set_maintenance(
-        self, bed_id: str, current_user: UserDocument
-    ) -> BedDocument:
+    async def set_maintenance(self, bed_id: str, current_user: UserDocument) -> BedDocument:
         """Place a bed into MAINTENANCE. (Only if AVAILABLE, OCCUPIED must be released first)."""
         bed = await self.get_bed(bed_id, current_user)
 

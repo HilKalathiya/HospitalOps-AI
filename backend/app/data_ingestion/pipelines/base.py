@@ -55,7 +55,9 @@ class BaseIngestionPipeline(ABC):
         )
         return await self.run_repo.create_run(run)
 
-    async def finalize_run(self, run: DataIngestionRunDocument, status: IngestionStatus) -> DataIngestionRunDocument:
+    async def finalize_run(
+        self, run: DataIngestionRunDocument, status: IngestionStatus
+    ) -> DataIngestionRunDocument:
         """Mark the run as COMPLETED or FAILED."""
         run.status = status
         run.completed_at = datetime.now(tz=UTC)
@@ -63,10 +65,7 @@ class BaseIngestionPipeline(ABC):
 
     @abstractmethod
     async def process_file(
-        self,
-        filepath: str,
-        batch_size: int = 1000,
-        dry_run: bool = False
+        self, filepath: str, batch_size: int = 1000, dry_run: bool = False
     ) -> DataIngestionRunDocument:
         """
         Process the dataset.

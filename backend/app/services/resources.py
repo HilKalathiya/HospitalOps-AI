@@ -34,9 +34,7 @@ class ResourceService:
         self.resources_repo = resources_repo
         self.audit_repo = audit_repo
 
-    def _enforce_department_scope(
-        self, user: UserDocument, department_id: str | None
-    ) -> None:
+    def _enforce_department_scope(self, user: UserDocument, department_id: str | None) -> None:
         """Enforce that DOCTOR role can only act within their department."""
         if user.role == Role.DOCTOR and department_id and user.department_id != department_id:
             raise HTTPException(
@@ -45,7 +43,7 @@ class ResourceService:
             )
         # Doctors cannot act on hospital-wide resources (department_id is None)
         if user.role == Role.DOCTOR and not department_id:
-             raise HTTPException(
+            raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Hospital-wide resources require elevated privileges.",
             )
@@ -98,7 +96,7 @@ class ResourceService:
             "RESOURCE_CREATED",
             resource_id,
             current_user,
-            {"department_id": data.department_id, "type": data.resource_type.value}
+            {"department_id": data.department_id, "type": data.resource_type.value},
         )
         return resource_doc
 
@@ -140,7 +138,9 @@ class ResourceService:
             filters["criticality"] = criticality
 
         skip = (page - 1) * page_size
-        resources = await self.resources_repo.list_resources(skip=skip, limit=page_size, filters=filters)
+        resources = await self.resources_repo.list_resources(
+            skip=skip, limit=page_size, filters=filters
+        )
         total = await self.resources_repo.count_resources(filters=filters)
         return resources, total
 
@@ -168,12 +168,14 @@ class ResourceService:
             if qa + qr > qt:
                 raise HTTPException(
                     status_code=422,
-                    detail="quantity_available + quantity_reserved cannot exceed quantity_total."
+                    detail="quantity_available + quantity_reserved cannot exceed quantity_total.",
                 )
 
             update_data["updated_at"] = datetime.now(tz=UTC)
             await self.resources_repo.update(resource_id, update_data)
-            await self._audit("RESOURCE_UPDATED", resource_id, current_user, {"fields": list(update_data.keys())})
+            await self._audit(
+                "RESOURCE_UPDATED", resource_id, current_user, {"fields": list(update_data.keys())}
+            )
 
         return await self.get_resource(resource_id, current_user)
 
@@ -186,16 +188,16 @@ class ResourceService:
 
         resource = await self.get_resource(resource_id, current_user)
         if resource.status != ResourceStatus.OPERATIONAL:
-             raise HTTPException(
+            raise HTTPException(
                 status_code=409,
-                detail=f"Cannot reserve from a resource in {resource.status.value} status."
-             )
+                detail=f"Cannot reserve from a resource in {resource.status.value} status.",
+            )
 
         success = await self.resources_repo.reserve_quantity_atomic(resource_id, amount)
         if not success:
             raise HTTPException(
                 status_code=409,
-                detail="Insufficient available quantity or concurrent modification."
+                detail="Insufficient available quantity or concurrent modification.",
             )
 
         await self._audit("RESOURCE_RESERVED", resource_id, current_user, {"amount": amount})
@@ -214,8 +216,7 @@ class ResourceService:
         success = await self.resources_repo.release_quantity_atomic(resource_id, amount)
         if not success:
             raise HTTPException(
-                status_code=409,
-                detail="Insufficient reserved quantity to release."
+                status_code=409, detail="Insufficient reserved quantity to release."
             )
 
         await self._audit("RESOURCE_RELEASED", resource_id, current_user, {"amount": amount})
