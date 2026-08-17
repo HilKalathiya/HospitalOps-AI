@@ -27,9 +27,10 @@ def test_walk_forward_origins_in_orchestrator():
     orch = MLPipelineOrchestrator(config, artifacts_dir="/tmp", runs_dir="/tmp")
     exp = orch.run(ds)
 
-    assert len(exp.forecasts) == 1
+    assert len(exp.forecasts) == 2
     fr = exp.forecasts[0]
-    assert fr.walk_forward_origin_count == 5
+    # Baselines calculate across the whole split in one pass, so origins=1 in the record
+    assert fr.walk_forward_origin_count == 1
     assert fr.horizon == 1
     # Simple naive model with a perfect trend should have 1.0 MAE
     assert fr.metrics.mae == 1.0

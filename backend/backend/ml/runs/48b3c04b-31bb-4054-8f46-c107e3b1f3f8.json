@@ -1,0 +1,122 @@
+{
+  "run_id": "48b3c04b-31bb-4054-8f46-c107e3b1f3f8",
+  "dataset_name": "nhsn_hrd",
+  "pipeline_version": "1.0.0",
+  "config": {
+    "dataset_name": "nhsn_hrd",
+    "target_column": "icu_beds_occupied",
+    "features": {
+      "lags": [
+        1,
+        2,
+        4,
+        52
+      ],
+      "rolling_windows": [
+        2,
+        4,
+        12
+      ],
+      "include_day_of_week": false,
+      "include_month": true,
+      "include_year": false
+    },
+    "split": {
+      "train_ratio": 0.7,
+      "val_ratio": 0.15,
+      "test_ratio": 0.15
+    },
+    "baseline_model_type": "naive",
+    "baseline_model_kwargs": {},
+    "horizon": 1,
+    "walk_forward_origins": 3,
+    "high_demand_quantile": 0.85,
+    "model_type": "arima",
+    "arima_order": [
+      1,
+      0,
+      0
+    ],
+    "arima_seasonal_order": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "prophet_kwargs": {}
+  },
+  "created_at": "2026-08-16T12:33:37.638947",
+  "forecasts": [
+    {
+      "dataset_name": "nhsn_hrd",
+      "target": "icu_beds_occupied",
+      "model_name": "arima",
+      "split_name": "validation",
+      "horizon": 1,
+      "metrics": {
+        "mae": 3358.3179630176455,
+        "rmse": 3731.0316823941002,
+        "smape": 1.5933087429474322
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 228242.55,
+      "forecast_timestamps": [
+        "2026-05-23",
+        "2026-05-30",
+        "2026-06-06"
+      ],
+      "predictions": [
+        212925.49201084327,
+        210179.38295398303,
+        208087.92107577337
+      ],
+      "actuals": [
+        210342.0,
+        208308.0,
+        213708.0
+      ],
+      "walk_forward_origin_count": 3,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:37.695813"
+    },
+    {
+      "dataset_name": "nhsn_hrd",
+      "target": "icu_beds_occupied",
+      "model_name": "arima",
+      "split_name": "test",
+      "horizon": 1,
+      "metrics": {
+        "mae": 7583.7246168753,
+        "rmse": 9336.157372447591,
+        "smape": 3.594106873800925
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 228242.55,
+      "forecast_timestamps": [
+        "2026-07-04",
+        "2026-07-11",
+        "2026-07-18"
+      ],
+      "predictions": [
+        215235.8830633652,
+        215134.1086252496,
+        205103.8178379889
+      ],
+      "actuals": [
+        215139.0,
+        205368.0,
+        217992.0
+      ],
+      "walk_forward_origin_count": 3,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:37.737860"
+    }
+  ],
+  "total_rows": 92,
+  "train_rows": 28,
+  "val_rows": 6,
+  "test_rows": 6,
+  "feature_count": 11,
+  "artifact_dir": "",
+  "status": "COMPLETED"
+}

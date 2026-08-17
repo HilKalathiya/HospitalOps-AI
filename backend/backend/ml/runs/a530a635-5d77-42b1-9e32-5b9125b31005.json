@@ -1,0 +1,140 @@
+{
+  "run_id": "a530a635-5d77-42b1-9e32-5b9125b31005",
+  "dataset_name": "nhsn_hrd",
+  "pipeline_version": "1.0.0",
+  "config": {
+    "dataset_name": "nhsn_hrd",
+    "target_column": "icu_beds_occupied",
+    "features": {
+      "lags": [
+        1,
+        2,
+        4,
+        52
+      ],
+      "rolling_windows": [
+        2,
+        4,
+        12
+      ],
+      "include_day_of_week": false,
+      "include_month": true,
+      "include_year": false
+    },
+    "split": {
+      "train_ratio": 0.7,
+      "val_ratio": 0.15,
+      "test_ratio": 0.15
+    },
+    "baseline_model_type": "naive",
+    "baseline_model_kwargs": {},
+    "horizon": 2,
+    "walk_forward_origins": 3,
+    "high_demand_quantile": 0.85,
+    "model_type": "arima",
+    "arima_order": [
+      1,
+      0,
+      0
+    ],
+    "arima_seasonal_order": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "prophet_kwargs": {}
+  },
+  "created_at": "2026-08-16T12:33:38.216058",
+  "forecasts": [
+    {
+      "dataset_name": "nhsn_hrd",
+      "target": "icu_beds_occupied",
+      "model_name": "arima",
+      "split_name": "validation",
+      "horizon": 2,
+      "metrics": {
+        "mae": 4061.901904717961,
+        "rmse": 4358.558016187867,
+        "smape": 1.926337226919296
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 228323.1,
+      "forecast_timestamps": [
+        "2026-05-23",
+        "2026-05-30",
+        "2026-05-30",
+        "2026-06-06",
+        "2026-06-06",
+        "2026-06-13"
+      ],
+      "predictions": [
+        212828.08258693593,
+        212653.30881551723,
+        210083.5821838065,
+        209825.48184946502,
+        207994.20253350856,
+        207680.8777749783
+      ],
+      "actuals": [
+        210342.0,
+        208308.0,
+        208308.0,
+        213708.0,
+        213708.0,
+        213849.0
+      ],
+      "walk_forward_origin_count": 3,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:38.266482"
+    },
+    {
+      "dataset_name": "nhsn_hrd",
+      "target": "icu_beds_occupied",
+      "model_name": "arima",
+      "split_name": "test",
+      "horizon": 2,
+      "metrics": {
+        "mae": 3756.4922410725944,
+        "rmse": 5733.555929886085,
+        "smape": 1.779805512766172
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 228323.1,
+      "forecast_timestamps": [
+        "2026-06-27",
+        "2026-07-04",
+        "2026-07-04",
+        "2026-07-11",
+        "2026-07-11",
+        "2026-07-18"
+      ],
+      "predictions": [
+        215176.27810051694,
+        215093.58799023967,
+        215157.16100935382,
+        215076.3523801792,
+        215057.66310156553,
+        214976.35695390636
+      ],
+      "actuals": [
+        215238.0,
+        215139.0,
+        215139.0,
+        205368.0,
+        205368.0,
+        217992.0
+      ],
+      "walk_forward_origin_count": 3,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:38.310888"
+    }
+  ],
+  "total_rows": 92,
+  "train_rows": 27,
+  "val_rows": 5,
+  "test_rows": 7,
+  "feature_count": 11,
+  "artifact_dir": "",
+  "status": "COMPLETED"
+}

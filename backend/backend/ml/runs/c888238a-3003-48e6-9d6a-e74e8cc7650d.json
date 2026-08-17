@@ -1,0 +1,142 @@
+{
+  "run_id": "c888238a-3003-48e6-9d6a-e74e8cc7650d",
+  "dataset_name": "nhsn_hrd",
+  "pipeline_version": "1.0.0",
+  "config": {
+    "dataset_name": "nhsn_hrd",
+    "target_column": "icu_beds_occupied",
+    "features": {
+      "lags": [
+        1,
+        2,
+        4,
+        52
+      ],
+      "rolling_windows": [
+        2,
+        4,
+        12
+      ],
+      "include_day_of_week": false,
+      "include_month": true,
+      "include_year": false
+    },
+    "split": {
+      "train_ratio": 0.7,
+      "val_ratio": 0.15,
+      "test_ratio": 0.15
+    },
+    "baseline_model_type": "seasonal_naive",
+    "baseline_model_kwargs": {
+      "seasonal_period": 52
+    },
+    "horizon": 2,
+    "walk_forward_origins": 3,
+    "high_demand_quantile": 0.85,
+    "model_type": "baseline",
+    "arima_order": [
+      1,
+      0,
+      0
+    ],
+    "arima_seasonal_order": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "prophet_kwargs": {}
+  },
+  "created_at": "2026-08-16T12:33:38.198023",
+  "forecasts": [
+    {
+      "dataset_name": "nhsn_hrd",
+      "target": "icu_beds_occupied",
+      "model_name": "seasonal_naive",
+      "split_name": "validation",
+      "horizon": 2,
+      "metrics": {
+        "mae": 3200.4,
+        "rmse": 4545.405328460819,
+        "smape": 1.5022933510726673
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 228323.1,
+      "forecast_timestamps": [
+        "2026-05-23",
+        "2026-05-30",
+        "2026-06-06",
+        "2026-06-13",
+        "2026-06-20"
+      ],
+      "predictions": [
+        211779.0,
+        217800.0,
+        212067.0,
+        214434.0,
+        212412.0
+      ],
+      "actuals": [
+        210342.0,
+        208308.0,
+        213708.0,
+        213849.0,
+        215259.0
+      ],
+      "walk_forward_origin_count": 1,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:38.213055"
+    },
+    {
+      "dataset_name": "nhsn_hrd",
+      "target": "icu_beds_occupied",
+      "model_name": "seasonal_naive",
+      "split_name": "test",
+      "horizon": 2,
+      "metrics": {
+        "mae": 4374.0,
+        "rmse": 5223.758745249576,
+        "smape": 2.0657349862853387
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 228323.1,
+      "forecast_timestamps": [
+        "2026-06-27",
+        "2026-07-04",
+        "2026-07-11",
+        "2026-07-18",
+        "2026-07-25",
+        "2026-08-01",
+        "2026-08-08"
+      ],
+      "predictions": [
+        214278.0,
+        207117.0,
+        210570.0,
+        210489.0,
+        213624.0,
+        208770.0,
+        211401.0
+      ],
+      "actuals": [
+        215238.0,
+        215139.0,
+        205368.0,
+        217992.0,
+        215103.0,
+        214989.0,
+        210168.0
+      ],
+      "walk_forward_origin_count": 1,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:38.215056"
+    }
+  ],
+  "total_rows": 92,
+  "train_rows": 27,
+  "val_rows": 5,
+  "test_rows": 7,
+  "feature_count": 11,
+  "artifact_dir": "",
+  "status": "COMPLETED"
+}

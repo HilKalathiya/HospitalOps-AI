@@ -41,7 +41,13 @@ class ForecastConfig(BaseModel):
     )
 
     # Chunk 2.3 Additions
-    model_type: str = Field(default="baseline", description="Category of model: baseline, arima, prophet")
+    model_type: str = Field(
+        default="baseline", description="Category of model: baseline, arima, prophet"
+    )
     arima_order: tuple[int, int, int] = Field(default=(1, 0, 0), description="(p, d, q) for ARIMA")
-    arima_seasonal_order: tuple[int, int, int, int] = Field(default=(0, 0, 0, 0), description="(P, D, Q, s) for SARIMA")
-    prophet_kwargs: dict = Field(default_factory=dict, description="Configuration overrides for Prophet")
+    arima_seasonal_order: tuple[int, int, int, int] = Field(
+        default=(0, 0, 0, 0), description="(P, D, Q, s) for SARIMA"
+    )
+    prophet_kwargs: dict = Field(
+        default_factory=dict, description="Configuration overrides for Prophet"
+    )

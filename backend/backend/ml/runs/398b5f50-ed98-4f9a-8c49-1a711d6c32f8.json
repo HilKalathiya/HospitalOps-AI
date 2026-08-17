@@ -1,0 +1,126 @@
+{
+  "run_id": "398b5f50-ed98-4f9a-8c49-1a711d6c32f8",
+  "dataset_name": "hero_dmc",
+  "pipeline_version": "1.0.0",
+  "config": {
+    "dataset_name": "hero_dmc",
+    "target_column": "daily_admissions",
+    "features": {
+      "lags": [
+        1,
+        7,
+        14,
+        30
+      ],
+      "rolling_windows": [
+        7,
+        14,
+        28
+      ],
+      "include_day_of_week": true,
+      "include_month": true,
+      "include_year": false
+    },
+    "split": {
+      "train_ratio": 0.7,
+      "val_ratio": 0.15,
+      "test_ratio": 0.15
+    },
+    "baseline_model_type": "naive",
+    "baseline_model_kwargs": {},
+    "horizon": 1,
+    "walk_forward_origins": 3,
+    "high_demand_quantile": 0.9,
+    "model_type": "arima",
+    "arima_order": [
+      1,
+      1,
+      1
+    ],
+    "arima_seasonal_order": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "prophet_kwargs": {}
+  },
+  "created_at": "2026-08-16T12:33:13.476622",
+  "forecasts": [
+    {
+      "dataset_name": "hero_dmc",
+      "target": "daily_admissions",
+      "model_name": "arima",
+      "split_name": "validation",
+      "horizon": 1,
+      "metrics": {
+        "mae": 5.2955690173979635,
+        "rmse": 6.441021921648384,
+        "smape": 31.960215004727786
+      },
+      "high_demand_metrics": null,
+      "high_demand_threshold": 30.0,
+      "forecast_timestamps": [
+        "2018-09-02",
+        "2018-09-03",
+        "2018-09-04"
+      ],
+      "predictions": [
+        18.55630152963589,
+        16.84319504511122,
+        19.173600567669222
+      ],
+      "actuals": [
+        10.0,
+        24.0,
+        19.0
+      ],
+      "walk_forward_origin_count": 3,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:13.595927"
+    },
+    {
+      "dataset_name": "hero_dmc",
+      "target": "daily_admissions",
+      "model_name": "arima",
+      "split_name": "test",
+      "horizon": 1,
+      "metrics": {
+        "mae": 6.269652886518597,
+        "rmse": 7.153074383806858,
+        "smape": 25.0114474363257
+      },
+      "high_demand_metrics": {
+        "mae": 9.32634875760408,
+        "rmse": 9.32634875760408,
+        "smape": 32.91246832752963
+      },
+      "high_demand_threshold": 30.0,
+      "forecast_timestamps": [
+        "2018-12-16",
+        "2018-12-17",
+        "2018-12-18"
+      ],
+      "predictions": [
+        26.024496461995437,
+        23.67365124239592,
+        26.458113439956275
+      ],
+      "actuals": [
+        18.0,
+        33.0,
+        25.0
+      ],
+      "walk_forward_origin_count": 3,
+      "pipeline_version": "1.0.0",
+      "created_at": "2026-08-16T12:33:13.724026"
+    }
+  ],
+  "total_rows": 730,
+  "train_rows": 489,
+  "val_rows": 105,
+  "test_rows": 106,
+  "feature_count": 12,
+  "artifact_dir": "",
+  "status": "COMPLETED"
+}

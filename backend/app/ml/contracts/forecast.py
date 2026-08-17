@@ -11,6 +11,7 @@ class ForecastResult(BaseModel):
     dataset_name: str
     target: str
     model_name: str
+    split_name: str = "test"
     horizon: int
 
     # Core Evaluation

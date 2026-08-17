@@ -1,0 +1,61 @@
+{
+  "run_id": "183dcc85-2087-49f0-a312-3c1d2b2b806d",
+  "dataset_name": "hero_dmc",
+  "pipeline_version": "1.0.0",
+  "config": {
+    "dataset_name": "hero_dmc",
+    "target_column": "daily_admissions",
+    "features": {
+      "lags": [
+        1,
+        7,
+        14,
+        30
+      ],
+      "rolling_windows": [
+        7,
+        14,
+        28
+      ],
+      "include_day_of_week": true,
+      "include_month": true,
+      "include_year": false
+    },
+    "split": {
+      "train_ratio": 0.7,
+      "val_ratio": 0.15,
+      "test_ratio": 0.15
+    },
+    "baseline_model_type": "naive",
+    "baseline_model_kwargs": {},
+    "horizon": 7,
+    "walk_forward_origins": 3,
+    "high_demand_quantile": 0.9,
+    "model_type": "prophet",
+    "arima_order": [
+      1,
+      0,
+      0
+    ],
+    "arima_seasonal_order": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "prophet_kwargs": {
+      "yearly_seasonality": false,
+      "weekly_seasonality": true,
+      "daily_seasonality": false
+    }
+  },
+  "created_at": "2026-08-16T12:33:16.143372",
+  "forecasts": [],
+  "total_rows": 730,
+  "train_rows": 485,
+  "val_rows": 104,
+  "test_rows": 105,
+  "feature_count": 12,
+  "artifact_dir": "",
+  "status": "COMPLETED"
+}

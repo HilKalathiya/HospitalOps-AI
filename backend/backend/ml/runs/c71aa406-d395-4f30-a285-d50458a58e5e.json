@@ -1,0 +1,61 @@
+{
+  "run_id": "c71aa406-d395-4f30-a285-d50458a58e5e",
+  "dataset_name": "nhsn_hrd",
+  "pipeline_version": "1.0.0",
+  "config": {
+    "dataset_name": "nhsn_hrd",
+    "target_column": "icu_beds_occupied",
+    "features": {
+      "lags": [
+        1,
+        2,
+        4,
+        52
+      ],
+      "rolling_windows": [
+        2,
+        4,
+        12
+      ],
+      "include_day_of_week": false,
+      "include_month": true,
+      "include_year": false
+    },
+    "split": {
+      "train_ratio": 0.7,
+      "val_ratio": 0.15,
+      "test_ratio": 0.15
+    },
+    "baseline_model_type": "naive",
+    "baseline_model_kwargs": {},
+    "horizon": 1,
+    "walk_forward_origins": 3,
+    "high_demand_quantile": 0.85,
+    "model_type": "prophet",
+    "arima_order": [
+      1,
+      0,
+      0
+    ],
+    "arima_seasonal_order": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "prophet_kwargs": {
+      "yearly_seasonality": true,
+      "weekly_seasonality": false,
+      "daily_seasonality": false
+    }
+  },
+  "created_at": "2026-08-16T12:33:37.868909",
+  "forecasts": [],
+  "total_rows": 92,
+  "train_rows": 28,
+  "val_rows": 6,
+  "test_rows": 6,
+  "feature_count": 11,
+  "artifact_dir": "",
+  "status": "COMPLETED"
+}

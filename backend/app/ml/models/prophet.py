@@ -1,6 +1,7 @@
+import logging
+
 import pandas as pd
 from prophet import Prophet
-import logging
 
 from app.ml.contracts.model import ForecastModel
 
@@ -15,7 +16,7 @@ class ProphetForecastModel(ForecastModel):
         self.time_column = time_column
         self.prophet_kwargs = prophet_kwargs
         self.model = None
-        
+
         # Suppress Prophet's very noisy stdout logging
         logging.getLogger("prophet").setLevel(logging.ERROR)
         logging.getLogger("cmdstanpy").disabled = True
@@ -27,15 +28,12 @@ class ProphetForecastModel(ForecastModel):
         """
         if self.time_column not in X_train.columns:
             raise ValueError(f"Time column '{self.time_column}' is missing from X_train.")
-            
-        df_prophet = pd.DataFrame({
-            "ds": X_train[self.time_column],
-            "y": y_train
-        }).dropna()
-        
+
+        df_prophet = pd.DataFrame({"ds": X_train[self.time_column], "y": y_train}).dropna()
+
         if len(df_prophet) == 0:
             raise ValueError("Training target series is empty.")
-            
+
         # Extract controlled args, fallback to defaults
         kwargs = {}
         if "yearly_seasonality" in self.prophet_kwargs:
@@ -48,27 +46,31 @@ class ProphetForecastModel(ForecastModel):
             kwargs["changepoint_prior_scale"] = self.prophet_kwargs["changepoint_prior_scale"]
 
         self.model = Prophet(**kwargs)
-        
+
         try:
             self.model.fit(df_prophet)
         except Exception as e:
             raise RuntimeError(f"Prophet fit failed: {e}")
 
-    def predict(self, X: pd.DataFrame) -> pd.Series:
+    def predict(self, X: pd.DataFrame) -> tuple[pd.Series, pd.Series | None, pd.Series | None]:
         """
         Predicts future values.
         Prophet needs a DataFrame with the 'ds' column representing future dates.
         """
         if self.model is None:
             raise ValueError("Prophet model is not fitted.")
-            
+
         if len(X) == 0:
-            return pd.Series([], index=X.index)
-            
+            return pd.Series([], index=X.index), None, None
+
         if self.time_column not in X.columns:
             raise ValueError(f"Time column '{self.time_column}' is missing from X.")
-            
+
         df_future = pd.DataFrame({"ds": X[self.time_column]})
         forecast = self.model.predict(df_future)
-        
-        return pd.Series(forecast["yhat"].values, index=X.index)
+
+        y_pred = pd.Series(forecast["yhat"].values, index=X.index)
+        y_lower = pd.Series(forecast["yhat_lower"].values, index=X.index)
+        y_upper = pd.Series(forecast["yhat_upper"].values, index=X.index)
+
+        return y_pred, y_lower, y_upper

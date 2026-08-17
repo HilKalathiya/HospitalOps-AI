@@ -11,21 +11,21 @@ from app.ml.models.baseline import (
 def test_naive_baseline():
     model = NaiveBaselineModel(target_column="y", lag_column="y_lag_1")
     X = pd.DataFrame({"y_lag_1": [10, 20, 30]})
-    preds = model.predict(X)
+    preds, _, _ = model.predict(X)
     assert list(preds) == [10, 20, 30]
 
 
 def test_seasonal_naive_baseline():
     model = SeasonalNaiveBaselineModel(target_column="y", seasonal_lag_column="y_lag_7")
     X = pd.DataFrame({"y_lag_7": [1, 2, 3]})
-    preds = model.predict(X)
+    preds, _, _ = model.predict(X)
     assert list(preds) == [1, 2, 3]
 
 
 def test_moving_average_baseline():
     model = MovingAverageBaselineModel(target_column="y", rolling_mean_column="y_roll_7")
     X = pd.DataFrame({"y_roll_7": [15.5, 16.0]})
-    preds = model.predict(X)
+    preds, _, _ = model.predict(X)
     assert list(preds) == [15.5, 16.0]
 
 

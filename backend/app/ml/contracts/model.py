@@ -14,6 +14,6 @@ class ForecastModel(ABC):
         pass
 
     @abstractmethod
-    def predict(self, X: pd.DataFrame) -> pd.Series:
-        """Predict the target for the given features."""
+    def predict(self, X: pd.DataFrame) -> tuple[pd.Series, pd.Series | None, pd.Series | None]:
+        """Predict the target. Returns (y_pred, y_lower, y_upper)."""
         pass
