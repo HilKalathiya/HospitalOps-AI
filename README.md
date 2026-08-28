@@ -1,4 +1,4 @@
-# HospitalOps AI — Complete Technical Architecture & Interview Study Manual
+# HospitalOps AI — Complete Technical Architecture.
 
 **Subtitle:** Deep Technical Guide to Hospital Operations Intelligence, Forecasting, Optimization and Agentic AI
 **Focus:** Engineering, Architecture, Machine Learning, and System Design
