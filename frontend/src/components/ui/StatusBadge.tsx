@@ -16,6 +16,14 @@ interface StatusBadgeProps {
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) => {
   let colorClass = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
   
+  if (!status) {
+    return (
+      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border", colorClass, className)}>
+        UNKNOWN
+      </span>
+    )
+  }
+
   const s = status.toUpperCase()
   
   if (['ACTIVE', 'AVAILABLE', 'OPERATIONAL', 'LOW'].includes(s)) {
