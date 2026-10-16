@@ -25,7 +25,7 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules          # Prevent host node_modules from overriding
+      - frontend-node-modules:/app/node_modules
     environment:
       - VITE_API_BASE_URL=/api/v1
       # VITE_API_TARGET tells the Vite dev server proxy where to forward /api requests.
@@ -125,4 +125,6 @@ volumes:
   mongodb-config:
     driver: local
   redis-data:
+    driver: local
+  frontend-node-modules:
     driver: local
