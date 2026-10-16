@@ -1,0 +1,27 @@
+# Ignore huge raw data from Docker build context
+backend/data/
+backend/data/**
+**/data/raw/**
+*.csv
+*.parquet
+*.gz
+*.tar
+*.zip
+*.json.gz
+
+# Nested duplicate directories
+backend/backend/
+backend/backend/**
+
+# Virtual environments
+**/.venv/
+**/venv/
+**/node_modules/
+
+# Caches
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.git/
+**/.env

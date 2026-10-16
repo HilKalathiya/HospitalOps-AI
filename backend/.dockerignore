@@ -1,9 +1,36 @@
-.venv
-__pycache__
+# Ignore huge raw data and datasets from Docker build context
+data/
+data/**
+*.csv
+*.parquet
+*.gz
+*.tar
+*.zip
+*.json.gz
+
+# Nested duplicate directories
+backend/
+backend/**
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache and temporary files
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache
-.ruff_cache
-.git
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Git and credentials
+.git/
+.gitignore
 .env
+.env.*
+*.log
