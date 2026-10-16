@@ -36,6 +36,45 @@ async def lifespan(app: FastAPI):
         await init_db(settings)
         await init_indexes()
         await init_redis(settings)
+
+        # Ensure demo users exist for local development
+        import uuid
+        from app.core.security import get_password_hash
+        from app.database.client import get_database
+        from app.models.user import Role, UserDocument
+        from app.repositories.users import UserRepository
+
+        db = await get_database()
+        user_repo = UserRepository(db)
+        admin_user = await user_repo.find_by_email("admin@hospitalops.local")
+        if not admin_user:
+            demo_users = [
+                UserDocument(
+                    user_id=str(uuid.uuid4()),
+                    email="admin@hospitalops.local",
+                    name="System Administrator",
+                    password_hash=get_password_hash("adminpassword123"),
+                    role=Role.ADMIN,
+                ),
+                UserDocument(
+                    user_id=str(uuid.uuid4()),
+                    email="doctor@hospitalops.local",
+                    name="Dr. Sarah Chen",
+                    password_hash=get_password_hash("doctorpassword123"),
+                    role=Role.DOCTOR,
+                    department_id="ER",
+                ),
+                UserDocument(
+                    user_id=str(uuid.uuid4()),
+                    email="manager@hospitalops.local",
+                    name="James Wilson",
+                    password_hash=get_password_hash("managerpassword123"),
+                    role=Role.OPERATIONS_MANAGER,
+                ),
+            ]
+            for user in demo_users:
+                await user_repo.create_user(user)
+            logger.info("Demo users auto-seeded successfully")
     except Exception as exc:
         logger.critical(
             "Database/Redis initialization failed during startup. "
@@ -103,6 +142,20 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
 
     # ── Exception handlers ────────────────────────────────────────────────────
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            headers=getattr(exc, "headers", None),
+            content={
+                "error": "HTTP_ERROR",
+                "message": str(exc.detail),
+                "detail": exc.detail,
+            },
+        )
+
     @app.exception_handler(HospitalOpsError)
     async def hospitalops_error_handler(request: Request, exc: HospitalOpsError) -> JSONResponse:
         return JSONResponse(
@@ -124,7 +177,7 @@ def create_app() -> FastAPI:
             content={
                 "error": "INTERNAL_SERVER_ERROR",
                 "message": "An unexpected error occurred.",
-                "detail": None,
+                "detail": str(exc) if settings.app_env == "development" else None,
             },
         )
 

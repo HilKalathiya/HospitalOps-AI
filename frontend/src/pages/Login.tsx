@@ -36,7 +36,15 @@ export const Login: React.FC = () => {
       console.error('Login error:', err)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiError = (err as any)?.apiError
-      setError(apiError?.detail || 'Invalid email or password')
+      let errorMsg = 'Invalid email or password'
+      if (typeof apiError?.detail === 'string') {
+        errorMsg = apiError.detail
+      } else if (Array.isArray(apiError?.detail) && apiError.detail.length > 0) {
+        errorMsg = apiError.detail[0]?.msg || 'Validation failed'
+      } else if (apiError?.message && typeof apiError.message === 'string') {
+        errorMsg = apiError.message
+      }
+      setError(errorMsg)
     } finally {
       setIsSubmitting(false)
     }

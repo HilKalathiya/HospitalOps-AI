@@ -22,7 +22,7 @@ settings = get_settings()
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 

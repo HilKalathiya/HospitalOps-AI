@@ -53,7 +53,7 @@ class UserCreate(TimestampedModel):
     Schema for creating a new user (internal or admin API).
     """
 
-    email: EmailStr
+    email: str = Field(..., max_length=255)
     name: str
     password: str = Field(
         ..., min_length=8, description="Plaintext password (must be hashed before saving)."

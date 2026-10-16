@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { apiClient } from '../api/client'
+import { apiClient, setAccessToken } from '../api/client'
 
 export interface User {
   user_id: string
@@ -29,15 +29,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load user profile when we get a token (or on mount if we had one)
-  const fetchUser = async () => {
+  // Load user profile when we get a token
+  const fetchUser = async (authToken?: string) => {
     try {
+      if (authToken) {
+        setAccessToken(authToken)
+      }
       const data = await apiClient.get<User>('/auth/me')
       setUser(data)
+      return data
     } catch (error) {
       console.error('Failed to fetch user profile:', error)
       setUser(null)
       setToken(null)
+      setAccessToken(null)
+      return null
     }
   }
 
@@ -48,8 +54,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const tryRestoreSession = async () => {
       try {
         const { access_token } = await apiClient.post<{ access_token: string }>('/auth/refresh')
-        if (mounted) {
+        if (mounted && access_token) {
+          setAccessToken(access_token)
           setToken(access_token)
+          const profile = await apiClient.get<User>('/auth/me')
+          if (mounted) {
+            setUser(profile)
+          }
         }
       } catch {
         // Normal if there's no active session
@@ -67,17 +78,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  // Refetch user profile when token changes
-  useEffect(() => {
-    if (token) {
-      fetchUser()
-    } else {
-      setUser(null)
-    }
-  }, [token])
-
   const login = async (newToken: string) => {
+    setAccessToken(newToken)
     setToken(newToken)
+    const userProfile = await fetchUser(newToken)
+    if (!userProfile) {
+      throw new Error('Could not load user profile')
+    }
   }
 
   const logout = async () => {
@@ -86,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Logout failed:', error)
     } finally {
+      setAccessToken(null)
       setToken(null)
       setUser(null)
     }
@@ -99,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     token,
     isAuthenticated: !!user,
-    isLoading,
+    isLoading: isLoading || (!!token && !user),
     login,
     logout,
     hasPermission,

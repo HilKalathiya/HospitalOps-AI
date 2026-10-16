@@ -102,7 +102,8 @@ class AuthService:
 
     async def create_tokens(self, user: UserDocument) -> AuthTokens:
         """Create a short-lived JWT and a long-lived Redis-backed refresh session."""
-        access_token = create_access_token(subject=user.user_id, role=user.role.value)
+        role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+        access_token = create_access_token(subject=user.user_id, role=role_str)
 
         # Generate a secure random string for the refresh token/session ID
         refresh_token = secrets.token_urlsafe(64)

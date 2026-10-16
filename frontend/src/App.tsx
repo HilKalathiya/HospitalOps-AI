@@ -5,11 +5,13 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { Login } from './pages/Login'
 import { DashboardShell } from './components/layout/DashboardShell'
 import { Dashboard } from './pages/Dashboard/Dashboard'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -28,6 +30,7 @@ function App() {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+  </ErrorBoundary>
   )
 }
 
