@@ -157,6 +157,7 @@ async def run_benchmark(
                             "test_mae": fr_test.metrics.mae,
                             "test_rmse": fr_test.metrics.rmse,
                             "test_smape": fr_test.metrics.smape,
+                            "test_mape": fr_test.metrics.mape,
                             "test_surge_mae": fr_test.high_demand_metrics.mae
                             if fr_test.high_demand_metrics
                             else None,
@@ -194,6 +195,9 @@ async def run_benchmark(
                     "Test MAE": round(best_base["test_mae"], 2),
                     "Test RMSE": round(best_base["test_rmse"], 2),
                     "Test sMAPE": round(best_base["test_smape"], 2),
+                    "Test MAPE": round(best_base["test_mape"], 2)
+                    if pd.notna(best_base.get("test_mape"))
+                    else None,
                 }
             )
 
@@ -212,6 +216,9 @@ async def run_benchmark(
                     "Test MAE": round(best_arima["test_mae"], 2),
                     "Test RMSE": round(best_arima["test_rmse"], 2),
                     "Test sMAPE": round(best_arima["test_smape"], 2),
+                    "Test MAPE": round(best_arima["test_mape"], 2)
+                    if pd.notna(best_arima.get("test_mape"))
+                    else None,
                 }
             )
 
@@ -230,6 +237,9 @@ async def run_benchmark(
                     "Test MAE": round(best_prophet["test_mae"], 2),
                     "Test RMSE": round(best_prophet["test_rmse"], 2),
                     "Test sMAPE": round(best_prophet["test_smape"], 2),
+                    "Test MAPE": round(best_prophet["test_mape"], 2)
+                    if pd.notna(best_prophet.get("test_mape"))
+                    else None,
                 }
             )
 
@@ -248,6 +258,9 @@ async def run_benchmark(
                     "Test MAE": round(best_lstm["test_mae"], 2),
                     "Test RMSE": round(best_lstm["test_rmse"], 2),
                     "Test sMAPE": round(best_lstm["test_smape"], 2),
+                    "Test MAPE": round(best_lstm["test_mape"], 2)
+                    if pd.notna(best_lstm.get("test_mape"))
+                    else None,
                 }
             )
 

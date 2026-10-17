@@ -62,7 +62,11 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | 2.2 | Baseline Forecasting Models | ✅ Complete | Naive, Seasonal Naive, Moving Average |
 | | 2.3 | ARIMA & Prophet Comparison | ✅ Complete | SARIMAX, Prophet, walk-forward CV |
 | | 2.4 | Deep Learning Forecasting | ✅ Complete | PyTorch LSTM, Monte Carlo Dropout (95% CI) |
-| **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 111 total passed |
+| | **2.5** | **Model Evaluation & Selection** | ✅ Complete | Leakage-free validation-only selection, MAE/RMSE/sMAPE/MAPE, benchmark report, 120 tests passed |
+| | 2.6 | MLflow Integration | ⬜ Planned | Centralized experiment tracking, model registry |
+| | 2.7 | Forecasting API | ⬜ Planned | REST endpoints for inferences & predictions |
+| | 2.8 | Forecast Dashboard | ⬜ Planned | Dynamic forecast charts, CI bounds, UI telemetry |
+| **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
 | | 3.2 | Simulation UI & Scenario Comparison | ⬜ Planned | Frontend scenario runner, overlay charts |
 | **M4: Resource Optimization**| 4.1 | Optimization Engine (MIP) | ⬜ Planned | PuLP/OR-Tools constraint solver |
 | **M5: Agentic AI & RAG** | 5.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | LangChain tools, vector retrieval |
@@ -80,4 +84,33 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `RESOURCE_BOTTLENECK`: Assesses equipment requirements (e.g. ventilators per occupied bed) against current operational inventory.
   3. **Safety & Isolation:** Strictly read-only against live collections (`beds`, `admissions`, `resources`, `patients`). Simulation runs are written exclusively to `simulation_runs` with audit trail in `audit_logs`.
   4. **RBAC:** Secured behind `simulation.run` (Admin, Manager) and `simulation.read` (Admin, Manager, Doctor, Viewer).
-* **Next Chunk:** Milestone 3, Chunk 3.2 (Simulation UI & Scenario Comparison) or Milestone 4, Chunk 4.1 (Optimization Engine).
+
+---
+
+## 5. Completed Workstream: Milestone 2, Chunk 2.5 (Model Evaluation and Selection Engine)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Comprehensive Metric Calculation Suite:**
+     - Implemented `calculate_mae`, `calculate_rmse`, `safe_smape`, and `safe_mape` in `app/ml/contracts/evaluation.py`.
+     - Preserved physical target units (admissions for daily series, beds for weekly capacity).
+     - Robust zero-handling in `safe_mape`: provides `"filter"` (evaluates on non-zero points, returns `0.0%` if all zeros match, or `None` if zero actuals have non-zero predictions to prevent false 0.0% claims), `"epsilon"` (bounded denominator), and `"raise"` modes.
+     - Integrated `mape` computation directly into `MLPipelineOrchestrator` evaluation pipeline.
+  2. **Strict Leakage-Free Model Selection:**
+     - `ModelSelector` (`app/ml/selection/selector.py`) selects the optimal model strictly based on validation metrics (`val_mae`, tie-breaker `val_rmse`).
+     - Held-out test split metrics are completely isolated from ranking and selection logic, surfaced solely for unbiased post-selection reporting.
+     - Guarantees fair comparison across strictly compatible slices (dataset, target, horizon, and cadence).
+  3. **Multi-Model Benchmark & Artifact Persistence:**
+     - `BenchmarkEvaluator` (`app/ml/selection/benchmark.py`) loads and deduplicates runs across `backend/ml/runs` and `backend/backend/ml/runs`.
+     - Generates reproducible, auditable benchmark summaries:
+       - `backend/ml/evaluations/model_selection_report.json`
+       - `backend/ml/evaluations/model_selection_summary.md`
+     - Evaluated across Naive, Seasonal Naive, Moving Average, ARIMA/SARIMAX, Prophet, and LSTM models.
+     - Explicitly surfaces missing or failed model runs (`FAILED`, `MISSING`) so gaps are transparent.
+  4. **Verification & Testing:**
+     - 9 comprehensive tests in `backend/tests/test_ml/test_evaluation_selection.py` (known math examples, zero actuals handling, adversarial leakage tests, split integrity, artifact roundtrip).
+     - All 30 ML tests passed (29 passed, 1 skipped).
+     - Full test suite: 120 passed, 10 skipped in 38.14s.
+     - `ruff check` on backend: 0 errors.
+     - Frontend build: built in 1.82s, zero errors.
+* **Next Chunk:** Milestone 2, Chunk 2.6 (MLflow Integration) or Milestone 2, Chunk 2.7 (Forecasting API).

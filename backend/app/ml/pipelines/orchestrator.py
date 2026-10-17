@@ -6,7 +6,7 @@ from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
 from app.ml.contracts.config import ForecastConfig
 from app.ml.contracts.dataset import MLDataset
-from app.ml.contracts.evaluation import EvaluationMetrics, safe_smape
+from app.ml.contracts.evaluation import EvaluationMetrics, safe_mape, safe_smape
 from app.ml.contracts.experiment import ExperimentRun
 from app.ml.contracts.forecast import ForecastResult
 from app.ml.features.engineer import FeatureEngineer
@@ -286,6 +286,7 @@ class MLPipelineOrchestrator:
                     mae=mean_absolute_error(y_true_surge, y_pred_surge),
                     rmse=root_mean_squared_error(y_true_surge, y_pred_surge),
                     smape=safe_smape(y_true_surge, y_pred_surge),
+                    mape=safe_mape(y_true_surge, y_pred_surge),
                 )
 
         valid_idx = ~y_true.isna() & ~y_pred.isna()
@@ -297,9 +298,10 @@ class MLPipelineOrchestrator:
                 mae=mean_absolute_error(y_true_clean, y_pred_clean),
                 rmse=root_mean_squared_error(y_true_clean, y_pred_clean),
                 smape=safe_smape(y_true_clean, y_pred_clean),
+                mape=safe_mape(y_true_clean, y_pred_clean),
             )
         else:
-            eval_metrics = EvaluationMetrics(mae=0.0, rmse=0.0, smape=0.0)
+            eval_metrics = EvaluationMetrics(mae=0.0, rmse=0.0, smape=0.0, mape=0.0)
 
         model_name = self.config.model_type
         if model_name == "baseline":

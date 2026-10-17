@@ -201,6 +201,11 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 2.1 | Data / ML Pipeline Foundation | ✅ Complete |
 | 2.2 | Baseline Forecasting Models | ✅ Complete |
 | 2.3 | ARIMA + Prophet Statistical Forecasting | ✅ Complete |
+| 2.4 | Deep Learning Forecasting with LSTM | ✅ Complete |
+| 2.5 | Model Evaluation & Selection Engine | ✅ Complete |
+| 2.6 | MLflow Integration | ⬜ Planned |
+| 2.7 | Forecasting API | ⬜ Planned |
+| 2.8 | Forecast Dashboard | ⬜ Planned |
 | 3.1 | What-if Simulation Engine | ✅ Complete |
 | 3.2 | Scenario Comparison & Simulation UI | ⬜ Planned |
 | 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |

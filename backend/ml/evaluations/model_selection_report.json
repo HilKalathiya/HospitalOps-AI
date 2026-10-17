@@ -1,0 +1,1413 @@
+{
+  "report_id": "10682c5c-d231-4dc3-ab36-7a961ff2da43",
+  "generated_at": "2026-10-17T13:04:11.392573Z",
+  "comparisons": [
+    {
+      "dataset_name": "hero_dmc",
+      "target_column": "daily_admissions",
+      "horizon": 1,
+      "horizon_unit": "d",
+      "target_units": "admissions",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "arima",
+        "config_name": "sarima_1_0_0_7",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 2.321564811758483,
+          "rmse": 3.2793091619861294,
+          "smape": 13.470112723643803,
+          "mape": 11.876942676615359
+        },
+        "test_metrics": {
+          "mae": 3.568182988616036,
+          "rmse": 4.06378271239912,
+          "smape": 13.528186713577517,
+          "mape": 13.194375024568542
+        },
+        "run_id": "76f062d8-0099-4b67-9c74-c0be7e44de53",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "arima",
+          "config_name": "sarima_1_0_0_7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 2.321564811758483,
+            "rmse": 3.2793091619861294,
+            "smape": 13.470112723643803,
+            "mape": 11.876942676615359
+          },
+          "test_metrics": {
+            "mae": 3.568182988616036,
+            "rmse": 4.06378271239912,
+            "smape": 13.528186713577517,
+            "mape": 13.194375024568542
+          },
+          "run_id": "76f062d8-0099-4b67-9c74-c0be7e44de53",
+          "rank": 1
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3.1543393643430124,
+            "rmse": 3.5931111952070367,
+            "smape": 7.729421568046673,
+            "mape": 7.556006548004758
+          },
+          "test_metrics": {
+            "mae": 3.177633829928365,
+            "rmse": 3.502645470105527,
+            "smape": 6.725813660970416,
+            "mape": 6.591738856666386
+          },
+          "run_id": "30f676c9-9429-46d9-acc0-cf3864f1ac13",
+          "rank": 2
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.2955690173979635,
+            "rmse": 6.441021921648384,
+            "smape": 31.960215004727786,
+            "mape": 38.765574379995954
+          },
+          "test_metrics": {
+            "mae": 6.269652886518597,
+            "rmse": 7.153074383806858,
+            "smape": 25.0114474363257,
+            "mape": 26.2248841872101
+          },
+          "run_id": "398b5f50-ed98-4f9a-8c49-1a711d6c32f8",
+          "rank": 3
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.296598639455782,
+            "rmse": 6.441468544268668,
+            "smape": 23.09672750048816,
+            "mape": 25.267373666089117
+          },
+          "test_metrics": {
+            "mae": 6.218328840970351,
+            "rmse": 7.6875597740224615,
+            "smape": 24.73760151101805,
+            "mape": 30.32231445014611
+          },
+          "run_id": "6e41a2b5-9e14-4907-a3e1-f26e170c1441",
+          "rank": 4
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w28",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.321768707482994,
+            "rmse": 6.53517060301379,
+            "smape": 23.17512683107784,
+            "mape": 24.811118224686084
+          },
+          "test_metrics": {
+            "mae": 5.88544474393531,
+            "rmse": 7.434284036123795,
+            "smape": 23.497974358330108,
+            "mape": 29.012898392400956
+          },
+          "run_id": "d68bbd91-d776-4f66-b3b5-2857173e3523",
+          "rank": 5
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w14",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.38843537414966,
+            "rmse": 6.540391805978031,
+            "smape": 23.467491224869757,
+            "mape": 25.403860160403696
+          },
+          "test_metrics": {
+            "mae": 5.862533692722372,
+            "rmse": 7.55426396945054,
+            "smape": 23.357503272091247,
+            "mape": 29.046359799377065
+          },
+          "run_id": "0e61b25b-d289-413a-9153-4d422e9d071d",
+          "rank": 6
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 6.20952380952381,
+            "rmse": 7.595738153414591,
+            "smape": 27.453650050211984,
+            "mape": 28.762300244839857
+          },
+          "test_metrics": {
+            "mae": 6.716981132075472,
+            "rmse": 8.65153492761681,
+            "smape": 26.879078047971483,
+            "mape": 31.404011011008343
+          },
+          "run_id": "d6a5b0d6-ba44-4df2-86dc-91cb18a34155",
+          "rank": 7
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 6.331205045668686,
+            "rmse": 8.74521592047044,
+            "smape": 38.13295120558208,
+            "mape": 29.6060434217481
+          },
+          "test_metrics": {
+            "mae": 10.586901707742593,
+            "rmse": 11.466745227211845,
+            "smape": 42.92610622040164,
+            "mape": 42.16843992639203
+          },
+          "run_id": "7a908c8e-14e2-4c08-bad5-a1cf64a64fdc",
+          "rank": 8
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_default",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "1fd20def-e11f-4389-a1c9-8168d827a68c",
+          "rank": null
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_weekly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "bf936c9b-083a-4cba-b22c-5f4fbcd806b0",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 8 successful configurations. 3 failed or missing. Winner selected purely on validation MAE."
+    },
+    {
+      "dataset_name": "hero_dmc",
+      "target_column": "daily_admissions",
+      "horizon": 7,
+      "horizon_unit": "d",
+      "target_units": "admissions",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "arima",
+        "config_name": "arima_1_1_1",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 2.728599754284363,
+          "rmse": 3.589305605157647,
+          "smape": 13.410133219928788,
+          "mape": 12.57895746069179
+        },
+        "test_metrics": {
+          "mae": 5.619621765204137,
+          "rmse": 6.475086757466463,
+          "smape": 23.98841955487676,
+          "mape": 27.242246116703996
+        },
+        "run_id": "9806094c-e81c-4fba-82ae-d8566f9396b2",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 2.728599754284363,
+            "rmse": 3.589305605157647,
+            "smape": 13.410133219928788,
+            "mape": 12.57895746069179
+          },
+          "test_metrics": {
+            "mae": 5.619621765204137,
+            "rmse": 6.475086757466463,
+            "smape": 23.98841955487676,
+            "mape": 27.242246116703996
+          },
+          "run_id": "9806094c-e81c-4fba-82ae-d8566f9396b2",
+          "rank": 1
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w28",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.38392857142857,
+            "rmse": 6.593120701219395,
+            "smape": 23.25241209381809,
+            "mape": 24.3665303391073
+          },
+          "test_metrics": {
+            "mae": 6.006462585034014,
+            "rmse": 7.494144944875999,
+            "smape": 23.90287038311327,
+            "mape": 29.36225226589636
+          },
+          "run_id": "ac6856ab-a699-4bb9-b75d-98eff921c95f",
+          "rank": 2
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.634615384615385,
+            "rmse": 6.832200516177025,
+            "smape": 24.40351327289395,
+            "mape": 25.677650731133543
+          },
+          "test_metrics": {
+            "mae": 6.061224489795919,
+            "rmse": 7.7887437156842125,
+            "smape": 24.10706669653618,
+            "mape": 29.82229772326783
+          },
+          "run_id": "b113f69b-90a5-4fa9-b783-a88722fb3968",
+          "rank": 3
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w14",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.684752747252748,
+            "rmse": 6.924722081258479,
+            "smape": 24.60912719913429,
+            "mape": 26.038724959210192
+          },
+          "test_metrics": {
+            "mae": 5.882993197278911,
+            "rmse": 7.592986892614074,
+            "smape": 23.455634703161454,
+            "mape": 28.955314478137918
+          },
+          "run_id": "76c22ffb-ff50-429e-8a8c-998f537d4611",
+          "rank": 4
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 6.163461538461538,
+            "rmse": 7.591113225344488,
+            "smape": 27.152359389272878,
+            "mape": 28.373796721553056
+          },
+          "test_metrics": {
+            "mae": 6.780952380952381,
+            "rmse": 8.692635087354395,
+            "smape": 27.135069267475973,
+            "mape": 31.703096830160803
+          },
+          "run_id": "d9688677-6327-4710-bece-8c4b81569c0a",
+          "rank": 5
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 6.255422657236659,
+            "rmse": 7.759082150503506,
+            "smape": 35.678076182397085,
+            "mape": 28.659166304133148
+          },
+          "test_metrics": {
+            "mae": 7.124061909484965,
+            "rmse": 8.70708595984391,
+            "smape": 33.75158035343186,
+            "mape": 28.816606441514182
+          },
+          "run_id": "c1ded31a-37bf-40dc-bbaf-f1fea212e410",
+          "rank": 6
+        },
+        {
+          "model_type": "arima",
+          "config_name": "sarima_1_0_0_7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 6.708488926627261,
+            "rmse": 6.961133664703435,
+            "smape": 40.31950145377844,
+            "mape": 33.6780799242329
+          },
+          "test_metrics": {
+            "mae": 6.457583791925411,
+            "rmse": 8.286461958269117,
+            "smape": 27.412683342535168,
+            "mape": 26.41702352472524
+          },
+          "run_id": "c17d3f00-b51e-4b87-8634-b397e487ea5f",
+          "rank": 7
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 7.586538461538462,
+            "rmse": 9.294849690513063,
+            "smape": 32.8051355177626,
+            "mape": 34.182090840447685
+          },
+          "test_metrics": {
+            "mae": 8.0,
+            "rmse": 10.277112805600979,
+            "smape": 31.526991305639744,
+            "mape": 36.7670930253678
+          },
+          "run_id": "3ba2f5c8-60f6-46a6-a37f-1008d06987cb",
+          "rank": 8
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_weekly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "183dcc85-2087-49f0-a312-3c1d2b2b806d",
+          "rank": null
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_default",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "9b8a3f3a-f3c9-403d-a90b-28409eab8a07",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 8 successful configurations. 3 failed or missing. Winner selected purely on validation MAE."
+    },
+    {
+      "dataset_name": "hero_dmc",
+      "target_column": "daily_admissions",
+      "horizon": 14,
+      "horizon_unit": "d",
+      "target_units": "admissions",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "baseline",
+        "config_name": "moving_average_w28",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 5.421636615811373,
+          "rmse": 6.699993272193199,
+          "smape": 23.303999582295294,
+          "mape": 24.15876620322526
+        },
+        "test_metrics": {
+          "mae": 6.075206043956045,
+          "rmse": 7.605695736317486,
+          "smape": 24.168971094386407,
+          "mape": 29.800599669666145
+        },
+        "run_id": "4f8dbab3-967b-4b20-b275-02caa2217445",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w28",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.421636615811373,
+            "rmse": 6.699993272193199,
+            "smape": 23.303999582295294,
+            "mape": 24.15876620322526
+          },
+          "test_metrics": {
+            "mae": 6.075206043956045,
+            "rmse": 7.605695736317486,
+            "smape": 24.168971094386407,
+            "mape": 29.800599669666145
+          },
+          "run_id": "4f8dbab3-967b-4b20-b275-02caa2217445",
+          "rank": 1
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.5089559457568855,
+            "rmse": 6.8210360639938274,
+            "smape": 24.430298805739863,
+            "mape": 21.138887174090414
+          },
+          "test_metrics": {
+            "mae": 4.3997792648687994,
+            "rmse": 5.34597003068482,
+            "smape": 18.75872626945997,
+            "mape": 21.54407844219778
+          },
+          "run_id": "d41b6d76-0254-4e9b-b7f6-61a8f605a603",
+          "rank": 2
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w14",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.699029126213591,
+            "rmse": 7.066253587736414,
+            "smape": 24.484449278665227,
+            "mape": 25.76094869150216
+          },
+          "test_metrics": {
+            "mae": 6.128434065934067,
+            "rmse": 7.619698275216514,
+            "smape": 24.443733245903825,
+            "mape": 29.744209752526668
+          },
+          "run_id": "b07926eb-1579-4e1c-8008-cc9dc8247550",
+          "rank": 3
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 6.042995839112343,
+            "rmse": 7.43828714908912,
+            "smape": 26.04316280727844,
+            "mape": 27.591446785089747
+          },
+          "test_metrics": {
+            "mae": 6.1195054945054945,
+            "rmse": 7.861624595926985,
+            "smape": 24.367526306793245,
+            "mape": 29.70383317116899
+          },
+          "run_id": "4913d935-f692-4343-87df-a6b08ec4cf20",
+          "rank": 4
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 7.116504854368932,
+            "rmse": 8.751698864203952,
+            "smape": 31.092976040613266,
+            "mape": 32.25517854475795
+          },
+          "test_metrics": {
+            "mae": 6.951923076923077,
+            "rmse": 9.022940847554167,
+            "smape": 27.602546506822662,
+            "mape": 31.760183721439606
+          },
+          "run_id": "1e593e47-1e81-4211-85f1-922aaf28320d",
+          "rank": 5
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 8.320388349514563,
+            "rmse": 9.93424986540753,
+            "smape": 36.788950033414736,
+            "mape": 38.28829087148555
+          },
+          "test_metrics": {
+            "mae": 7.605769230769231,
+            "rmse": 9.506576670915772,
+            "smape": 30.08603628290193,
+            "mape": 34.523025175199905
+          },
+          "run_id": "57b923e8-ef8c-420d-9321-fb05a91d5ee9",
+          "rank": 6
+        },
+        {
+          "model_type": "arima",
+          "config_name": "sarima_1_0_0_7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 10.599475285774867,
+            "rmse": 11.560747240909016,
+            "smape": 58.16701985380509,
+            "mape": 43.75867128684478
+          },
+          "test_metrics": {
+            "mae": 5.895689289056629,
+            "rmse": 6.97683834902052,
+            "smape": 26.663983788903092,
+            "mape": 24.70620633219931
+          },
+          "run_id": "aad55d31-39cf-4e8d-a0c0-0226e7141784",
+          "rank": 7
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 12.894160484308136,
+            "rmse": 14.662283397455921,
+            "smape": 74.12723762579333,
+            "mape": 51.11537794512431
+          },
+          "test_metrics": {
+            "mae": 8.462192528475256,
+            "rmse": 9.881171042597892,
+            "smape": 43.10105977615671,
+            "mape": 34.677479893256006
+          },
+          "run_id": "1e8bdf29-54aa-4300-9d65-7f3fa98732a0",
+          "rank": 8
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_weekly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "4ec0b57a-f53c-4eb8-890e-6f48ddfd4b7e",
+          "rank": null
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_default",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "a876d4e8-8477-4d52-91b5-977badbdb48e",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 8 successful configurations. 3 failed or missing. Winner selected purely on validation MAE."
+    },
+    {
+      "dataset_name": "hero_dmc",
+      "target_column": "daily_admissions",
+      "horizon": 30,
+      "horizon_unit": "d",
+      "target_units": "admissions",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "arima",
+        "config_name": "arima_1_1_1",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 5.061412609868915,
+          "rmse": 6.2112236542275365,
+          "smape": 22.39024902462666,
+          "mape": 21.227993713840092
+        },
+        "test_metrics": {
+          "mae": 5.250050142351303,
+          "rmse": 6.853011118493548,
+          "smape": 22.282265214782413,
+          "mape": 29.804559771102518
+        },
+        "run_id": "cef670a8-5c9e-4109-b3a5-43722c352f2b",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.061412609868915,
+            "rmse": 6.2112236542275365,
+            "smape": 22.39024902462666,
+            "mape": 21.227993713840092
+          },
+          "test_metrics": {
+            "mae": 5.250050142351303,
+            "rmse": 6.853011118493548,
+            "smape": 22.282265214782413,
+            "mape": 29.804559771102518
+          },
+          "run_id": "cef670a8-5c9e-4109-b3a5-43722c352f2b",
+          "rank": 1
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w14",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.6171428571428565,
+            "rmse": 6.851098526543621,
+            "smape": 24.24185744336137,
+            "mape": 24.566212128955332
+          },
+          "test_metrics": {
+            "mae": 6.352240896358542,
+            "rmse": 8.058605738623788,
+            "smape": 25.09605533782096,
+            "mape": 31.14573308744715
+          },
+          "run_id": "7e06f5f9-60b3-4b95-959f-4810a1fd4090",
+          "rank": 2
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.638571428571429,
+            "rmse": 6.886884903457396,
+            "smape": 24.23324911915262,
+            "mape": 24.90809012945811
+          },
+          "test_metrics": {
+            "mae": 6.5392156862745106,
+            "rmse": 8.147291043072919,
+            "smape": 25.811198097138025,
+            "mape": 31.507321153521982
+          },
+          "run_id": "2dc15fb6-9809-4d5c-b172-b3f7f14b7baa",
+          "rank": 3
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w28",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5.679285714285715,
+            "rmse": 6.957839507508411,
+            "smape": 24.51091991124026,
+            "mape": 24.63031865651502
+          },
+          "test_metrics": {
+            "mae": 6.31232492997199,
+            "rmse": 7.89986475487132,
+            "smape": 25.009192682247093,
+            "mape": 30.665405656430394
+          },
+          "run_id": "d4149440-b77a-4bc1-a1e7-62494d4c38e8",
+          "rank": 4
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 7.55,
+            "rmse": 8.980534505250787,
+            "smape": 33.686448447142695,
+            "mape": 33.92036130286896
+          },
+          "test_metrics": {
+            "mae": 8.862745098039216,
+            "rmse": 10.54402535032211,
+            "smape": 35.55280631387853,
+            "mape": 40.984467527583746
+          },
+          "run_id": "f0cf7b03-fe57-4394-876d-19b9eb76ab86",
+          "rank": 5
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 7.72,
+            "rmse": 9.522604685693931,
+            "smape": 34.06669354487471,
+            "mape": 33.50893105196881
+          },
+          "test_metrics": {
+            "mae": 8.46078431372549,
+            "rmse": 10.40597490509612,
+            "smape": 32.986323216076684,
+            "mape": 37.117806872686096
+          },
+          "run_id": "7bba7883-e05d-4960-b587-4fdeaee98d92",
+          "rank": 6
+        },
+        {
+          "model_type": "arima",
+          "config_name": "sarima_1_0_0_7",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 10.103645521220331,
+            "rmse": 11.298446838551065,
+            "smape": 55.51931843493855,
+            "mape": 41.95093919140628
+          },
+          "test_metrics": {
+            "mae": 9.337846757853052,
+            "rmse": 10.900482167037929,
+            "smape": 43.30789326755446,
+            "mape": 37.99770645794045
+          },
+          "run_id": "6a7393e0-3a9b-4552-9cbc-6275e8dc1b15",
+          "rank": 7
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 14.870758901657512,
+            "rmse": 16.356425503643166,
+            "smape": 101.58895574402257,
+            "mape": 63.84713161011254
+          },
+          "test_metrics": {
+            "mae": 16.150036960217143,
+            "rmse": 18.454396512733435,
+            "smape": 93.16704468732567,
+            "mape": 60.27591642509813
+          },
+          "run_id": "fb405374-1850-4eeb-bdda-12809d816bc5",
+          "rank": 8
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_default",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "2f89e5b8-19d2-464b-9bdf-430295c66392",
+          "rank": null
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_weekly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "cda0e915-629c-4a06-8aff-797ef395de75",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 8 successful configurations. 3 failed or missing. Winner selected purely on validation MAE."
+    },
+    {
+      "dataset_name": "nhsn_hrd",
+      "target_column": "icu_beds_occupied",
+      "horizon": 1,
+      "horizon_unit": "w",
+      "target_units": "beds",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "baseline",
+        "config_name": "naive",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 1944.5,
+          "rmse": 2657.8970070339446,
+          "smape": 0.9201432694755977,
+          "mape": 0.9165082489033715
+        },
+        "test_metrics": {
+          "mae": 5053.0,
+          "rmse": 6909.52212529926,
+          "smape": 2.3853284412987343,
+          "mape": 2.380806374850082
+        },
+        "run_id": "9e5f69cc-88c3-434b-b422-4e834dee87ec",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 1944.5,
+            "rmse": 2657.8970070339446,
+            "smape": 0.9201432694755977,
+            "mape": 0.9165082489033715
+          },
+          "test_metrics": {
+            "mae": 5053.0,
+            "rmse": 6909.52212529926,
+            "smape": 2.3853284412987343,
+            "mape": 2.380806374850082
+          },
+          "run_id": "9e5f69cc-88c3-434b-b422-4e834dee87ec",
+          "rank": 1
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w12",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3055.6666666666665,
+            "rmse": 3894.7293926108223,
+            "smape": 1.435630084215015,
+            "mape": 1.4469817628842323
+          },
+          "test_metrics": {
+            "mae": 3737.0,
+            "rmse": 4366.548637081694,
+            "smape": 1.7600478100147467,
+            "mape": 1.7655797483685347
+          },
+          "run_id": "7d5e8f1e-1bda-4f72-a2b3-9443e47ab2b0",
+          "rank": 2
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w4",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3073.875,
+            "rmse": 3294.7002187224866,
+            "smape": 1.4475977609857515,
+            "mape": 1.4484357193132114
+          },
+          "test_metrics": {
+            "mae": 3637.0,
+            "rmse": 4720.296170527862,
+            "smape": 1.7127645309143087,
+            "mape": 1.726210399069444
+          },
+          "run_id": "9dbaee32-a97a-47bf-8198-54e4a4533402",
+          "rank": 3
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3358.3179630176455,
+            "rmse": 3731.0316823941002,
+            "smape": 1.5933087429474322,
+            "mape": 1.5854668350500336
+          },
+          "test_metrics": {
+            "mae": 7583.7246168753,
+            "rmse": 9336.157372447591,
+            "smape": 3.594106873800925,
+            "mape": 3.5708929247992343
+          },
+          "run_id": "48b3c04b-31bb-4054-8f46-c107e3b1f3f8",
+          "rank": 4
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3459.6905848060655,
+            "rmse": 3472.041509945751,
+            "smape": 1.636972569753172,
+            "mape": 1.6425783255515736
+          },
+          "test_metrics": {
+            "mae": 5731.5559466469085,
+            "rmse": 6838.597366106261,
+            "smape": 2.703053920606529,
+            "mape": 2.719329941156563
+          },
+          "run_id": "879334fd-4a39-47a1-bd24-a60fdc68ee00",
+          "rank": 5
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p52",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3747.0,
+            "rmse": 4817.622027515235,
+            "smape": 1.7646699538441792,
+            "mape": 1.7651069528312204
+          },
+          "test_metrics": {
+            "mae": 4306.0,
+            "rmse": 4520.488690396205,
+            "smape": 2.0307069770892805,
+            "mape": 2.019621900672584
+          },
+          "run_id": "e82ded8d-c385-4305-8478-775394f91c02",
+          "rank": 6
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_yearly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "c71aa406-d395-4f30-a285-d50458a58e5e",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 6 successful configurations. 2 failed or missing. Winner selected purely on validation MAE."
+    },
+    {
+      "dataset_name": "nhsn_hrd",
+      "target_column": "icu_beds_occupied",
+      "horizon": 2,
+      "horizon_unit": "w",
+      "target_units": "beds",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "baseline",
+        "config_name": "moving_average_w4",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 2678.1,
+          "rmse": 3053.3561330116736,
+          "smape": 1.263523170323576,
+          "mape": 1.2648086061886
+        },
+        "test_metrics": {
+          "mae": 3635.6785714285716,
+          "rmse": 4324.780121371986,
+          "smape": 1.7113149746341416,
+          "mape": 1.7211643920720627
+        },
+        "run_id": "e8c7ee4c-531e-4efd-a28d-09dc1cf7ad4b",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w4",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 2678.1,
+            "rmse": 3053.3561330116736,
+            "smape": 1.263523170323576,
+            "mape": 1.2648086061886
+          },
+          "test_metrics": {
+            "mae": 3635.6785714285716,
+            "rmse": 4324.780121371986,
+            "smape": 1.7113149746341416,
+            "mape": 1.7211643920720627
+          },
+          "run_id": "e8c7ee4c-531e-4efd-a28d-09dc1cf7ad4b",
+          "rank": 1
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p52",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3200.4,
+            "rmse": 4545.405328460819,
+            "smape": 1.5022933510726673,
+            "mape": 1.5207815372563347
+          },
+          "test_metrics": {
+            "mae": 4374.0,
+            "rmse": 5223.758745249576,
+            "smape": 2.0657349862853387,
+            "mape": 2.0452300820869564
+          },
+          "run_id": "c888238a-3003-48e6-9d6a-e74e8cc7650d",
+          "rank": 2
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3348.2217581059376,
+            "rmse": 3532.1758579225066,
+            "smape": 1.5831317563735574,
+            "mape": 1.588800637633958
+          },
+          "test_metrics": {
+            "mae": 4192.632909837684,
+            "rmse": 5492.852001207021,
+            "smape": 1.9832171807373296,
+            "mape": 2.0121798713246344
+          },
+          "run_id": "81c38c53-9a8e-4c0c-86b8-0bb5170bba2f",
+          "rank": 3
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w12",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3640.45,
+            "rmse": 4891.263245573683,
+            "smape": 1.7070374659505632,
+            "mape": 1.732200301326823
+          },
+          "test_metrics": {
+            "mae": 3606.285714285714,
+            "rmse": 4042.303239756124,
+            "smape": 1.6972010279831837,
+            "mape": 1.7005532761934585
+          },
+          "run_id": "885a741c-08a6-440a-aa05-f6fba230a458",
+          "rank": 4
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 3832.2,
+            "rmse": 4063.134922692083,
+            "smape": 1.8104027604533985,
+            "mape": 1.8091993240877173
+          },
+          "test_metrics": {
+            "mae": 4557.857142857143,
+            "rmse": 5802.003213176832,
+            "smape": 2.150331222100779,
+            "mape": 2.155222346391384
+          },
+          "run_id": "b62b7406-efe5-4f1c-b480-91d1fd604dec",
+          "rank": 5
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 4061.901904717961,
+            "rmse": 4358.558016187867,
+            "smape": 1.926337226919296,
+            "mape": 1.915838501349099
+          },
+          "test_metrics": {
+            "mae": 3756.4922410725944,
+            "rmse": 5733.555929886085,
+            "smape": 1.779805512766172,
+            "mape": 1.8145149818533368
+          },
+          "run_id": "a530a635-5d77-42b1-9e32-5b9125b31005",
+          "rank": 6
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_yearly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "fa0f0c6f-962a-4ace-a066-47a0959ff9b5",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 6 successful configurations. 2 failed or missing. Winner selected purely on validation MAE."
+    },
+    {
+      "dataset_name": "nhsn_hrd",
+      "target_column": "icu_beds_occupied",
+      "horizon": 4,
+      "horizon_unit": "w",
+      "target_units": "beds",
+      "selection_criterion": "val_mae",
+      "secondary_criterion": "val_rmse",
+      "winner": {
+        "model_type": "baseline",
+        "config_name": "moving_average_w4",
+        "status": "SUCCESS",
+        "error_message": null,
+        "val_metrics": {
+          "mae": 1574.25,
+          "rmse": 2173.0402464059425,
+          "smape": 0.7429744140135742,
+          "mape": 0.7464015203191466
+        },
+        "test_metrics": {
+          "mae": 3174.4285714285716,
+          "rmse": 3795.186584910644,
+          "smape": 1.49564043525538,
+          "mape": 1.4944867599353429
+        },
+        "run_id": "c803a438-4ada-4020-add9-9a1fbc659164",
+        "rank": 1
+      },
+      "leaderboard": [
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w4",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 1574.25,
+            "rmse": 2173.0402464059425,
+            "smape": 0.7429744140135742,
+            "mape": 0.7464015203191466
+          },
+          "test_metrics": {
+            "mae": 3174.4285714285716,
+            "rmse": 3795.186584910644,
+            "smape": 1.49564043525538,
+            "mape": 1.4944867599353429
+          },
+          "run_id": "c803a438-4ada-4020-add9-9a1fbc659164",
+          "rank": 1
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_1_1",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 2269.5055247436867,
+            "rmse": 2874.597072397791,
+            "smape": 1.071622004016169,
+            "mape": 1.0778173089904894
+          },
+          "test_metrics": {
+            "mae": 3657.985218379734,
+            "rmse": 4852.151696240538,
+            "smape": 1.7251507169366753,
+            "mape": 1.742614795586667
+          },
+          "run_id": "a07f818e-4a5e-4879-bc67-b397547e24e0",
+          "rank": 2
+        },
+        {
+          "model_type": "arima",
+          "config_name": "arima_1_0_0",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 2948.4084182411534,
+            "rmse": 3350.4439214488707,
+            "smape": 1.3929150954151215,
+            "mape": 1.3897279324889018
+          },
+          "test_metrics": {
+            "mae": 3264.848920802149,
+            "rmse": 5155.998126806804,
+            "smape": 1.5417215258427952,
+            "mape": 1.568772833415648
+          },
+          "run_id": "e1b3f44d-9627-46ed-92b5-ac2131605e76",
+          "rank": 3
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "naive",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 4135.2,
+            "rmse": 5184.2475635332075,
+            "smape": 1.9545537176817327,
+            "mape": 1.9613733104292845
+          },
+          "test_metrics": {
+            "mae": 3522.8571428571427,
+            "rmse": 4668.2825841752865,
+            "smape": 1.670034049686468,
+            "mape": 1.6692339337262811
+          },
+          "run_id": "2552cc42-d5dd-4dc1-a482-9cba0ef13669",
+          "rank": 4
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "seasonal_naive_p52",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 4263.0,
+            "rmse": 4639.686950646563,
+            "smape": 1.9996030132674327,
+            "mape": 2.0175687171399477
+          },
+          "test_metrics": {
+            "mae": 5115.0,
+            "rmse": 6076.63787444528,
+            "smape": 2.4126725790163945,
+            "mape": 2.4018932342219816
+          },
+          "run_id": "69796003-489a-4551-9f19-19da93e55655",
+          "rank": 5
+        },
+        {
+          "model_type": "baseline",
+          "config_name": "moving_average_w12",
+          "status": "SUCCESS",
+          "error_message": null,
+          "val_metrics": {
+            "mae": 5272.8,
+            "rmse": 6517.5627806719285,
+            "smape": 2.458438427544113,
+            "mape": 2.5055763356448844
+          },
+          "test_metrics": {
+            "mae": 3198.6785714285716,
+            "rmse": 3834.797770091664,
+            "smape": 1.5057043538566128,
+            "mape": 1.508190309444103
+          },
+          "run_id": "14f1b17d-2e53-431a-bbdc-c5e72ec28edb",
+          "rank": 6
+        },
+        {
+          "model_type": "prophet",
+          "config_name": "prophet_yearly_only",
+          "status": "FAILED",
+          "error_message": "Experiment run status FAILED or produced no forecasts",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": "80598064-74e1-4a91-b3d4-8b07e50c5cd1",
+          "rank": null
+        },
+        {
+          "model_type": "lstm",
+          "config_name": "lstm_h32_l2_e15",
+          "status": "MISSING",
+          "error_message": "Candidate configuration was not executed in benchmark",
+          "val_metrics": null,
+          "test_metrics": null,
+          "run_id": null,
+          "rank": null
+        }
+      ],
+      "summary_notes": "Evaluated 6 successful configurations. 2 failed or missing. Winner selected purely on validation MAE."
+    }
+  ],
+  "total_runs_evaluated": 118,
+  "successful_runs": 50,
+  "failed_or_missing_runs": 18
+}
