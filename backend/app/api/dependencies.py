@@ -31,12 +31,14 @@ from app.repositories.audit_logs import AuditLogsRepository
 from app.repositories.beds import BedsRepository
 from app.repositories.patients import PatientsRepository
 from app.repositories.resources import ResourcesRepository
+from app.repositories.simulations import SimulationsRepository
 from app.repositories.users import UserRepository
 from app.services.admissions import AdmissionService
 from app.services.auth import AuthService
 from app.services.beds import BedService
 from app.services.patients import PatientService
 from app.services.resources import ResourceService
+from app.services.simulation import SimulationService
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +139,25 @@ def get_resource_service(
     audit_repo: Annotated[AuditLogsRepository, Depends(get_audit_log_repository)],
 ) -> ResourceService:
     return ResourceService(resources_repo, audit_repo)
+
+
+def get_simulations_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> SimulationsRepository:
+    return SimulationsRepository(db)
+
+
+def get_simulation_service(
+    simulations_repo: Annotated[SimulationsRepository, Depends(get_simulations_repository)],
+    beds_repo: Annotated[BedsRepository, Depends(get_beds_repository)],
+    resources_repo: Annotated[ResourcesRepository, Depends(get_resources_repository)],
+    admissions_repo: Annotated[AdmissionsRepository, Depends(get_admission_repository)],
+    audit_repo: Annotated[AuditLogsRepository, Depends(get_audit_log_repository)],
+) -> SimulationService:
+    return SimulationService(
+        simulations_repo, beds_repo, resources_repo, admissions_repo, audit_repo
+    )
+
 
 
 # ── Authentication ────────────────────────────────────────────────────────────

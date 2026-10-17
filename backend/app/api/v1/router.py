@@ -7,7 +7,7 @@ This router is mounted at the api_prefix defined in Settings (default: /api/v1).
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import admissions, auth, beds, health, patients, resources
+from app.api.v1.endpoints import admissions, auth, beds, health, patients, resources, simulations
 
 v1_router = APIRouter()
 
@@ -46,6 +46,13 @@ v1_router.include_router(
     prefix="/resources",
     tags=["resources"],
 )
+
+v1_router.include_router(
+    simulations.router,
+    prefix="/simulations",
+    tags=["simulations"],
+)
+
 
 # Future endpoint routers will be registered here, for example:
 # from app.api.v1.endpoints import beds, admissions, resources, forecast

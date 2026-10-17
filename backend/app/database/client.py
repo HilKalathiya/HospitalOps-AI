@@ -323,7 +323,21 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── simulation_runs ───────────────────────────────────────────────────────
+    # simulation_id: unique lookup for what-if simulation results.
+    # scenario_type + created_at: ordered scenario queries.
+    await db["simulation_runs"].create_indexes(
+        [
+            IndexModel([("simulation_id", ASCENDING)], unique=True, name="sim_id_unique"),
+            IndexModel(
+                [("scenario_type", ASCENDING), ("created_at", DESCENDING)],
+                name="sim_type_created_at",
+            ),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
+
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

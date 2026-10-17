@@ -176,22 +176,42 @@ See `docs/decisions/ADR-001-layered-architecture.md` for the founding architectu
 
 ---
 
+## Authoritative Persistent Rules & Roadmap
+
+For full persistent rules, operational guidelines, and live task tracking across agent sessions, see:
+[`docs/antigravity/PROJECT-CONTEXT.md`](docs/antigravity/PROJECT-CONTEXT.md).
+
+### Persistent Workflow Rules Summary:
+1. **Synchronize Instructions & Roadmap:** Update `PROJECT-CONTEXT.md`, `README.md`, and technical documentation after every chunk.
+2. **Every Completed Task Must Be GitHub Push-Ready:** Run tests, lint, and build. Create a clean, focused local git commit with conventional naming. **Never run `git push` unless the user explicitly authorizes it.**
+3. **Use Antigravity Capabilities Appropriately:** Keep one primary orchestrator for integration and safety while using focused subagents for verification.
+
+---
+
 ## Implementation Status
 
-| Chunk | Description                                      | Status      |
-|-------|--------------------------------------------------|-------------|
-| 0.1   | Project initialization & foundation              | ✅ Complete |
-| 0.2   | Architecture, API contracts & domain boundaries  | ✅ Complete |
-| 0.3   | Docker runtime validation & dev env hardening    | ✅ Complete |
-| 1.1   | MongoDB data model & persistence layer           | ✅ Complete |
-| 1.2   | (next)                                           | ⬜ Not started |
+| Chunk | Description | Status |
+|:---|:---|:---|
+| 1.1 | MongoDB Data Model & Persistence Layer | ✅ Complete |
+| 1.2 | Authentication + RBAC | ✅ Complete |
+| 1.3 | Patient + Admission APIs | ✅ Complete |
+| 1.4 | Bed + Resource Management | ✅ Complete |
+| 1.5 | Historical Dataset Ingestion (Hero DMC, NHSN & MIMIC-IV) | ✅ Complete |
+| 1.6 | Hospital Operations Dashboard | ✅ Complete |
+| 2.1 | Data / ML Pipeline Foundation | ✅ Complete |
+| 2.2 | Baseline Forecasting Models | ✅ Complete |
+| 2.3 | ARIMA + Prophet Statistical Forecasting | ✅ Complete |
+| 2.4 | Deep Learning Forecasting (LSTM / Temporal Networks) | ✅ Complete |
+| 3.1 | What-if Simulation Engine | 🟡 Active |
+| 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
+| 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 ---
 
 ## Contributing
 
-1. Read this file before making any changes.
-2. Follow the engineering rules above.
-3. Run tests before submitting.
+1. Read this file and [`docs/antigravity/PROJECT-CONTEXT.md`](docs/antigravity/PROJECT-CONTEXT.md) before making changes.
+2. Follow the engineering and healthcare safety rules.
+3. Run tests, linter, and builds before completing any task.
 4. Document architectural decisions in `docs/decisions/`.
-5. Update `README.md` if setup steps change.
+5. Create a clean local git commit for completed tasks (do not auto-push).

@@ -18,9 +18,10 @@
 | 2.2 | Baseline Forecasting Models | ✅ Complete |
 | 2.3 | ARIMA + Prophet Statistical Forecasting | ✅ Complete |
 | 2.4 | Deep Learning Forecasting (LSTM / Temporal Networks) | ✅ Complete |
-| 3.1 | What-if Simulation Engine | ⬜ Planned |
+| 3.1 | What-if Simulation Engine | 🟡 Active |
 | 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
 | 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
+
 
 **The core system, ML foundation, and deep learning forecasting pipeline are live.**
 The backend features strict RBAC, data ingestion, and a full walk-forward evaluation ML pipeline. Statistical baselines, ARIMA/Prophet models, and PyTorch multi-layer LSTM neural networks with Monte Carlo Dropout uncertainty bounds are implemented. The modern React frontend dashboard visualizes operational capacity and model evaluation. What-if simulation, resource optimization, and agentic orchestration will be built in subsequent milestones.
