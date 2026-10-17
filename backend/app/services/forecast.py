@@ -7,6 +7,7 @@ provenance tracking, and safe on-demand execution while preserving strict data b
 
 import json
 import logging
+import math
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -555,6 +556,10 @@ class ForecastService:
                 detail=f"Run '{run.run_id}' contains no valid prediction sequences.",
             )
 
+        # Validation & test MAE
+        val_f = next((f for f in run.forecasts if f.split_name == "validation"), None)
+        test_f = next((f for f in run.forecasts if f.split_name == "test"), None)
+
         predictions_points: list[PredictionPoint] = []
         timestamps = target_forecast.forecast_timestamps
         preds = target_forecast.predictions
@@ -565,8 +570,15 @@ class ForecastService:
         for i in range(pts_count):
             ts = timestamps[i] if i < len(timestamps) else f"step_{i+1}"
             raw_val = preds[i]
-            # Replace non-finite with 0.0 or raise
-            val = float(raw_val) if (raw_val == raw_val and abs(raw_val) != float("inf")) else 0.0
+            if raw_val is None or math.isnan(raw_val) or math.isinf(raw_val):
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=(
+                        f"Model run '{run.run_id}' produced non-finite prediction value ({raw_val}) "
+                        f"at horizon step {i+1}. The forecast output is unavailable."
+                    ),
+                )
+            val = float(raw_val)
 
             predictions_points.append(
                 PredictionPoint(
@@ -578,9 +590,32 @@ class ForecastService:
                 )
             )
 
-        # Validation & test MAE
-        val_f = next((f for f in run.forecasts if f.split_name == "validation"), None)
-        test_f = next((f for f in run.forecasts if f.split_name == "test"), None)
+        # Extract historical observations leading up to the forecast origin
+        historical_points: list[PredictionPoint] = []
+        forecast_origin: str | None = None
+
+        if val_f and val_f.forecast_timestamps and val_f.actuals:
+            v_ts = val_f.forecast_timestamps
+            v_acts = val_f.actuals
+            forecast_origin = str(v_ts[-1])
+
+            # Take up to 28 recent points for daily, or up to 12 for weekly
+            history_window = 28 if frequency == "D" else 12
+            slice_start = max(0, len(v_ts) - history_window)
+            for idx in range(slice_start, len(v_ts)):
+                act_val = v_acts[idx] if idx < len(v_acts) else None
+                if act_val is not None and not math.isnan(act_val) and not math.isinf(act_val):
+                    historical_points.append(
+                        PredictionPoint(
+                            timestamp=str(v_ts[idx]),
+                            value=round(float(act_val), 2),
+                            lower_bound=None,
+                            upper_bound=None,
+                            confidence_level=None,
+                        )
+                    )
+        elif timestamps:
+            forecast_origin = str(timestamps[0])
 
         val_mae = val_f.metrics.mae if (val_f and val_f.metrics) else None
         test_mae = test_f.metrics.mae if (test_f and test_f.metrics) else None
@@ -589,8 +624,6 @@ class ForecastService:
             val_mae = selected_winner["val_metrics"].get("mae", val_mae)
         if selected_winner and selected_winner.get("test_metrics"):
             test_mae = selected_winner["test_metrics"].get("mae", test_mae)
-
-        forecast_origin = timestamps[0] if timestamps else None
 
         meta = ForecastMetadata(
             dataset_name=dataset_name,
@@ -617,4 +650,5 @@ class ForecastService:
             message=f"Forecast resolved using validation winner '{config_name}'.",
             metadata=meta,
             predictions=predictions_points,
+            historical_points=historical_points,
         )

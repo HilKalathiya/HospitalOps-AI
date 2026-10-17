@@ -205,7 +205,7 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 2.5 | Model Evaluation & Selection Engine | ✅ Complete |
 | 2.6 | MLflow Integration | ✅ Complete |
 | 2.7 | Forecasting API | ✅ Complete |
-| 2.8 | Forecast Dashboard | ⬜ Planned |
+| 2.8 | Forecast Dashboard | ✅ Complete |
 | 3.1 | What-if Simulation Engine | ✅ Complete |
 | 3.2 | Scenario Comparison & Simulation UI | ⬜ Planned |
 | 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |

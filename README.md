@@ -358,6 +358,18 @@ All forecasting endpoints require JWT authentication and `predictions.read` perm
 
 ---
 
+## Forecast Dashboard (Chunk 2.8)
+
+HospitalOps AI provides a production-grade forecasting dashboard (`/forecasts`) connected directly to backend forecasting APIs and the What-if simulation engine:
+- **Daily Admissions:** Daily cadence (1D) forecasting on the Hero DMC benchmark with interactive 1–30d horizon selection (+7d, +14d, +30d), connecting historical observations at forecast origin ($T_0$) to model point predictions.
+- **Weekly ICU Capacity:** Weekly cadence (1W) facility capacity projections on NHSN HRD with 1–8w horizon toggles (+1w, +2w, +4w, +8w) in physical bed units.
+- **Strict Confidence Intervals:** Uncertainty bands are displayed only when the model genuinely generates valid prediction bounds (e.g. Monte Carlo Dropout LSTM).
+- **Occupancy Rate Guardrail:** Surfaces clear operational disclaimers and guidance when derived metrics cannot be mathematically grounded without concurrent population-matched capacity.
+- **Scenario Overlay:** Visualizes simulated surge projections (+15%, +30%) from the deterministic simulation engine alongside baseline models without mutating operational data.
+- **Model Provenance & Inspection:** Validation-based winner leaderboard (`val_mae`) with held-out test MAE isolation and clickable JSON run inspection modal.
+
+---
+
 ## Environment Configuration
 
 Copy `.env.example` to `.env` and configure:

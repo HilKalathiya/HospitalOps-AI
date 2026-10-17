@@ -87,6 +87,10 @@ class ForecastResponse(BaseModel):
     predictions: list[PredictionPoint] = Field(
         default_factory=list, description="Ordered sequence of forecast points."
     )
+    historical_points: list[PredictionPoint] = Field(
+        default_factory=list,
+        description="Historical observed data points leading up to the forecast origin.",
+    )
 
 
 # ── Benchmark & History Schemas ───────────────────────────────────────────────

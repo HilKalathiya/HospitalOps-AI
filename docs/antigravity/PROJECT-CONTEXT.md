@@ -65,7 +65,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **2.5** | **Model Evaluation & Selection** | ✅ Complete | Leakage-free validation-only selection, MAE/RMSE/sMAPE/MAPE, benchmark report, 120 tests passed |
 | | **2.6** | **MLflow Integration** | ✅ Complete | Decoupled tracker abstraction, SQLite registry backend, split metrics, sanitized artifacts, 10/10 tests passed |
 | | **2.7** | **Forecasting API** | ✅ Complete | REST endpoints for admissions, ICU, benchmarks, runs, validation-selected model resolution, 15/15 tests passed |
-| | 2.8 | Forecast Dashboard | ⬜ Planned | Dynamic forecast charts, CI bounds, UI telemetry |
+| | **2.8** | **Forecast Dashboard** | ✅ Complete | Production dashboard, real historical + prediction series, strict CI bounds, 400 guardrail, run inspection, 146 tests passed |
 | **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
 | | 3.2 | Simulation UI & Scenario Comparison | ⬜ Planned | Frontend scenario runner, overlay charts |
 | **M4: Resource Optimization**| 4.1 | Optimization Engine (MIP) | ⬜ Planned | PuLP/OR-Tools constraint solver |
@@ -172,4 +172,39 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `ruff check backend`: All checks passed.
      - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
      - Frontend build (`npm run build`): Built in 2.30s with 0 errors.
-* **Next Chunk:** Milestone 2, Chunk 2.8 (Forecast Dashboard).
+* **Next Chunk:** Milestone 2, Chunk 2.8 (Forecast Dashboard) — Completed.
+
+---
+
+## 8. Completed Workstream: Milestone 2, Chunk 2.8 (Forecast Dashboard)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Production Forecasting Workspace (`/forecasts`):**
+     - Fully integrated `CapacityForecasts.tsx` connected directly to backend forecasting endpoints (`/api/v1/forecast/admissions`, `/api/v1/forecast/icu`, `/api/v1/forecast/occupancy`, `/api/v1/forecast/benchmarks`, `/api/v1/forecast/runs/{id}`) and What-if simulation engine (`/api/v1/simulations/run`).
+     - Replaces design prototypes with production application adhering to design craftsmanship, tokens, brand mark, and responsive hierarchy.
+  2. **Daily Admissions & Weekly ICU Cadence Semantics:**
+     - **Hero DMC Daily Admissions:** 1D daily cadence, physical unit `admissions`, horizons 1–30d (+7d, +14d, +30d interactive toggles). Clear retrospective aggregate disclaimer.
+     - **NHSN HRD Weekly ICU Capacity:** 1W weekly cadence, physical unit `beds`, horizons 1–8w (+1w, +2w, +4w, +8w interactive toggles). Distinct time axis preserving weekly interval integrity.
+  3. **Strict Time-Series Integrity & Coordinate-Mapped SVG Chart:**
+     - `CapacityForecastChart.tsx` renders real historical observations leading up to forecast origin ($T_0$) with vertical origin boundary line, continuing into model point prediction curve.
+     - **Strict Confidence Interval Policy:** Uncertainty bands render only when the selected model genuinely provides valid bounds (e.g. LSTM MC dropout); no artificial multiplier bands (`* 1.015`) are fabricated.
+  4. **Occupancy Rate Guardrail View:**
+     - Explicit handling of HTTP 400 response from `/api/v1/forecast/occupancy` with an amber warning banner and detailed operational explanation: derived occupancy percentages cannot be manufactured without concurrent population-matched licensed capacity. Includes direct action buttons switching back to valid benchmarks.
+  5. **Scenario-Adjusted Forecast Preview:**
+     - Allows previewing simulated admission surge trajectories (+15%, +30%) from the Chunk 3.1 What-if simulation engine overlaid as a dashed line against baseline forecasts, with an amber banner distinguishing simulated projections from baseline models without mutating live records.
+  6. **Model Provenance & Run Artifact Inspection:**
+     - Benchmark leaderboard displaying validation-winning models (`val_mae`), held-out test MAE strictly isolated for post-selection reporting, and run status indicators (`COMPLETED`, `FAILED`, `PENDING`).
+     - Clickable run ID triggers full JSON artifact inspector modal querying `/api/v1/forecast/runs/{run_id}`.
+  7. **Backend Enhancements & Numerical Robustness:**
+     - Added `historical_points: list[PredictionPoint]` to `ForecastResponse` schema and service to supply actual series preceding $T_0$.
+     - Corrected non-finite prediction handling: raises `HTTPException(502 Bad Gateway)` if predictions contain NaN or Inf instead of silently replacing with corrupt `0.0`.
+  8. **Verification & Testing:**
+     - Added backend tests in `test_api_forecast.py` for historical points and 502 non-finite error responses.
+     - All 16 forecast API tests passed.
+     - Full backend test suite: 146 passed, 10 skipped in 58.83s.
+     - `ruff check backend`: 0 errors.
+     - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
+     - Frontend build (`npm run build`): Built in 2.09s with 0 errors.
+     - Browser Subagent: Full visual verification across Hero DMC daily (+7d, +14d, +30d), NHSN ICU weekly (+1w, +2w, +4w), Occupancy 400 guardrail card, scenario overlay, and mobile viewport (390px).
+* **Next Planned Work:** Milestone 3, Chunk 3.2 (Scenario Comparison & Simulation UI).

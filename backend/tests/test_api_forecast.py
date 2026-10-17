@@ -344,16 +344,37 @@ def test_numerical_robustness_non_finite_handling(mock_forecast_service):
         created_at=now_dt,
     )
 
-    resp = mock_forecast_service._build_forecast_response_from_run(
-        run=bad_run,
-        dataset_name="hero_dmc",
-        target_column="daily_admissions",
-        target_units="admissions",
-        frequency="D",
-        horizon=2,
-        horizon_unit="d",
-    )
+    from fastapi import HTTPException
 
-    assert len(resp.predictions) == 2
-    assert resp.predictions[0].value == 0.0
-    assert resp.predictions[1].value == 0.0
+    with pytest.raises(HTTPException) as exc_info:
+        mock_forecast_service._build_forecast_response_from_run(
+            run=bad_run,
+            dataset_name="hero_dmc",
+            target_column="daily_admissions",
+            target_units="admissions",
+            frequency="D",
+            horizon=2,
+            horizon_unit="d",
+        )
+
+    assert exc_info.value.status_code == 502
+    assert "non-finite prediction value" in exc_info.value.detail
+
+
+def test_forecast_includes_verified_historical_points():
+    """Verifies that forecast responses include real historical points leading up to origin."""
+    app.dependency_overrides[get_current_user] = _get_mock_admin
+
+    client = TestClient(app)
+    response = client.get("/api/v1/forecast/admissions?horizon=7")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+
+    assert "historical_points" in data
+    assert len(data["historical_points"]) > 0
+    # Every point has valid timestamp and numerical value
+    for pt in data["historical_points"]:
+        assert "timestamp" in pt
+        assert isinstance(pt["value"], int | float)
+        assert pt["value"] >= 0
