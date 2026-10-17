@@ -62,17 +62,22 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | 2.2 | Baseline Forecasting Models | ✅ Complete | Naive, Seasonal Naive, Moving Average |
 | | 2.3 | ARIMA & Prophet Comparison | ✅ Complete | SARIMAX, Prophet, walk-forward CV |
 | | 2.4 | Deep Learning Forecasting | ✅ Complete | PyTorch LSTM, Monte Carlo Dropout (95% CI) |
-| **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | 🟡 **Active** | **Deterministic scenario simulation engine** |
+| **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 111 total passed |
+| | 3.2 | Simulation UI & Scenario Comparison | ⬜ Planned | Frontend scenario runner, overlay charts |
 | **M4: Resource Optimization**| 4.1 | Optimization Engine (MIP) | ⬜ Planned | PuLP/OR-Tools constraint solver |
 | **M5: Agentic AI & RAG** | 5.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | LangChain tools, vector retrieval |
 
 ---
 
-## 4. Current Workstream: Milestone 3, Chunk 3.1 (What-if Simulation Engine)
+## 4. Completed Workstream: Milestone 3, Chunk 3.1 (What-if Simulation Engine)
 
-* **Goal:** Implement a deterministic simulation engine allowing hospital operators to model hypothetical operational shocks without mutating real hospital state.
-* **Supported Scenarios:**
-  1. `ADMISSION_SURGE`: Evaluates bed and ICU occupancy when admission volumes spike by $X\%$ over a future horizon.
-  2. `BED_CAPACITY_CHANGE`: Models the impact of converting standard beds to ICU beds or activating surge capacity.
-  3. `RESOURCE_BOTTLENECK`: Identifies equipment (e.g. ventilators, monitors) or staffing constraints during surge conditions.
-* **Output Persistence:** Stored in `simulation_runs` collection with metadata, base timestamp, parameters, and projected time-series outcomes.
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Deterministic Scenario Modeling:** Implemented discrete-time trajectory projection ($A(t)$, $D(t) = \text{Occupied}(t-1)/\text{LOS}$, prospective unconstrained load, realized occupancy, and shortage detection).
+  2. **Supported Scenarios:**
+     - `ADMISSION_SURGE`: Scales admissions by $\pm X\%$, evaluates occupancy surges and peak bed shortages over horizon.
+     - `BED_CAPACITY_CHANGE`: Models physical bed additions/expansions or conversions ($\Delta \text{Beds}$) on shortage duration and peak load.
+     - `RESOURCE_BOTTLENECK`: Assesses equipment requirements (e.g. ventilators per occupied bed) against current operational inventory.
+  3. **Safety & Isolation:** Strictly read-only against live collections (`beds`, `admissions`, `resources`, `patients`). Simulation runs are written exclusively to `simulation_runs` with audit trail in `audit_logs`.
+  4. **RBAC:** Secured behind `simulation.run` (Admin, Manager) and `simulation.read` (Admin, Manager, Doctor, Viewer).
+* **Next Chunk:** Milestone 3, Chunk 3.2 (Simulation UI & Scenario Comparison) or Milestone 4, Chunk 4.1 (Optimization Engine).
