@@ -68,8 +68,9 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **2.8** | **Forecast Dashboard** | ✅ Complete | Production dashboard, real historical + prediction series, strict CI bounds, 400 guardrail, run inspection, 146 tests passed |
 | **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
 | | **3.2** | **Simulation UI & Scenario Comparison** | ✅ Complete | Multi-scenario comparison matrix, SVG trajectory chart, shortage analysis, session persistence & JSON inspect |
-| **M4: Resource Optimization**| 4.1 | Optimization Engine (MIP) | ⬜ Planned | PuLP/OR-Tools constraint solver |
-| **M5: Agentic AI & RAG** | 5.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | LangChain tools, vector retrieval |
+| | **3.3** | **Resource Optimization Engine (MIP)** | ✅ Complete | SciPy HiGHS MILP, multi-department surge beds & equipment allocation, counterfactual baseline, 159 tests passed (reconciles former M4 C4.1) |
+| | 3.4 | Optimization UI & Plan Review | ⬜ Planned | Frontend resource allocation workspace & approval workflow |
+| **M4: Agentic AI & RAG** | 4.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | Tool calling, vector search, operational decision agents |
 
 ---
 
@@ -244,5 +245,39 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `ruff check backend`: 0 errors.
      - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
      - Frontend build (`npm run build`): Built in 2.04s with 0 errors.
-     - Browser Subagent: Full interactive verification (Surge +20%, Capacity +10 beds, Bottleneck Ventilator 0.8x/bed, multi-scenario comparison matrix, shortage interval table, run history drawer, and raw JSON modal inspection).
-* **Next Planned Work:** Milestone 4, Chunk 4.1 (Resource Optimization Engine MIP).
+* **Next Chunk:** Milestone 3, Chunk 3.3 (Resource Optimization Engine MIP) — Completed.
+
+---
+
+## 10. Completed Workstream: Milestone 3, Chunk 3.3 (Resource Optimization Engine MIP)
+
+* **Status:** Complete & Push-Ready.
+* **Roadmap Reconciliation:**
+  - Reconciles the former Milestone 4, Chunk 4.1 MIP planning reference into Milestone 3 as Chunk 3.3 (Decision Intelligence suite), enabling seamless synergy with Chunk 3.1 simulation and Chunk 3.2 scenario modeling.
+* **Scope Delivered:**
+  1. **Mathematically Grounded MILP Formulation:**
+     - Decision variables: Department surge bed activation ($x_{d,t}^{\text{surge}} \in \mathbb{Z}_{\ge 0}$), bed shortages ($s_{d,t}^{\text{bed}} \ge 0$), movable equipment assignments ($y_{r,d,t} \in \mathbb{Z}_{\ge 0}$), equipment deficits ($s_{r,d,t}^{\text{equip}} \ge 0$), and transfer churn linearization ($z_{r,d,t}^{\Delta} \ge 0$).
+     - Multi-criteria objective minimizing unmet bed demand, equipment deficits, surge bed operational costs, and transfer churn.
+     - Hard constraints: Surge bed pool conservation ($\sum_d x_{d,t}^{\text{surge}} \le B^{\text{surge}}$), equipment inventory conservation ($\sum_d y_{r,d,t} \le Q_r^{\text{avail}}$), and linearized demand satisfaction balance.
+  2. **Solver Abstraction Layer (`ScipyMilpSolver`):**
+     - Powered by the state-of-the-art **HiGHS** linear/MIP solver via `scipy.optimize.milp`.
+     - Zero external C-binary dependencies; executes multi-department 30-day horizons in milliseconds.
+     - Decoupled solver protocol with timeout handling, feasibility tracking, and MIP gap reporting.
+  3. **Independent Solution Validation (`SolutionValidator`):**
+     - Pre-solve input checking (horizons, non-negativity, dimension consistency).
+     - Post-solve verification auditing integrality ($\le 10^{-5}$), non-negativity, and all linear constraints.
+     - Automated binding bottleneck discovery (exhausted surge capacity, fully utilized equipment pools).
+  4. **Counterfactual Baseline Comparison:**
+     - Automatically evaluates status quo baseline ($x^{\text{surge}}=0$, static inventory) on identical demand series.
+     - Quantifies exact percentage reduction in shortages, equipment deficits, and net patient-days averted.
+  5. **Persistence, API & RBAC:**
+     - REST endpoints: `POST /api/v1/optimization/solve`, `GET /api/v1/optimization/baseline`, `GET /api/v1/optimization/runs`, and `GET /api/v1/optimization/runs/{run_id}`.
+     - Secured via RBAC permissions: `optimization.run` (ADMIN, OPERATIONS_MANAGER) and `optimization.read` (ADMIN, OPERATIONS_MANAGER, DOCTOR).
+     - Dual persistence in MongoDB `optimization_runs` and in-memory session cache for resilience.
+  6. **Strict Operational Safety Boundary:**
+     - Read-only decision support: never mutates live patient, bed, or resource collections.
+  7. **Verification & Testing:**
+     - 13 comprehensive unit and API tests in `test_optimization_math.py` and `test_api_optimization.py` covering hand-calculable examples, scarce pool competition, equipment deficit tracking, synthetic violation detection, RBAC, and operational isolation.
+     - Full backend test suite: 159 passed, 10 skipped.
+     - `ruff check backend`: 0 errors.
+* **Next Planned Work:** Milestone 3, Chunk 3.4 (Optimization UI & Allocation Plan Review) or Milestone 4 (Multi-Agent Orchestration & RAG).

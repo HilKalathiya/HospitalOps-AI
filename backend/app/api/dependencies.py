@@ -29,6 +29,8 @@ from app.models.user import Role, UserDocument
 from app.repositories.admissions import AdmissionsRepository
 from app.repositories.audit_logs import AuditLogsRepository
 from app.repositories.beds import BedsRepository
+from app.repositories.departments import DepartmentsRepository
+from app.repositories.optimizations import OptimizationsRepository
 from app.repositories.patients import PatientsRepository
 from app.repositories.resources import ResourcesRepository
 from app.repositories.simulations import SimulationsRepository
@@ -37,6 +39,7 @@ from app.services.admissions import AdmissionService
 from app.services.auth import AuthService
 from app.services.beds import BedService
 from app.services.forecast import ForecastService
+from app.services.optimization import OptimizationService
 from app.services.patients import PatientService
 from app.services.resources import ResourceService
 from app.services.simulation import SimulationService
@@ -201,6 +204,42 @@ def get_simulation_service(
 ) -> SimulationService:
     return SimulationService(
         simulations_repo, beds_repo, resources_repo, admissions_repo, audit_repo
+    )
+
+
+def get_optional_optimizations_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> OptimizationsRepository | None:
+    return OptimizationsRepository(db) if db is not None else None
+
+
+def get_optional_departments_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> DepartmentsRepository | None:
+    return DepartmentsRepository(db) if db is not None else None
+
+
+def get_optimization_service(
+    optimizations_repo: Annotated[
+        OptimizationsRepository | None, Depends(get_optional_optimizations_repository)
+    ] = None,
+    departments_repo: Annotated[
+        DepartmentsRepository | None, Depends(get_optional_departments_repository)
+    ] = None,
+    beds_repo: Annotated[BedsRepository | None, Depends(get_optional_beds_repository)] = None,
+    resources_repo: Annotated[
+        ResourcesRepository | None, Depends(get_optional_resources_repository)
+    ] = None,
+    audit_repo: Annotated[
+        AuditLogsRepository | None, Depends(get_optional_audit_log_repository)
+    ] = None,
+) -> OptimizationService:
+    return OptimizationService(
+        optimizations_repo,
+        departments_repo,
+        beds_repo,
+        resources_repo,
+        audit_repo,
     )
 
 

@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Implementation Status: Chunk 3.2 — Scenario Comparison & Simulation UI
+## ✅ Implementation Status: Chunk 3.3 — Resource Optimization Engine
 
 | Chunk | Description | Status |
 |---|---|---|
@@ -24,12 +24,13 @@
 | 2.8 | Forecast Dashboard | ✅ Complete |
 | 3.1 | What-if Simulation Engine | ✅ Complete |
 | 3.2 | Scenario Comparison & Simulation UI | ✅ Complete |
-| 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
-| 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
+| 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
+| 3.4 | Optimization UI & Plan Review | ⬜ Planned |
+| 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 
-**The core system, ML foundation, deep learning forecasting pipeline, evaluation engine, MLflow tracking, forecasting dashboard, deterministic simulation engine, and interactive scenario comparison workspace are live.**
-The backend features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, decoupled MLflow experiment tracking, and an auditable what-if simulation engine for modeling admission surges, bed capacity changes, and resource bottlenecks without mutating live hospital state. The frontend provides a production-grade multi-scenario comparison workspace with coordinate-mapped SVG trajectory charts, shortage interval tables, run history drawers, and deep links from the forecast dashboard. All 146 backend tests and frontend production builds pass cleanly.
+**The core system, ML forecasting foundation, evaluation engine, simulation workspace, and mathematical resource optimization engine are live.**
+The platform features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, decoupled MLflow experiment tracking, an auditable what-if simulation engine, and an exact Mixed-Integer Linear Programming (MILP) planning engine powered by HiGHS/SciPy. The engine optimizes department surge bed activations and critical movable equipment distributions against projected demand over a multi-period horizon, validating every constraint independently and reporting counterfactual baseline improvements without mutating live operational state. All 159 backend tests and frontend production builds pass cleanly.
 
 
 > 💡 **For Interviewers:** A comprehensive 40-page technical guide to this repository is available at [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
@@ -382,6 +383,30 @@ HospitalOps AI provides an interactive what-if scenario comparison workspace (`/
 - **Shortage Interval Breakdown:** Provides contiguous period breakdowns (start day, end day, duration, peak deficit, and affected resource) and deterministic operational takeaways.
 - **Run History & JSON Inspection:** Slide-over run history drawer with timestamped runs and raw JSON inspection modals directly from backend response contracts.
 - **Forecast Dashboard Integration:** Seamless navigation between forecasting (`/forecasts`) and scenario modeling (`/simulations`) with verified parameter reuse.
+
+---
+
+## Resource Optimization Engine (Chunk 3.3)
+
+HospitalOps AI provides a mathematically grounded Mixed-Integer Linear Programming (MILP) planning engine that optimizes hospital bed capacities and movable critical equipment distributions against projected demand over a multi-period horizon:
+- **Mathematical MILP Formulation:**
+  - **Decision Variables:** Department surge bed activations ($x_{d,t}^{\text{surge}} \in \mathbb{Z}_{\ge 0}$), unmet bed shortages ($s_{d,t}^{\text{bed}} \ge 0$), movable equipment allocations ($y_{r,d,t} \in \mathbb{Z}_{\ge 0}$), equipment deficits ($s_{r,d,t}^{\text{equip}} \ge 0$), and equipment transfer churn linearization ($z_{r,d,t}^{\Delta} \ge 0$).
+  - **Multi-Objective Balancing:** Minimizes patient bed shortages, unfulfilled equipment requirements, surge bed operational costs, and inter-departmental transfer churn with clinical priority weights ($w^{\text{shortage}}=100, w^{\text{equip}}=50, w^{\text{surge}}=5, w^{\text{transfer}}=1$).
+  - **Hard Operational Constraints:** Enforces surge bed pool conservation ($\sum_d x_{d,t}^{\text{surge}} \le B^{\text{surge}}$), equipment inventory conservation ($\sum_d y_{r,d,t} \le Q_r^{\text{avail}}$), and linearized demand balance across every horizon period.
+- **High-Performance Exact Solver:**
+  - Integrated with **HiGHS** via `scipy.optimize.milp` without external C-binary bloat. Solves multi-department 30-day horizons in $<50$ milliseconds with guaranteed integrality ($\le 10^{-5}$) and optimality gap tracking.
+- **Independent Solution Validator:**
+  - Automatically verifies solution feasibility, checks bounds, audits non-negativity and integer tolerances, detects active binding bottlenecks (e.g. exhausted surge beds or critical equipment inventory), and diagnoses infeasibilities.
+- **Counterfactual Baseline Comparison:**
+  - Evaluates an unoptimized status quo baseline ($x^{\text{surge}}=0$, static inventory) against identical demand to quantify exact percentage reduction in shortages and net patient-days saved.
+- **Auditable REST API & RBAC:**
+  - `POST /api/v1/optimization/solve`: Run MILP optimization across departments, movable equipment, and horizons.
+  - `GET /api/v1/optimization/baseline`: Retrieve current operational baseline data (beds, inventory, 7-day forecast demand).
+  - `GET /api/v1/optimization/runs`: Paginated historical optimization runs.
+  - `GET /api/v1/optimization/runs/{run_id}`: Detailed plan inspection, objective breakdown, and recommendations.
+  - Secured via `optimization.run` and `optimization.read` permissions.
+- **Strict Operational Safety Boundary:**
+  - Produces advisory allocation recommendations for human review. Never mutates live operational bed, patient, admission, or equipment records.
 
 ---
 

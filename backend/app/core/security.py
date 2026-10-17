@@ -96,6 +96,7 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
         "simulation.run",
         "simulation.read",
         "optimization.run",
+        "optimization.read",
         "knowledge.read",
         "knowledge.manage",
         "agents.run",
@@ -117,6 +118,7 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
         "simulation.run",
         "simulation.read",
         "optimization.run",
+        "optimization.read",
         "knowledge.read",
         "audit.read",
     ],
@@ -129,6 +131,7 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
         "alerts.read",
         "knowledge.read",
         "simulation.read",
+        "optimization.read",
     ],
 
 }

@@ -208,8 +208,9 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 2.8 | Forecast Dashboard | ✅ Complete |
 | 3.1 | What-if Simulation Engine | ✅ Complete |
 | 3.2 | Scenario Comparison & Simulation UI | ✅ Complete |
-| 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
-| 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
+| 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
+| 3.4 | Optimization UI & Plan Review | ⬜ Planned |
+| 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 ---
 
