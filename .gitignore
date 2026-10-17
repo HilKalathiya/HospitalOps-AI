@@ -82,3 +82,8 @@ data/
 # ─── Machine Learning ─────────────────────────────────────────────────────────
 backend/ml/artifacts/
 backend/ml/runs/
+backend/ml/mlruns/
+backend/ml/mlflow.db*
+mlruns/
+*.sqlite
+*.sqlite3

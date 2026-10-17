@@ -203,7 +203,7 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 2.3 | ARIMA + Prophet Statistical Forecasting | ✅ Complete |
 | 2.4 | Deep Learning Forecasting with LSTM | ✅ Complete |
 | 2.5 | Model Evaluation & Selection Engine | ✅ Complete |
-| 2.6 | MLflow Integration | ⬜ Planned |
+| 2.6 | MLflow Integration | ✅ Complete |
 | 2.7 | Forecasting API | ⬜ Planned |
 | 2.8 | Forecast Dashboard | ⬜ Planned |
 | 3.1 | What-if Simulation Engine | ✅ Complete |

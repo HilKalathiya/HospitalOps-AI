@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # ── Local Private Datasets ────────────────────────────────────────────────
     mimic_iv_data_dir: str = "../HospitalOps-Private-Data/Mimic IV"
 
+    # ── MLflow Tracking ───────────────────────────────────────────────────────
+    mlflow_tracking_enabled: bool = False
+    mlflow_tracking_uri: str = "sqlite:///backend/ml/mlflow.db"
+    mlflow_experiment_name: str = "hospitalops-forecasting"
+
     # ── Computed properties ───────────────────────────────────────────────────
     @property
     def cors_origins_list(self) -> list[str]:

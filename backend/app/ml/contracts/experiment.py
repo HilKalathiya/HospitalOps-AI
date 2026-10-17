@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +14,7 @@ class ExperimentRun(BaseModel):
     pipeline_version: str = Field(default="1.0.0")
     config: ForecastConfig
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Forecast Results
     forecasts: list[ForecastResult] = Field(default_factory=list)
@@ -28,3 +28,7 @@ class ExperimentRun(BaseModel):
 
     artifact_dir: str = ""
     status: str = Field(default="RUNNING")
+
+    # MLflow Tracking Linkage (Chunk 2.6)
+    mlflow_run_id: str | None = Field(default=None, description="Linked MLflow run ID if tracked")
+    mlflow_experiment_id: str | None = Field(default=None, description="Linked MLflow experiment ID")

@@ -20,6 +20,9 @@ from app.ml.models.lstm import LSTMForecastModel
 from app.ml.models.prophet import ProphetForecastModel
 from app.ml.preprocessing.scalers import DataPreprocessor
 from app.ml.splitting.temporal import TemporalSplitter
+from app.ml.tracking.artifacts import log_experiment_artifacts
+from app.ml.tracking.base import ExperimentTracker
+from app.ml.tracking.factory import get_tracker
 
 
 class MLPipelineOrchestrator:
@@ -32,10 +35,12 @@ class MLPipelineOrchestrator:
         config: ForecastConfig,
         artifacts_dir: str = "backend/ml/artifacts",
         runs_dir: str = "backend/ml/runs",
+        tracker: ExperimentTracker | None = None,
     ):
         self.config = config
         self.artifacts_dir = artifacts_dir
         self.runs_dir = runs_dir
+        self.tracker = tracker if tracker is not None else get_tracker(config=config)
 
     def run(self, dataset: MLDataset) -> ExperimentRun:
         run_id = str(uuid.uuid4())
@@ -43,81 +48,166 @@ class MLPipelineOrchestrator:
             run_id=run_id, dataset_name=self.config.dataset_name, config=self.config
         )
 
-        if dataset.df.empty:
-            raise ValueError("Dataset is empty. Cannot run pipeline.")
-        df = dataset.df.sort_values(dataset.time_column).reset_index(drop=True)
-        experiment.total_rows = len(df)
+        run_name = (
+            self.config.tracking_run_name
+            or f"{dataset.dataset_name}_{self.config.model_type}_h{self.config.horizon}"
+        )
+        tags = {
+            "dataset": dataset.dataset_name,
+            "target": dataset.target_column,
+            "model_type": self.config.model_type,
+            "horizon": str(self.config.horizon),
+            "frequency": getattr(dataset, "frequency", "D"),
+            **self.config.tracking_tags,
+        }
 
-        feature_engineer = FeatureEngineer(self.config.features, horizon=self.config.horizon)
-        df_featured, feature_cols = feature_engineer.engineer_features(dataset)
-        experiment.feature_count = len(feature_cols)
+        with self.tracker.start_run(run_name=run_name, tags=tags):
+            experiment.mlflow_run_id = self.tracker.active_run_id
+            experiment.mlflow_experiment_id = self.tracker.active_experiment_id
 
-        splitter = TemporalSplitter(self.config.split)
-        train_df, val_df, test_df = splitter.split(df_featured)
+            # Log experiment parameters
+            params: dict[str, str | int | float | None] = {
+                "dataset_name": dataset.dataset_name,
+                "target_column": dataset.target_column,
+                "frequency": getattr(dataset, "frequency", "D"),
+                "horizon": self.config.horizon,
+                "walk_forward_origins": self.config.walk_forward_origins,
+                "high_demand_quantile": str(self.config.high_demand_quantile),
+                "model_type": self.config.model_type,
+                "baseline_model_type": self.config.baseline_model_type,
+                "split_train_ratio": self.config.split.train_ratio,
+                "split_val_ratio": self.config.split.val_ratio,
+                "split_test_ratio": self.config.split.test_ratio,
+                "features_lags": str(self.config.features.lags),
+                "features_rolling_windows": str(self.config.features.rolling_windows),
+            }
+            if self.config.model_type == "baseline":
+                for k, v in self.config.baseline_model_kwargs.items():
+                    params[f"baseline_{k}"] = str(v)
+            elif self.config.model_type == "arima":
+                params["arima_order"] = str(self.config.arima_order)
+                params["arima_seasonal_order"] = str(self.config.arima_seasonal_order)
+            elif self.config.model_type == "prophet":
+                for k, v in self.config.prophet_kwargs.items():
+                    params[f"prophet_{k}"] = str(v)
+            elif self.config.model_type == "lstm":
+                params["lstm_hidden_dim"] = self.config.lstm_hidden_dim
+                params["lstm_num_layers"] = self.config.lstm_num_layers
+                params["lstm_dropout"] = self.config.lstm_dropout
+                params["lstm_epochs"] = self.config.lstm_epochs
+                params["lstm_learning_rate"] = self.config.lstm_learning_rate
+                params["lstm_sequence_length"] = self.config.lstm_sequence_length
+                params["lstm_mc_samples"] = self.config.lstm_mc_samples
 
-        experiment.train_rows = len(train_df)
-        experiment.val_rows = len(val_df)
-        experiment.test_rows = len(test_df)
+            self.tracker.log_params(params)
 
-        if len(train_df) == 0 or len(val_df) == 0 or len(test_df) == 0:
-            raise ValueError("Not enough data to create train/val/test splits.")
+            if dataset.df.empty:
+                raise ValueError("Dataset is empty. Cannot run pipeline.")
+            df = dataset.df.sort_values(dataset.time_column).reset_index(drop=True)
+            experiment.total_rows = len(df)
 
-        preprocessor = DataPreprocessor(feature_cols)
-        train_df_scaled = preprocessor.fit_transform(train_df)
-        val_df_scaled = preprocessor.transform(val_df)
-        test_df_scaled = preprocessor.transform(test_df)
+            feature_engineer = FeatureEngineer(self.config.features, horizon=self.config.horizon)
+            df_featured, feature_cols = feature_engineer.engineer_features(dataset)
+            experiment.feature_count = len(feature_cols)
 
-        # Baselines do not need scaled features. ARIMA/Prophet do not use lagged features anyway.
-        is_baseline = self.config.model_type == "baseline"
-        if is_baseline:
-            train_df_model = train_df
-            val_df_model = val_df
-            test_df_model = test_df
-        else:
-            train_df_model = train_df_scaled
-            val_df_model = val_df_scaled
-            test_df_model = test_df_scaled
+            splitter = TemporalSplitter(self.config.split)
+            train_df, val_df, test_df = splitter.split(df_featured)
 
-        # High demand evaluation threshold
-        threshold = None
-        if self.config.high_demand_quantile is not None:
-            threshold = train_df[dataset.target_column].quantile(self.config.high_demand_quantile)
+            experiment.train_rows = len(train_df)
+            experiment.val_rows = len(val_df)
+            experiment.test_rows = len(test_df)
 
-        # Baseline fast-path (static sliding window via lagged features)
-        if is_baseline:
-            fr_val = self._evaluate_baseline(
-                "validation", train_df_model, val_df_model, dataset, threshold
-            )
-            fr_test = self._evaluate_baseline(
-                "test", train_df_model, test_df_model, dataset, threshold
-            )
-            experiment.forecasts.append(fr_val)
-            experiment.forecasts.append(fr_test)
-        else:
-            # ARIMA / Prophet True Walk-Forward
-            # Evaluate Validation
-            try:
-                fr_val = self._evaluate_walk_forward(
+            if len(train_df) == 0 or len(val_df) == 0 or len(test_df) == 0:
+                raise ValueError("Not enough data to create train/val/test splits.")
+
+            preprocessor = DataPreprocessor(feature_cols)
+            train_df_scaled = preprocessor.fit_transform(train_df)
+            val_df_scaled = preprocessor.transform(val_df)
+            test_df_scaled = preprocessor.transform(test_df)
+
+            # Baselines do not need scaled features. ARIMA/Prophet do not use lagged features anyway.
+            is_baseline = self.config.model_type == "baseline"
+            if is_baseline:
+                train_df_model = train_df
+                val_df_model = val_df
+                test_df_model = test_df
+            else:
+                train_df_model = train_df_scaled
+                val_df_model = val_df_scaled
+                test_df_model = test_df_scaled
+
+            # High demand evaluation threshold
+            threshold = None
+            if self.config.high_demand_quantile is not None:
+                threshold = train_df[dataset.target_column].quantile(self.config.high_demand_quantile)
+
+            # Baseline fast-path (static sliding window via lagged features)
+            if is_baseline:
+                fr_val = self._evaluate_baseline(
                     "validation", train_df_model, val_df_model, dataset, threshold
                 )
-                experiment.forecasts.append(fr_val)
-            except Exception as e:
-                # Graceful failure
-                print(f"[{self.config.model_type}] Validation evaluation failed: {e}")
-
-            # Evaluate Test
-            try:
-                # For test evaluation, history is train + val
-                history_df = pd.concat([train_df_model, val_df_model]).reset_index(drop=True)
-                fr_test = self._evaluate_walk_forward(
-                    "test", history_df, test_df_model, dataset, threshold
+                fr_test = self._evaluate_baseline(
+                    "test", train_df_model, test_df_model, dataset, threshold
                 )
+                experiment.forecasts.append(fr_val)
                 experiment.forecasts.append(fr_test)
-            except Exception as e:
-                print(f"[{self.config.model_type}] Test evaluation failed: {e}")
+            else:
+                # ARIMA / Prophet True Walk-Forward
+                # Evaluate Validation
+                try:
+                    fr_val = self._evaluate_walk_forward(
+                        "validation", train_df_model, val_df_model, dataset, threshold
+                    )
+                    experiment.forecasts.append(fr_val)
+                except Exception as e:
+                    # Graceful failure
+                    print(f"[{self.config.model_type}] Validation evaluation failed: {e}")
 
-        experiment.status = "COMPLETED"
-        self._save_experiment(experiment)
+                # Evaluate Test
+                try:
+                    # For test evaluation, history is train + val
+                    history_df = pd.concat([train_df_model, val_df_model]).reset_index(drop=True)
+                    fr_test = self._evaluate_walk_forward(
+                        "test", history_df, test_df_model, dataset, threshold
+                    )
+                    experiment.forecasts.append(fr_test)
+                except Exception as e:
+                    print(f"[{self.config.model_type}] Test evaluation failed: {e}")
+
+            # Record metrics with strict separation between validation and held-out test splits
+            metrics_to_log: dict[str, float] = {}
+            fr_val_entry = next((f for f in experiment.forecasts if f.split_name == "validation"), None)
+            if fr_val_entry and fr_val_entry.metrics:
+                metrics_to_log["val_mae"] = fr_val_entry.metrics.mae
+                metrics_to_log["val_rmse"] = fr_val_entry.metrics.rmse
+                if fr_val_entry.metrics.smape is not None:
+                    metrics_to_log["val_smape"] = fr_val_entry.metrics.smape
+                if fr_val_entry.metrics.mape is not None:
+                    metrics_to_log["val_mape"] = fr_val_entry.metrics.mape
+                if fr_val_entry.high_demand_metrics:
+                    metrics_to_log["val_high_demand_mae"] = fr_val_entry.high_demand_metrics.mae
+                    metrics_to_log["val_high_demand_rmse"] = fr_val_entry.high_demand_metrics.rmse
+
+            fr_test_entry = next((f for f in experiment.forecasts if f.split_name == "test"), None)
+            if fr_test_entry and fr_test_entry.metrics:
+                metrics_to_log["test_mae"] = fr_test_entry.metrics.mae
+                metrics_to_log["test_rmse"] = fr_test_entry.metrics.rmse
+                if fr_test_entry.metrics.smape is not None:
+                    metrics_to_log["test_smape"] = fr_test_entry.metrics.smape
+                if fr_test_entry.metrics.mape is not None:
+                    metrics_to_log["test_mape"] = fr_test_entry.metrics.mape
+                if fr_test_entry.high_demand_metrics:
+                    metrics_to_log["test_high_demand_mae"] = fr_test_entry.high_demand_metrics.mae
+                    metrics_to_log["test_high_demand_rmse"] = fr_test_entry.high_demand_metrics.rmse
+
+            if metrics_to_log:
+                self.tracker.log_metrics(metrics_to_log)
+
+            # Log experiment artifacts
+            log_experiment_artifacts(self.tracker, experiment)
+
+            experiment.status = "COMPLETED"
+            self._save_experiment(experiment)
 
         return experiment
 

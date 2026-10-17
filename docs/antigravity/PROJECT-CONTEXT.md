@@ -63,7 +63,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | 2.3 | ARIMA & Prophet Comparison | ✅ Complete | SARIMAX, Prophet, walk-forward CV |
 | | 2.4 | Deep Learning Forecasting | ✅ Complete | PyTorch LSTM, Monte Carlo Dropout (95% CI) |
 | | **2.5** | **Model Evaluation & Selection** | ✅ Complete | Leakage-free validation-only selection, MAE/RMSE/sMAPE/MAPE, benchmark report, 120 tests passed |
-| | 2.6 | MLflow Integration | ⬜ Planned | Centralized experiment tracking, model registry |
+| | **2.6** | **MLflow Integration** | ✅ Complete | Decoupled tracker abstraction, SQLite registry backend, split metrics, sanitized artifacts, 10/10 tests passed |
 | | 2.7 | Forecasting API | ⬜ Planned | REST endpoints for inferences & predictions |
 | | 2.8 | Forecast Dashboard | ⬜ Planned | Dynamic forecast charts, CI bounds, UI telemetry |
 | **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
@@ -113,4 +113,34 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full test suite: 120 passed, 10 skipped in 38.14s.
      - `ruff check` on backend: 0 errors.
      - Frontend build: built in 1.82s, zero errors.
-* **Next Chunk:** Milestone 2, Chunk 2.6 (MLflow Integration) or Milestone 2, Chunk 2.7 (Forecasting API).
+* **Next Chunk:** Milestone 2, Chunk 2.7 (Forecasting API).
+
+---
+
+## 6. Completed Workstream: Milestone 2, Chunk 2.6 (MLflow Integration)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Decoupled Experiment Tracker Abstraction:**
+     - Created `app/ml/tracking/base.py` defining `ExperimentTracker` protocol and `TrackerRunContext` context manager.
+     - Implemented `NullExperimentTracker` (`null_tracker.py`) as a zero-overhead no-op tracker used when tracking is disabled or libraries are absent.
+     - Implemented `MLflowTracker` (`mlflow_tracker.py`) managing experiment creation, run contexts, parameter logging, metric logging, and artifact persistence.
+     - Dynamic resolution via `get_tracker(config, settings)` (`factory.py`) ensuring environment overrides and per-run config flags (`tracking_enabled`, `tracking_experiment_name`, `tracking_run_name`).
+  2. **Parameter, Metric, and Artifact Logging:**
+     - **Parameters:** Model type, hyperparameters (ARIMA order, seasonal order, LSTM hidden dim, layers, dropout, learning rate, epochs, batch size, MC samples), dataset, target column, forecast horizon, split configuration, and feature engineering settings.
+     - **Metrics:** Preserved physical target units and logged separate validation (`val_mae`, `val_rmse`, `val_smape`, `val_mape`) and held-out test (`test_mae`, `test_rmse`, etc.) metrics. Held-out test metrics remain strictly isolated from model selection.
+     - **Artifacts:** Persisted sanitized run config (`config.json`), evaluation summary (`evaluation_summary.json`), and predictions-versus-actuals datasets (`predictions_validation.csv`, `predictions_test.csv`).
+  3. **Healthcare Data Privacy & Security Guardrails:**
+     - Created `app/ml/tracking/artifacts.py` featuring recursive `sanitize_dict` scrubbing PHI identifiers (`patient_id`, `subject_id`, `hadm_id`, `stay_id`, `mrn`, `name`, `notes`, `diagnosis`) and security credentials (`jwt_secret_key`, `password`, `token`, `secret`, `api_key`).
+     - Strictly enforced: no raw MIMIC-IV patient files or credentials are ever logged or uploaded to MLflow tracking stores.
+  4. **Safe Local-Development Architecture & Model Registry Support:**
+     - Designed backend tracking around SQLite URI (`sqlite:///backend/ml/mlflow.db`), avoiding deprecated MLflow file-store (`file:./mlruns`) warnings and enabling full MLflow Model Registry support locally without requiring a remote server.
+     - Graceful degradation: if tracking URI is unreachable or invalid, the tracker logs a structured warning and operates without crashing or altering forecasting predictions.
+  5. **Verification & Testing:**
+     - 10 comprehensive tests in `backend/tests/test_ml/test_mlflow_tracking.py` covering: parameter/metric logging, null tracker no-op, factory resolution, PHI/credential sanitization, artifact upload and roundtrip, run failure status tagging, unconnectable backend fallback, model registry capability detection, orchestrator end-to-end integration, and prediction numerical parity with/without tracking.
+     - All 10 MLflow tests passed.
+     - Full test suite: 130 passed, 10 skipped in 64.28s.
+     - `ruff check backend`: All checks passed.
+     - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
+     - Frontend build (`npm run build`): Built in 2.06s with 0 errors.
+* **Next Chunk:** Milestone 2, Chunk 2.7 (Forecasting API).

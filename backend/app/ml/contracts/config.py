@@ -68,3 +68,17 @@ class ForecastConfig(BaseModel):
         default=20, description="Monte Carlo dropout forward passes for CI bounds."
     )
 
+    # Chunk 2.6 Additions (MLflow / Experiment Tracking)
+    tracking_enabled: bool | None = Field(
+        default=None, description="Explicit override to enable/disable MLflow tracking."
+    )
+    tracking_experiment_name: str | None = Field(
+        default=None, description="Override for MLflow experiment name."
+    )
+    tracking_run_name: str | None = Field(
+        default=None, description="Custom name for the tracking run."
+    )
+    tracking_tags: dict[str, str] = Field(
+        default_factory=dict, description="Custom tags to log with this run."
+    )
+

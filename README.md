@@ -18,14 +18,18 @@
 | 2.2 | Baseline Forecasting Models | ✅ Complete |
 | 2.3 | ARIMA + Prophet Statistical Forecasting | ✅ Complete |
 | 2.4 | Deep Learning Forecasting (LSTM / Temporal Networks) | ✅ Complete |
+| 2.5 | Model Evaluation & Selection Engine | ✅ Complete |
+| 2.6 | MLflow Experiment Tracking & Registry Integration | ✅ Complete |
+| 2.7 | Forecasting API | ⬜ Planned |
+| 2.8 | Forecast Dashboard | ⬜ Planned |
 | 3.1 | What-if Simulation Engine | ✅ Complete |
 | 3.2 | Scenario Comparison & Simulation UI | ⬜ Planned |
 | 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
 | 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 
-**The core system, ML foundation, deep learning forecasting pipeline, and deterministic simulation engine are live.**
-The backend features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, and an auditable what-if simulation engine for modeling admission surges, bed capacity changes, and resource bottlenecks without mutating live hospital state. All 111 backend tests and frontend production builds pass cleanly.
+**The core system, ML foundation, deep learning forecasting pipeline, evaluation engine, MLflow tracking, and deterministic simulation engine are live.**
+The backend features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, decoupled MLflow experiment tracking (parameters, split-separated metrics, sanitized artifacts), and an auditable what-if simulation engine for modeling admission surges, bed capacity changes, and resource bottlenecks without mutating live hospital state. All 130 backend tests and frontend production builds pass cleanly.
 
 
 > 💡 **For Interviewers:** A comprehensive 40-page technical guide to this repository is available at [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
@@ -311,6 +315,35 @@ cd frontend
 npm run lint
 ```
 
+### Machine Learning & Experiment Tracking Tests
+
+```bash
+cd backend
+.venv\Scripts\pytest tests/test_ml/test_mlflow_tracking.py -v   # Windows
+# or
+.venv/bin/pytest tests/test_ml/test_mlflow_tracking.py -v       # macOS/Linux
+```
+
+---
+
+## MLflow Experiment Tracking (Chunk 2.6)
+
+HospitalOps AI integrates MLflow for experiment tracking and model registry capabilities behind a decoupled `ExperimentTracker` abstraction:
+- **Local Store:** Default `sqlite:///backend/ml/mlflow.db` provides zero-config local development and fully supports the MLflow Model Registry (unlike deprecated file stores).
+- **Separation of Metrics:** Strict separation between validation metrics (`val_mae`, `val_rmse`, `val_smape`, `val_mape`) and held-out test metrics (`test_mae`, etc.).
+- **Privacy & Safety:** Sanitizes all logged parameters and artifacts to scrub PHI (patient IDs, MRNs, notes) and credentials (JWT keys, passwords).
+- **Graceful Degradation:** If `MLFLOW_TRACKING_ENABLED=False` or the tracking server is unreachable, the system safely operates via `NullExperimentTracker` without crashing.
+
+### Inspecting Local MLflow Runs
+
+To view experiment runs and parameters in the MLflow UI:
+
+```bash
+cd backend
+.venv\Scripts\mlflow ui --backend-store-uri sqlite:///backend/ml/mlflow.db --port 5000
+```
+Open `http://localhost:5000` to review runs, metrics, and logged artifact files.
+
 ---
 
 ## Environment Configuration
@@ -328,6 +361,9 @@ Copy `.env.example` to `.env` and configure:
 | `LOG_LEVEL` | Logging level | No |
 | `BACKEND_PORT` | Backend port override (default: 8000) | No |
 | `FRONTEND_PORT` | Frontend port override (default: 5173) | No |
+| `MLFLOW_TRACKING_ENABLED` | Enable MLflow tracking in pipeline runs (default: `False`) | No |
+| `MLFLOW_TRACKING_URI` | MLflow tracking store URI (default: `sqlite:///backend/ml/mlflow.db`) | No |
+| `MLFLOW_EXPERIMENT_NAME` | MLflow experiment group name (default: `hospitalops-forecasting`) | No |
 
 See `.env.example` for the full list including future-chunk placeholders.
 
