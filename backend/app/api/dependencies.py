@@ -36,6 +36,7 @@ from app.repositories.users import UserRepository
 from app.services.admissions import AdmissionService
 from app.services.auth import AuthService
 from app.services.beds import BedService
+from app.services.forecast import ForecastService
 from app.services.patients import PatientService
 from app.services.resources import ResourceService
 from app.services.simulation import SimulationService
@@ -156,6 +157,20 @@ def get_simulation_service(
 ) -> SimulationService:
     return SimulationService(
         simulations_repo, beds_repo, resources_repo, admissions_repo, audit_repo
+    )
+
+
+def get_forecast_service(
+    admissions_repo: Annotated[
+        HistoricalAdmissionsRepository, Depends(get_historical_admissions_repository)
+    ],
+    capacity_repo: Annotated[
+        HistoricalHospitalCapacityRepository, Depends(get_historical_capacity_repository)
+    ],
+) -> ForecastService:
+    return ForecastService(
+        admissions_repo=admissions_repo,
+        capacity_repo=capacity_repo,
     )
 
 

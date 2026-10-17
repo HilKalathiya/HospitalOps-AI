@@ -342,7 +342,19 @@ To view experiment runs and parameters in the MLflow UI:
 cd backend
 .venv\Scripts\mlflow ui --backend-store-uri sqlite:///backend/ml/mlflow.db --port 5000
 ```
-Open `http://localhost:5000` to review runs, metrics, and logged artifact files.
+---
+
+## Forecasting API (Chunk 2.7)
+
+HospitalOps AI exposes verified forecasting models, benchmark evaluation reports, and experiment runs through secure REST endpoints:
+- `GET /api/v1/forecast/admissions`: Daily admissions forecasting (Hero DMC daily series), horizon 1–30 days. Resolves validation-winning model by default (`val_mae` from `model_selection_report.json`) with optional model override.
+- `GET /api/v1/forecast/icu`: Weekly ICU capacity projections (NHSN HRD `icu_beds_occupied` weekly series), horizon 1–8 weeks. Strictly preserves weekly cadence and physical bed units.
+- `GET /api/v1/forecast/occupancy`: Explicit guardrail returning HTTP 400 Bad Request to prevent fabricating occupancy without concurrent population-matched beds/census metrics.
+- `GET /api/v1/forecast/benchmarks`: Filtered model-selection benchmarks, cleanly separating validation and held-out test splits.
+- `GET /api/v1/forecast/runs`: Paginated historical experiment runs with artifact provenance and UTC timestamps.
+- `GET /api/v1/forecast/runs/{run_id}`: Detailed run metadata, target info, metrics, and prediction arrays.
+
+All forecasting endpoints require JWT authentication and `predictions.read` permission (ADMIN, OPERATIONS_MANAGER, DOCTOR).
 
 ---
 

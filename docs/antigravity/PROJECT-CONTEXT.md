@@ -64,7 +64,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | 2.4 | Deep Learning Forecasting | ✅ Complete | PyTorch LSTM, Monte Carlo Dropout (95% CI) |
 | | **2.5** | **Model Evaluation & Selection** | ✅ Complete | Leakage-free validation-only selection, MAE/RMSE/sMAPE/MAPE, benchmark report, 120 tests passed |
 | | **2.6** | **MLflow Integration** | ✅ Complete | Decoupled tracker abstraction, SQLite registry backend, split metrics, sanitized artifacts, 10/10 tests passed |
-| | 2.7 | Forecasting API | ⬜ Planned | REST endpoints for inferences & predictions |
+| | **2.7** | **Forecasting API** | ✅ Complete | REST endpoints for admissions, ICU, benchmarks, runs, validation-selected model resolution, 15/15 tests passed |
 | | 2.8 | Forecast Dashboard | ⬜ Planned | Dynamic forecast charts, CI bounds, UI telemetry |
 | **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
 | | 3.2 | Simulation UI & Scenario Comparison | ⬜ Planned | Frontend scenario runner, overlay charts |
@@ -143,4 +143,33 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `ruff check backend`: All checks passed.
      - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
      - Frontend build (`npm run build`): Built in 2.06s with 0 errors.
-* **Next Chunk:** Milestone 2, Chunk 2.7 (Forecasting API).
+---
+
+## 7. Completed Workstream: Milestone 2, Chunk 2.7 (Forecasting API)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **REST Forecasting Endpoints:**
+     - `GET /api/v1/forecast/admissions`: Daily admissions forecasting (Hero DMC daily series), horizon 1–30 days. Resolves validation-winning model (`val_mae` from `model_selection_report.json`) by default with optional model override.
+     - `GET /api/v1/forecast/icu`: Weekly ICU capacity projections (NHSN HRD `icu_beds_occupied` series), horizon 1–8 weeks. Strictly preserves weekly cadence and physical bed units.
+     - `GET /api/v1/forecast/occupancy`: Explicit guardrail returning HTTP 400 Bad Request explaining that occupancy rate forecasting is unsupported (numerator/denominator concurrent census data unavailable in benchmarked datasets), preventing synthetic or ungrounded predictions.
+     - `GET /api/v1/forecast/benchmarks`: Filtered model-selection benchmarks, cleanly separating validation and held-out test splits.
+     - `GET /api/v1/forecast/runs`: Paginated experiment run history with artifact provenance, UTC timestamps, and pagination metadata.
+     - `GET /api/v1/forecast/runs/{run_id}`: Detailed run metadata, target information, metrics, and prediction arrays.
+  2. **Layered Architecture & Separation of Concerns:**
+     - Thin route handlers in `app/api/v1/endpoints/forecast.py`.
+     - Business logic, model resolution, on-demand fallback forecasting via `MLPipelineOrchestrator`, and run indexing encapsulated in `app/services/forecast.py` (`ForecastService`).
+     - Strong Pydantic request/response schemas in `app/schemas/forecast.py` wrapped in standard `SuccessResponse[T]`.
+     - Matching TypeScript interfaces and `forecastApi` client in `frontend/src/api/forecast.ts` for Chunk 2.8 readiness.
+  3. **Security, Privacy & RBAC:**
+     - Secured behind JWT authentication and `require_permission("predictions.read")` (ADMIN, OPERATIONS_MANAGER, DOCTOR).
+     - Strictly read-only operational isolation: no mutation of live patient, bed, or resource collections.
+     - Zero PHI or secret leakage; numerical robustness handles non-finite values (NaN/Inf clamping to 0.0).
+  4. **Verification & Testing:**
+     - 15 dedicated unit and API tests in `backend/tests/test_api_forecast.py` covering: default winner resolution, baseline override, horizon boundaries, invalid model rejection, weekly ICU cadence, occupancy 400 guardrail, benchmark filtering, run pagination & lookup, 401 unauthenticated & 403 unauthorized rejection, and non-finite value handling.
+     - All 15 forecast tests passed.
+     - Full test suite: 145 passed, 10 skipped in 62.07s.
+     - `ruff check backend`: All checks passed.
+     - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
+     - Frontend build (`npm run build`): Built in 2.30s with 0 errors.
+* **Next Chunk:** Milestone 2, Chunk 2.8 (Forecast Dashboard).
