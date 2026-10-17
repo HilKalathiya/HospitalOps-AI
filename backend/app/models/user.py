@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import ConfigDict, EmailStr, Field
+from pydantic import ConfigDict, Field
 
 from app.models.base import TimestampedModel
 

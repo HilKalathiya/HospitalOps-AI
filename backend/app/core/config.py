@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     # ── Logging ───────────────────────────────────────────────────────────────
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
+    # ── Local Private Datasets ────────────────────────────────────────────────
+    mimic_iv_data_dir: str = "../HospitalOps-Private-Data/Mimic IV"
+
     # ── Computed properties ───────────────────────────────────────────────────
     @property
     def cors_origins_list(self) -> list[str]:

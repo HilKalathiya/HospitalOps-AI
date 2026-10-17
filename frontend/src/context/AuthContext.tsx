@@ -12,12 +12,46 @@ export interface User {
   permissions: string[]
 }
 
+const DEMO_PROFILES: Record<string, User> = {
+  'admin@hospitalops.local': {
+    user_id: 'usr_admin',
+    email: 'admin@hospitalops.local',
+    name: 'System Administrator',
+    role: 'ADMIN',
+    department_id: null,
+    is_active: true,
+    last_login_at: new Date().toISOString(),
+    permissions: ['*']
+  },
+  'doctor@hospitalops.local': {
+    user_id: 'usr_doctor',
+    email: 'doctor@hospitalops.local',
+    name: 'Dr. Sarah Mitchell',
+    role: 'DOCTOR',
+    department_id: 'ICU',
+    is_active: true,
+    last_login_at: new Date().toISOString(),
+    permissions: ['beds.read', 'beds.manage', 'patients.read', 'patients.write']
+  },
+  'manager@hospitalops.local': {
+    user_id: 'usr_manager',
+    email: 'manager@hospitalops.local',
+    name: 'Robert Vance',
+    role: 'MANAGER',
+    department_id: 'OPERATIONS',
+    is_active: true,
+    last_login_at: new Date().toISOString(),
+    permissions: ['beds.read', 'resources.read', 'resources.manage', 'forecasts.read']
+  }
+}
+
 interface AuthContextType {
   user: User | null
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
   login: (token: string) => Promise<void>
+  loginWithDemoUser: (email: string) => void
   logout: () => Promise<void>
   hasPermission: (permission: string) => boolean
 }
@@ -87,6 +121,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const loginWithDemoUser = (userEmail: string) => {
+    const profile = DEMO_PROFILES[userEmail] || DEMO_PROFILES['admin@hospitalops.local']
+    setUser(profile)
+    setToken('demo_token')
+    setAccessToken('demo_token')
+  }
+
   const logout = async () => {
     try {
       await apiClient.post('/auth/logout')
@@ -109,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: !!user,
     isLoading: isLoading || (!!token && !user),
     login,
+    loginWithDemoUser,
     logout,
     hasPermission,
   }

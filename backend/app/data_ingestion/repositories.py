@@ -12,6 +12,7 @@ from app.data_ingestion.models import (
     DataIngestionRunDocument,
     HistoricalAdmissionDocument,
     HistoricalCapacityDocument,
+    HistoricalICUStayDocument,
 )
 from app.repositories.base import BaseRepository
 
@@ -125,6 +126,44 @@ class HistoricalHospitalCapacityRepository(BaseRepository):
                     {"$set": doc_dict},
                     upsert=True,
                 )
+            )
+
+        result = await self.collection.bulk_write(operations, ordered=False)
+        return {
+            "inserted": result.upserted_count,
+            "updated": result.modified_count,
+            "skipped": len(docs) - (result.upserted_count + result.modified_count),
+        }
+
+
+class HistoricalICUStaysRepository(BaseRepository):
+    """Repository for managing MIMIC-IV historical ICU stays."""
+
+    COLLECTION = "historical_icu_stays"
+
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:  # type: ignore[type-arg]
+        super().__init__(db)
+
+    async def ensure_indexes(self) -> None:
+        """Indexes are managed centrally in database/client.py."""
+        pass
+
+    async def bulk_upsert(self, docs: list[HistoricalICUStayDocument]) -> dict[str, int]:
+        """
+        Upsert a batch of ICU stay documents based on stay_id.
+        Returns the number of inserted vs updated documents.
+        """
+        if not docs:
+            return {"inserted": 0, "updated": 0, "skipped": 0}
+
+        operations = []
+        for doc in docs:
+            doc_dict = doc.model_dump(by_alias=True, exclude_none=True)
+            if "_id" in doc_dict:
+                del doc_dict["_id"]
+
+            operations.append(
+                UpdateOne({"stay_id": doc.stay_id}, {"$set": doc_dict}, upsert=True)
             )
 
         result = await self.collection.bulk_write(operations, ordered=False)

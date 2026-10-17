@@ -50,7 +50,7 @@ class ProphetForecastModel(ForecastModel):
         try:
             self.model.fit(df_prophet)
         except Exception as e:
-            raise RuntimeError(f"Prophet fit failed: {e}")
+            raise RuntimeError(f"Prophet fit failed: {e}") from e
 
     def predict(self, X: pd.DataFrame) -> tuple[pd.Series, pd.Series | None, pd.Series | None]:
         """

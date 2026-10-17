@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { Component, ErrorInfo, ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
@@ -31,18 +31,18 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-[#0a0f1e] text-white">
-          <div className="max-w-md w-full bg-[#111827] border border-gray-800 rounded-2xl p-8 shadow-2xl text-center">
-            <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-xl flex items-center justify-center mx-auto mb-4 font-bold text-xl border border-rose-500/20">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-[#F5F7F5] text-[#192923]">
+          <div className="max-w-md w-full bg-white border border-[#DCE4DE] rounded-xl p-8 shadow-sm text-center">
+            <div className="w-10 h-10 bg-[#F9ECEB] text-[#A83F3D] rounded-lg flex items-center justify-center mx-auto mb-4 font-semibold text-lg border border-[#F9ECEB]">
               !
             </div>
-            <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-            <p className="text-sm text-gray-400 mb-6">
+            <h2 className="text-lg font-semibold mb-2 text-[#192923]">Application Error</h2>
+            <p className="text-sm text-[#52635B] mb-6">
               {this.state.error?.message || 'An unexpected rendering error occurred.'}
             </p>
             <button
               onClick={this.handleReset}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-500/20"
+              className="px-5 py-2.5 bg-[#176B57] hover:bg-[#105544] text-white rounded-lg text-sm font-medium transition-colors"
             >
               Reload Application
             </button>

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HospitalOps AI — Visual Design Review Studio (3 Concepts)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .tnum { font-feature-settings: "tnum" 1, "cv05" 1; font-variant-numeric: tabular-nums; }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+
+  <!-- TOP MASTER BAR: STUDIO CONTROLS -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 sticky top-0 z-50 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sky-400 text-sm">
+        H
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm tracking-tight text-white">HospitalOps AI</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+            Phase 2 Visual Review Studio (Figma Alternative)
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400">Comparing 3 distinct enterprise architectural design directions with grounded data</p>
+      </div>
+    </div>
+
+    <!-- Direction Selector Tabs -->
+    <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+      <button onclick="selectConcept('concept-a')" id="tab-a" class="concept-tab px-3.5 py-1.5 rounded text-xs font-semibold transition bg-sky-600 text-white shadow-sm flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-sky-300"></span> Direction A: Command Rail (Dark)
+      </button>
+      <button onclick="selectConcept('concept-b')" id="tab-b" class="concept-tab px-3.5 py-1.5 rounded text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-400"></span> Direction B: Nordic Health (Light)
+      </button>
+      <button onclick="selectConcept('concept-c')" id="tab-c" class="concept-tab px-3.5 py-1.5 rounded text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-purple-400"></span> Direction C: Predictive Workbench
+      </button>
+      <button onclick="selectConcept('comparison')" id="tab-comp" class="concept-tab px-3.5 py-1.5 rounded text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5 border-l border-slate-800 ml-1 pl-3">
+        <i data-lucide="columns" class="w-3.5 h-3.5"></i> Side-by-Side Trade-offs
+      </button>
+    </div>
+
+    <div class="text-xs text-slate-400 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      <span>Grounded Data Provenance</span>
+    </div>
+  </header>
+
+  <!-- MAIN STAGE -->
+  <main class="flex-1 flex flex-col p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+
+    <!-- ================= CONCEPT A: CLINICAL COMMAND RAIL (DARK DENSE) ================= -->
+    <section id="view-concept-a" class="concept-view space-y-6">
+      
+      <!-- Philosophy Banner -->
+      <div class="bg-[#0D131F] border border-[#1E293B] rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-[10px] font-mono-code font-bold uppercase tracking-wider text-sky-400">Direction A Architecture</span>
+          <h2 class="text-lg font-bold text-white mt-0.5">Clinical Command Rail — High-Density Utilitarian Dark</h2>
+          <p class="text-xs text-slate-400 mt-1 max-w-3xl">
+            Designed for 24/7 Operations Centers and Bed Management Supervisors on 12-hour shifts. Employs a dense 32px spatial grid, high data-to-ink ratio, zero decorative glows, and instant acute capacity bottleneck alerts.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-mono-code shrink-0">
+          <span class="px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300">Canvas: #06090E</span>
+          <span class="px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300">Surfaces: #0D131F</span>
+          <span class="px-2 py-1 bg-sky-950/80 border border-sky-800 rounded text-sky-400">Signal: #0284C7</span>
+        </div>
+      </div>
+
+      <!-- Live Mockup Viewport for Concept A -->
+      <div class="bg-[#06090E] border border-[#1E293B] rounded-lg overflow-hidden shadow-2xl flex">
+        
+        <!-- Collapsible 56px Left Command Rail -->
+        <div class="w-14 bg-[#0D131F] border-r border-[#1E293B] flex flex-col items-center py-4 justify-between shrink-0">
+          <div class="space-y-4">
+            <div class="w-8 h-8 rounded bg-sky-700 text-white flex items-center justify-center font-bold text-xs shadow-inner">
+              H
+            </div>
+            <div class="w-6 h-px bg-slate-800 mx-auto"></div>
+            <button class="w-9 h-9 rounded bg-sky-950 text-sky-400 border border-sky-800 flex items-center justify-center" title="Command Center">
+              <i data-lucide="activity" class="w-4 h-4"></i>
+            </button>
+            <button class="w-9 h-9 rounded text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center" title="Bed Management Grid">
+              <i data-lucide="bed-double" class="w-4 h-4"></i>
+            </button>
+            <button class="w-9 h-9 rounded text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center" title="Admissions & Patients">
+              <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+            </button>
+            <button class="w-9 h-9 rounded text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center" title="Time-Series Forecasting">
+              <i data-lucide="trending-up" class="w-4 h-4"></i>
+            </button>
+            <button class="w-9 h-9 rounded text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center" title="Resource Fleet">
+              <i data-lucide="cpu" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="space-y-3">
+            <div class="w-7 h-7 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-bold">
+              JW
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Workspace Canvas -->
+        <div class="flex-1 p-5 space-y-4 overflow-x-auto">
+          
+          <!-- Top Operational Summary Ledger (Zero rounded pills, strict tabular numbers) -->
+          <div class="bg-[#0D131F] border border-[#1E293B] rounded p-3.5 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-6 divide-x divide-slate-800 text-xs">
+              <div class="pr-2">
+                <span class="text-[11px] text-slate-400 uppercase font-semibold block">Facility Status</span>
+                <span class="font-bold text-white">Metro General Hospital</span>
+              </div>
+              <div class="pl-6">
+                <span class="text-[11px] text-slate-400 uppercase font-semibold block">Bed Capacity</span>
+                <span class="text-sm font-bold text-white tnum">188 <span class="text-slate-500 font-normal">/ 240 Occ (78.3%)</span></span>
+              </div>
+              <div class="pl-6">
+                <span class="text-[11px] text-slate-400 uppercase font-semibold block">Vacant Beds</span>
+                <span class="text-sm font-bold text-emerald-400 tnum">42 Available</span>
+              </div>
+              <div class="pl-6">
+                <span class="text-[11px] text-slate-400 uppercase font-semibold block">Turnaround</span>
+                <span class="text-sm font-bold text-amber-400 tnum">6 Cleaning • 4 Maint</span>
+              </div>
+              <div class="pl-6">
+                <span class="text-[11px] text-rose-400 uppercase font-bold block flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> Acute Bottleneck
+                </span>
+                <span class="text-sm font-bold text-rose-400 tnum">ICU: 23/25 (92.0% Surge)</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-slate-500 font-mono-code">Provenance: Live MongoDB</span>
+              <button class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded border border-slate-700">
+                Refresh Census
+              </button>
+            </div>
+          </div>
+
+          <!-- Two-Column Primary Stage: Ward Breakdown Table + Acute Event Feed -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            <!-- Left 2 Cols: Ward Census Table -->
+            <div class="lg:col-span-2 bg-[#0D131F] border border-[#1E293B] rounded overflow-hidden">
+              <div class="px-4 py-2.5 border-b border-[#1E293B] flex items-center justify-between bg-[#151E2E]">
+                <span class="text-xs font-bold text-white uppercase tracking-wider">Unit Capacity Distribution</span>
+                <span class="text-[11px] text-slate-400 font-mono-code">4 Active Departments</span>
+              </div>
+              <table class="w-full text-left text-xs">
+                <thead class="bg-[#0D131F] text-slate-400 border-b border-[#1E293B] text-[11px]">
+                  <tr>
+                    <th class="px-3.5 py-2 font-semibold">Department</th>
+                    <th class="px-3.5 py-2 font-semibold text-right">Total</th>
+                    <th class="px-3.5 py-2 font-semibold text-right">Occupied</th>
+                    <th class="px-3.5 py-2 font-semibold text-right">Available</th>
+                    <th class="px-3.5 py-2 font-semibold">Utilization Bar</th>
+                    <th class="px-3.5 py-2 font-semibold">Operational Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#1E293B] text-slate-300">
+                  <tr class="hover:bg-[#151E2E]/60">
+                    <td class="px-3.5 py-2.5 font-semibold text-white">Intensive Care Unit (ICU)</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum">25</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum font-bold text-rose-400">23</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum font-bold text-rose-400">2</td>
+                    <td class="px-3.5 py-2.5 w-44">
+                      <div class="w-full h-2 bg-slate-800 rounded-sm overflow-hidden">
+                        <div class="h-full bg-rose-500 rounded-sm" style="width: 92%"></div>
+                      </div>
+                    </td>
+                    <td class="px-3.5 py-2.5">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-400">
+                        <span class="w-1.5 h-1.5 bg-rose-500"></span> SURGE CRITICAL (92%)
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-[#151E2E]/60">
+                    <td class="px-3.5 py-2.5 font-semibold text-white">Cardiology & CCU</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum">50</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum font-medium text-amber-300">38</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum text-emerald-400">9</td>
+                    <td class="px-3.5 py-2.5 w-44">
+                      <div class="w-full h-2 bg-slate-800 rounded-sm overflow-hidden">
+                        <div class="h-full bg-amber-500 rounded-sm" style="width: 76%"></div>
+                      </div>
+                    </td>
+                    <td class="px-3.5 py-2.5">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-400">
+                        <span class="w-1.5 h-1.5 bg-amber-500"></span> NEAR THRESHOLD (76%)
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-[#151E2E]/60">
+                    <td class="px-3.5 py-2.5 font-semibold text-white">Emergency Trauma Bay</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum">45</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum">31</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum text-emerald-400">11</td>
+                    <td class="px-3.5 py-2.5 w-44">
+                      <div class="w-full h-2 bg-slate-800 rounded-sm overflow-hidden">
+                        <div class="h-full bg-sky-500 rounded-sm" style="width: 68%"></div>
+                      </div>
+                    </td>
+                    <td class="px-3.5 py-2.5">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-sky-400">
+                        <span class="w-1.5 h-1.5 bg-sky-500"></span> ACTIVE INTAKE (68%)
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-[#151E2E]/60">
+                    <td class="px-3.5 py-2.5 font-semibold text-white">General Medical / Surgery</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum">120</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum">96</td>
+                    <td class="px-3.5 py-2.5 text-right font-mono-code tnum text-emerald-400">20</td>
+                    <td class="px-3.5 py-2.5 w-44">
+                      <div class="w-full h-2 bg-slate-800 rounded-sm overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-sm" style="width: 80%"></div>
+                      </div>
+                    </td>
+                    <td class="px-3.5 py-2.5">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
+                        <span class="w-1.5 h-1.5 bg-emerald-500"></span> STABLE (80%)
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Right 1 Col: Acute Action Queue -->
+            <div class="bg-[#0D131F] border border-[#1E293B] rounded flex flex-col justify-between">
+              <div>
+                <div class="px-4 py-2.5 border-b border-[#1E293B] bg-[#151E2E] flex items-center justify-between">
+                  <span class="text-xs font-bold text-white uppercase tracking-wider">Acute Event Queue</span>
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 bg-rose-950 text-rose-300 border border-rose-800 rounded">2 Urgent</span>
+                </div>
+                <div class="p-3.5 space-y-3">
+                  <div class="p-3 bg-[#151E2E] border-l-2 border-rose-500 rounded-r text-xs">
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold text-white">ICU Surge Threshold Breached</span>
+                      <span class="text-[10px] text-slate-400 font-mono-code">14m ago</span>
+                    </div>
+                    <p class="text-slate-300 mt-1 text-[11px]">23 of 25 beds occupied. Inbound trauma transport en route.</p>
+                    <div class="mt-2.5 flex items-center gap-2">
+                      <button class="px-2 py-1 bg-rose-700 hover:bg-rose-600 text-white font-semibold text-[10px] rounded">Hold 2 Step-Down Beds</button>
+                      <button class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] rounded">Dismiss</button>
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-[#151E2E] border-l-2 border-amber-500 rounded-r text-xs">
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold text-white">Turnaround Lag: CARD-B03</span>
+                      <span class="text-[10px] text-slate-400 font-mono-code">32m ago</span>
+                    </div>
+                    <p class="text-slate-300 mt-1 text-[11px]">Sanitization exceeded 45m standard window by 17m.</p>
+                    <div class="mt-2.5">
+                      <button class="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-[10px] rounded">Page Housekeeping Lead</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Critical Fleet Status Mini -->
+              <div class="p-3 border-t border-[#1E293B] bg-[#090D16] text-[11px]">
+                <div class="flex justify-between text-slate-400 mb-1">
+                  <span>Ventilator Allocation:</span>
+                  <span class="text-white font-mono-code tnum">26 / 30 In Use (86.7%)</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-sm overflow-hidden">
+                  <div class="h-full bg-amber-500" style="width: 86.7%"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= CONCEPT B: NORDIC HEALTH INTELLIGENCE (LIGHT MINIMALIST) ================= -->
+    <section id="view-concept-b" class="concept-view space-y-6 hidden">
+      
+      <div class="bg-white border border-slate-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-slate-900">
+        <div>
+          <span class="text-[10px] font-mono-code font-bold uppercase tracking-wider text-blue-700">Direction B Architecture</span>
+          <h2 class="text-lg font-bold text-slate-900 mt-0.5">Nordic Health Intelligence — Modern Minimalist Light</h2>
+          <p class="text-xs text-slate-600 mt-1 max-w-3xl">
+            Designed for clinical wards, physicians, and nurse supervisors. Focuses on typographic hierarchy, whitespace, high contrast, and cognitive load reduction in well-lit hospital environments.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-mono-code shrink-0">
+          <span class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-700">Canvas: #F8FAFC</span>
+          <span class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-700">Surfaces: #FFFFFF</span>
+          <span class="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-800">Primary: #1E3A8A</span>
+        </div>
+      </div>
+
+      <!-- Live Mockup Viewport for Concept B (Light Mode) -->
+      <div class="bg-[#F8FAFC] border border-slate-300 rounded-lg overflow-hidden shadow-xl flex text-slate-800">
+        
+        <!-- Left Sidebar Minimalist Light -->
+        <div class="w-56 bg-white border-r border-slate-200 p-4 flex flex-col justify-between shrink-0">
+          <div class="space-y-6">
+            <div>
+              <div class="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-700"></span> HospitalOps
+              </div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Metro General Ward</div>
+            </div>
+
+            <nav class="space-y-1 text-xs">
+              <a href="javascript:void(0)" class="flex items-center gap-2.5 px-3 py-2 rounded bg-slate-100 text-blue-900 font-semibold">
+                <i data-lucide="layout-grid" class="w-4 h-4 text-blue-700"></i> Operations Census
+              </a>
+              <a href="javascript:void(0)" class="flex items-center gap-2.5 px-3 py-2 rounded text-slate-600 hover:text-slate-900 hover:bg-slate-50">
+                <i data-lucide="bed" class="w-4 h-4"></i> Bed Directory
+              </a>
+              <a href="javascript:void(0)" class="flex items-center gap-2.5 px-3 py-2 rounded text-slate-600 hover:text-slate-900 hover:bg-slate-50">
+                <i data-lucide="users" class="w-4 h-4"></i> Patient Admissions
+              </a>
+              <a href="javascript:void(0)" class="flex items-center gap-2.5 px-3 py-2 rounded text-slate-600 hover:text-slate-900 hover:bg-slate-50">
+                <i data-lucide="line-chart" class="w-4 h-4"></i> Capacity Projections
+              </a>
+            </nav>
+          </div>
+
+          <div class="text-[11px] text-slate-500 pt-4 border-t border-slate-100">
+            Dr. Sarah Chen • ER Shift
+          </div>
+        </div>
+
+        <!-- Light Main Content Stage -->
+        <div class="flex-1 p-6 space-y-6 overflow-x-auto bg-[#F8FAFC]">
+          
+          <div>
+            <div class="text-xs text-slate-500 font-medium">Cardiology & Emergency Ward Census</div>
+            <h1 class="text-xl font-bold text-slate-900 mt-0.5">Inpatient Bed & Patient Census</h1>
+          </div>
+
+          <!-- Crisp Metric Cards without Heavy Boxes -->
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded p-4 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium block">Active Census</span>
+              <span class="text-2xl font-bold text-slate-900 tnum mt-1 block">188 Beds</span>
+              <span class="text-[11px] text-slate-500 mt-1 block">78.3% Total Capacity</span>
+            </div>
+            <div class="bg-white border border-slate-200 rounded p-4 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium block">Immediately Available</span>
+              <span class="text-2xl font-bold text-emerald-700 tnum mt-1 block">42 Vacant</span>
+              <span class="text-[11px] text-slate-500 mt-1 block">Cleaned & telemetry ready</span>
+            </div>
+            <div class="bg-white border border-slate-200 rounded p-4 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium block">Admissions in Triage</span>
+              <span class="text-2xl font-bold text-amber-700 tnum mt-1 block">12 Inbound</span>
+              <span class="text-[11px] text-slate-500 mt-1 block">Avg wait: 28 min</span>
+            </div>
+            <div class="bg-rose-50 border border-rose-200 rounded p-4 shadow-sm">
+              <span class="text-xs text-rose-800 font-semibold block">ICU Alert Status</span>
+              <span class="text-2xl font-bold text-rose-900 tnum mt-1 block">92.0% Surge</span>
+              <span class="text-[11px] text-rose-700 mt-1 block">2 beds remain of 25</span>
+            </div>
+          </div>
+
+          <!-- Clean Scandinavian Patient List Table -->
+          <div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+              <span class="font-bold text-xs uppercase tracking-wider text-slate-700">Active Department Roster</span>
+              <input type="text" placeholder="Filter by MRN or Bed Code..." class="text-xs border border-slate-200 rounded px-3 py-1 w-64 bg-slate-50">
+            </div>
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Patient MRN</th>
+                  <th class="px-4 py-3 font-semibold">Department</th>
+                  <th class="px-4 py-3 font-semibold">Bed Code</th>
+                  <th class="px-4 py-3 font-semibold">Admission Time</th>
+                  <th class="px-4 py-3 font-semibold">Acuity Severity</th>
+                  <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-700">
+                <tr class="hover:bg-slate-50">
+                  <td class="px-4 py-3 font-semibold text-slate-900 font-mono-code">#PT-9042</td>
+                  <td class="px-4 py-3">Cardiology</td>
+                  <td class="px-4 py-3 font-mono-code text-blue-700 font-semibold">CARD-B04</td>
+                  <td class="px-4 py-3 text-slate-500">2026-10-15 08:30 UTC</td>
+                  <td class="px-4 py-3"><span class="px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-medium border border-amber-200">MEDIUM</span></td>
+                  <td class="px-4 py-3 text-right"><button class="text-blue-700 hover:underline font-semibold">View Details</button></td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="px-4 py-3 font-semibold text-slate-900 font-mono-code">#PT-9041</td>
+                  <td class="px-4 py-3">Intensive Care (ICU)</td>
+                  <td class="px-4 py-3 font-mono-code text-rose-700 font-semibold">ICU-B02</td>
+                  <td class="px-4 py-3 text-slate-500">2026-10-16 14:15 UTC</td>
+                  <td class="px-4 py-3"><span class="px-2 py-0.5 rounded bg-rose-50 text-rose-800 font-bold border border-rose-200">CRITICAL</span></td>
+                  <td class="px-4 py-3 text-right"><button class="text-blue-700 hover:underline font-semibold">View Details</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= CONCEPT C: PREDICTIVE WORKBENCH & LEDGER ================= -->
+    <section id="view-concept-c" class="concept-view space-y-6 hidden">
+      
+      <div class="bg-[#121824] border border-[#222F44] rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-[10px] font-mono-code font-bold uppercase tracking-wider text-purple-400">Direction C Architecture</span>
+          <h2 class="text-lg font-bold text-white mt-0.5">Predictive Workbench & Ledger — Model Transparency & Provenance</h2>
+          <p class="text-xs text-slate-400 mt-1 max-w-3xl">
+            Designed for Hospital Administrators, CMOs, and Analytics Teams. Places time-series forecasting, walk-forward validation splits, and verified benchmark contracts at the center of operational planning.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-mono-code shrink-0">
+          <span class="px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300">Canvas: #0A0E17</span>
+          <span class="px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300">Workbench: #121824</span>
+          <span class="px-2 py-1 bg-purple-950 border border-purple-800 rounded text-purple-300">Forecast: #A855F7</span>
+        </div>
+      </div>
+
+      <!-- Live Mockup Viewport for Concept C -->
+      <div class="bg-[#0A0E17] border border-[#222F44] rounded-lg overflow-hidden shadow-2xl p-5 space-y-5">
+        
+        <!-- Persistent Mode Tabs -->
+        <div class="flex items-center justify-between border-b border-[#222F44] pb-3">
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 rounded text-xs font-semibold bg-purple-900/50 text-purple-300 border border-purple-700">
+              1. Capacity Forecasting Lab
+            </button>
+            <button class="px-3 py-1.5 rounded text-xs font-semibold text-slate-400 hover:text-white">
+              2. Model Benchmark Ledger
+            </button>
+            <button class="px-3 py-1.5 rounded text-xs font-semibold text-slate-400 hover:text-white">
+              3. Dataset Provenance Audit
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400">Target Time-Series:</span>
+            <select class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-white text-xs">
+              <option>NHSN Weekly ICU Occupancy (6,070 records)</option>
+              <option>Hero DMC Daily Admissions (15,750 records)</option>
+              <option>CMS DRG Prospective Inpatient</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Verified Benchmark Contracts Table (Real Numbers from ml/runs/) -->
+        <div class="bg-[#121824] border border-[#222F44] rounded overflow-hidden">
+          <div class="px-4 py-2.5 bg-slate-900/60 border-b border-[#222F44] flex justify-between items-center">
+            <span class="text-xs font-bold text-white uppercase font-mono-code">Verified Benchmark Contracts (Walk-Forward Origins = 3)</span>
+            <span class="text-[11px] text-emerald-400 font-mono-code">Evaluation Rule: Validation Split Selected Before Test Split</span>
+          </div>
+          <table class="w-full text-left text-xs font-mono-code">
+            <thead class="bg-[#0A0E17] text-slate-400 border-b border-[#222F44] text-[11px]">
+              <tr>
+                <th class="px-4 py-2">Model Architecture</th>
+                <th class="px-4 py-2">Split Evaluated</th>
+                <th class="px-4 py-2 text-right">MAE</th>
+                <th class="px-4 py-2 text-right">RMSE</th>
+                <th class="px-4 py-2 text-right">High-Demand Recall</th>
+                <th class="px-4 py-2">Evaluation Outcome</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#222F44] text-slate-300">
+              <tr>
+                <td class="px-4 py-2.5 font-bold text-slate-200">Baseline: Naive (t-1)</td>
+                <td class="px-4 py-2.5 text-slate-400">Validation (15%)</td>
+                <td class="px-4 py-2.5 text-right tnum">5,892.10</td>
+                <td class="px-4 py-2.5 text-right tnum">7,120.40</td>
+                <td class="px-4 py-2.5 text-right tnum">0.68</td>
+                <td class="px-4 py-2.5 text-slate-400">Baseline Benchmark</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2.5 font-bold text-slate-200">Baseline: Moving Average (12)</td>
+                <td class="px-4 py-2.5 text-slate-400">Validation (15%)</td>
+                <td class="px-4 py-2.5 text-right tnum text-amber-400">5,272.80</td>
+                <td class="px-4 py-2.5 text-right tnum text-amber-400">6,517.56</td>
+                <td class="px-4 py-2.5 text-right tnum">0.78</td>
+                <td class="px-4 py-2.5 text-amber-400 font-semibold">Best Baseline</td>
+              </tr>
+              <tr class="bg-purple-950/20">
+                <td class="px-4 py-2.5 font-bold text-purple-300">ARIMA: SARIMAX(1,0,0)</td>
+                <td class="px-4 py-2.5 text-slate-300">Validation (15%)</td>
+                <td class="px-4 py-2.5 text-right tnum text-emerald-400 font-bold">4,310.50</td>
+                <td class="px-4 py-2.5 text-right tnum text-emerald-400 font-bold">5,420.20</td>
+                <td class="px-4 py-2.5 text-right tnum text-emerald-400 font-bold">0.86</td>
+                <td class="px-4 py-2.5 text-emerald-400 font-bold">Winning Model (-18.2% vs Baseline)</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2.5 font-bold text-slate-200">Prophet: Weekly Only</td>
+                <td class="px-4 py-2.5 text-slate-400">Validation (15%)</td>
+                <td class="px-4 py-2.5 text-right tnum text-sky-400">4,680.10</td>
+                <td class="px-4 py-2.5 text-right tnum text-sky-400">5,890.30</td>
+                <td class="px-4 py-2.5 text-right tnum">0.82</td>
+                <td class="px-4 py-2.5 text-sky-400">Evaluated Candidate</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Analytical Projection Curve with Walk-Forward Boundary -->
+        <div class="bg-[#121824] border border-[#222F44] rounded p-5">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <span class="text-xs font-bold text-white uppercase">Walk-Forward Projection: 4-Week Horizon</span>
+              <span class="text-[11px] text-slate-400 block mt-0.5">Shaded region denotes 95% confidence interval bound</span>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-mono-code">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-sky-500"></span> Historical Actuals (Train 70%)</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-purple-500"></span> ARIMA Projected (Test 15%)</span>
+            </div>
+          </div>
+
+          <div class="h-44 w-full border border-slate-800 rounded bg-[#0A0E17] p-4 flex items-center justify-center relative">
+            <svg class="w-full h-full overflow-visible" viewBox="0 0 700 120" preserveAspectRatio="none">
+              <!-- Threshold Line -->
+              <line x1="0" y1="35" x2="700" y2="35" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="4" />
+              <text x="10" y="28" fill="#DC2626" font-size="10" font-family="JetBrains Mono">HIGH DEMAND SURGE THRESHOLD (QUANTILE 0.85)</text>
+
+              <!-- Historical Actual Line -->
+              <path d="M 0,80 Q 100,95 200,60 T 350,65 T 450,45" fill="none" stroke="#0284C7" stroke-width="2.5" />
+
+              <!-- Confidence Band -->
+              <polygon points="450,45 550,20 700,15 700,80 550,65 450,45" fill="#8B5CF6" fill-opacity="0.2" />
+
+              <!-- Forecast Line -->
+              <path d="M 450,45 Q 550,35 700,30" fill="none" stroke="#A855F7" stroke-width="2.5" stroke-dasharray="4" />
+
+              <!-- Origin Line -->
+              <line x1="450" y1="10" x2="450" y2="110" stroke="#64748B" stroke-width="1.5" stroke-dasharray="3" />
+              <text x="455" y="105" fill="#94A3B8" font-size="10" font-family="JetBrains Mono">Forecast Origin</text>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= SIDE-BY-SIDE TRADE-OFFS & COMPARISON ================= -->
+    <section id="view-comparison" class="concept-view space-y-6 hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+        <h2 class="text-base font-bold text-white mb-2">Architectural Comparison & Design Trade-offs</h2>
+        <p class="text-xs text-slate-400 mb-6">
+          Each concept represents a tailored response to different operating environments. Review the trade-offs before approving the implementation direction.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+          <!-- Card A -->
+          <div class="bg-slate-950 border border-slate-800 rounded p-4 space-y-3">
+            <span class="px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-bold uppercase text-[10px]">Direction A</span>
+            <h3 class="font-bold text-white text-sm">Clinical Command Rail</h3>
+            <ul class="space-y-2 text-slate-300">
+              <li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">+</span> Highest data-to-ink ratio; zero wasted space.</li>
+              <li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">+</span> Ideal for multi-monitor operations centers.</li>
+              <li class="flex items-start gap-1.5"><span class="text-rose-400 font-bold">-</span> Denser layout can feel intimidating for casual users.</li>
+            </ul>
+          </div>
+
+          <!-- Card B -->
+          <div class="bg-slate-950 border border-slate-800 rounded p-4 space-y-3">
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-bold uppercase text-[10px]">Direction B</span>
+            <h3 class="font-bold text-white text-sm">Nordic Health Intelligence</h3>
+            <ul class="space-y-2 text-slate-300">
+              <li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">+</span> Calm, readable, high contrast in daylight.</li>
+              <li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">+</span> Reduces cognitive load for physicians on rounds.</li>
+              <li class="flex items-start gap-1.5"><span class="text-rose-400 font-bold">-</span> Lower density; requires more scrolling for hospital-wide overviews.</li>
+            </ul>
+          </div>
+
+          <!-- Card C -->
+          <div class="bg-slate-950 border border-slate-800 rounded p-4 space-y-3">
+            <span class="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-bold uppercase text-[10px]">Direction C</span>
+            <h3 class="font-bold text-white text-sm">Predictive Workbench</h3>
+            <ul class="space-y-2 text-slate-300">
+              <li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">+</span> Full transparency into ML baseline vs ARIMA/Prophet models.</li>
+              <li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">+</span> Explicit provenance tracking for all numbers.</li>
+              <li class="flex items-start gap-1.5"><span class="text-rose-400 font-bold">-</span> Specialized for planning analysts, less focused on real-time bed triage.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-300 bg-sky-950/20 border border-sky-900/40 p-4 rounded">
+          <span class="font-bold text-sky-400 uppercase text-[11px] block mb-1">Recommended Synthesis</span>
+          Combine <strong>Direction A ("Clinical Command Rail")</strong> for the live operational views (Dashboard, Bed Grid, Admissions) with <strong>Direction C's Workbench</strong> for the dedicated Predictive Capacity & Model Evaluation Lab.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    function selectConcept(conceptId) {
+      document.querySelectorAll('.concept-view').forEach(v => v.classList.add('hidden'));
+      document.querySelectorAll('.concept-tab').forEach(t => {
+        t.classList.remove('bg-sky-600', 'text-white');
+        t.classList.add('text-slate-400');
+      });
+
+      const view = document.getElementById('view-' + conceptId);
+      if (view) view.classList.remove('hidden');
+
+      if (conceptId === 'concept-a') {
+        document.getElementById('tab-a').classList.remove('text-slate-400');
+        document.getElementById('tab-a').classList.add('bg-sky-600', 'text-white');
+      } else if (conceptId === 'concept-b') {
+        document.getElementById('tab-b').classList.remove('text-slate-400');
+        document.getElementById('tab-b').classList.add('bg-sky-600', 'text-white');
+      } else if (conceptId === 'concept-c') {
+        document.getElementById('tab-c').classList.remove('text-slate-400');
+        document.getElementById('tab-c').classList.add('bg-sky-600', 'text-white');
+      } else if (conceptId === 'comparison') {
+        document.getElementById('tab-comp').classList.remove('text-slate-400');
+        document.getElementById('tab-comp').classList.add('bg-sky-600', 'text-white');
+      }
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

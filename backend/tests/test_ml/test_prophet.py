@@ -10,7 +10,7 @@ def test_prophet_fit_predict():
     Tests that ProphetForecastModel can fit a small series and predict the requested steps.
     """
     dates = pd.date_range("2026-01-01", periods=30, freq="D")
-    y = pd.Series([i for i in range(30)])
+    y = pd.Series(list(range(30)))
 
     model = ProphetForecastModel(
         target_column="y",

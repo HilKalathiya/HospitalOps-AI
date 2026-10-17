@@ -43,7 +43,7 @@ class ARIMAForecastModel(ForecastModel):
         except Exception as e:
             raise RuntimeError(
                 f"ARIMA fit failed for order {self.order}, seasonal_order {self.seasonal_order}: {e}"
-            )
+            ) from e
 
     def predict(self, X: pd.DataFrame) -> tuple[pd.Series, pd.Series | None, pd.Series | None]:
         """

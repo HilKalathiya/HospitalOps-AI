@@ -311,6 +311,18 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── historical_icu_stays ──────────────────────────────────────────────────
+    # stay_id: unique natural key for an ICU stay (MIMIC-IV).
+    # subject_id: patient-level queries.
+    # first_careunit: department / unit level queries.
+    await db["historical_icu_stays"].create_indexes(
+        [
+            IndexModel([("stay_id", ASCENDING)], unique=True, name="hist_icu_stay_id_unique"),
+            IndexModel([("subject_id", ASCENDING)], name="hist_icu_subject_id"),
+            IndexModel([("first_careunit", ASCENDING)], name="hist_icu_careunit"),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 

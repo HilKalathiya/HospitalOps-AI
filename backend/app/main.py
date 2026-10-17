@@ -2,6 +2,8 @@
 HospitalOps AI — FastAPI application entry point.
 """
 
+import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -12,10 +14,14 @@ from app.api.v1.router import v1_router
 from app.core.config import get_settings
 from app.core.exceptions import HospitalOpsError
 from app.core.logging import configure_logging
-from app.database.client import close_db, init_db, init_indexes
+from app.core.security import get_password_hash
+from app.database.client import close_db, get_database, init_db, init_indexes
 from app.database.redis_client import close_redis, init_redis
+from app.models.user import Role, UserDocument
+from app.repositories.users import UserRepository
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -23,9 +29,6 @@ async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
     configure_logging(settings.log_level)
 
-    import logging
-
-    logger = logging.getLogger(__name__)
     logger.info(
         "HospitalOps AI starting | env=%s version=0.1.0",
         settings.app_env,
@@ -38,12 +41,6 @@ async def lifespan(app: FastAPI):
         await init_redis(settings)
 
         # Ensure demo users exist for local development
-        import uuid
-        from app.core.security import get_password_hash
-        from app.database.client import get_database
-        from app.models.user import Role, UserDocument
-        from app.repositories.users import UserRepository
-
         db = await get_database()
         user_repo = UserRepository(db)
         admin_user = await user_repo.find_by_email("admin@hospitalops.local")
