@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Implementation Status: Chunk 3.1 — What-if Simulation Engine
+## ✅ Implementation Status: Chunk 3.2 — Scenario Comparison & Simulation UI
 
 | Chunk | Description | Status |
 |---|---|---|
@@ -20,16 +20,16 @@
 | 2.4 | Deep Learning Forecasting (LSTM / Temporal Networks) | ✅ Complete |
 | 2.5 | Model Evaluation & Selection Engine | ✅ Complete |
 | 2.6 | MLflow Experiment Tracking & Registry Integration | ✅ Complete |
-| 2.7 | Forecasting API | ⬜ Planned |
-| 2.8 | Forecast Dashboard | ⬜ Planned |
+| 2.7 | Forecasting API | ✅ Complete |
+| 2.8 | Forecast Dashboard | ✅ Complete |
 | 3.1 | What-if Simulation Engine | ✅ Complete |
-| 3.2 | Scenario Comparison & Simulation UI | ⬜ Planned |
+| 3.2 | Scenario Comparison & Simulation UI | ✅ Complete |
 | 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
 | 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 
-**The core system, ML foundation, deep learning forecasting pipeline, evaluation engine, MLflow tracking, and deterministic simulation engine are live.**
-The backend features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, decoupled MLflow experiment tracking (parameters, split-separated metrics, sanitized artifacts), and an auditable what-if simulation engine for modeling admission surges, bed capacity changes, and resource bottlenecks without mutating live hospital state. All 130 backend tests and frontend production builds pass cleanly.
+**The core system, ML foundation, deep learning forecasting pipeline, evaluation engine, MLflow tracking, forecasting dashboard, deterministic simulation engine, and interactive scenario comparison workspace are live.**
+The backend features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, decoupled MLflow experiment tracking, and an auditable what-if simulation engine for modeling admission surges, bed capacity changes, and resource bottlenecks without mutating live hospital state. The frontend provides a production-grade multi-scenario comparison workspace with coordinate-mapped SVG trajectory charts, shortage interval tables, run history drawers, and deep links from the forecast dashboard. All 146 backend tests and frontend production builds pass cleanly.
 
 
 > 💡 **For Interviewers:** A comprehensive 40-page technical guide to this repository is available at [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
@@ -367,6 +367,21 @@ HospitalOps AI provides a production-grade forecasting dashboard (`/forecasts`) 
 - **Occupancy Rate Guardrail:** Surfaces clear operational disclaimers and guidance when derived metrics cannot be mathematically grounded without concurrent population-matched capacity.
 - **Scenario Overlay:** Visualizes simulated surge projections (+15%, +30%) from the deterministic simulation engine alongside baseline models without mutating operational data.
 - **Model Provenance & Inspection:** Validation-based winner leaderboard (`val_mae`) with held-out test MAE isolation and clickable JSON run inspection modal.
+
+---
+
+## Scenario Comparison & Simulation UI (Chunk 3.2)
+
+HospitalOps AI provides an interactive what-if scenario comparison workspace (`/simulations`) that allows operational managers to model operational stress scenarios, compare them against a baseline, and inspect capacity shortages:
+- **Interactive Scenario Builder:** Supports three deterministic scenario archetypes:
+  - `ADMISSION_SURGE`: Scale prospective admission volume by $\pm X\%$ (with quick presets like +15%, +30%) over a 1–30 day horizon.
+  - `BED_CAPACITY_CHANGE`: Model hypothetical additions or subtractions of operational physical beds ($\pm 50$ beds, e.g. +10, +25, -10 beds) while strictly isolating hypothetical capacity adjustments from live bed inventory.
+  - `RESOURCE_BOTTLENECK`: Stress-test resource demand ratios (ventilators, infusion pumps, dialysis machines) per occupied bed against verified current inventory counts.
+- **Multi-Scenario Comparison Matrix:** Orchestrates multiple scenarios against a common baseline, displaying side-by-side peak occupancy %, peak bed deficits, shortage duration, cumulative unmet admissions, and bottleneck resources.
+- **Coordinate-Mapped SVG Trajectory Chart:** Visualizes baseline curves, up to 4 scenario trajectories, effective bed capacity thresholds ($C$), and shaded deficit zones with interactive hover tooltips and series toggles.
+- **Shortage Interval Breakdown:** Provides contiguous period breakdowns (start day, end day, duration, peak deficit, and affected resource) and deterministic operational takeaways.
+- **Run History & JSON Inspection:** Slide-over run history drawer with timestamped runs and raw JSON inspection modals directly from backend response contracts.
+- **Forecast Dashboard Integration:** Seamless navigation between forecasting (`/forecasts`) and scenario modeling (`/simulations`) with verified parameter reuse.
 
 ---
 

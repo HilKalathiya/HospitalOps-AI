@@ -6,6 +6,7 @@ Simulates demand surges, bed conversions, and resource bottlenecks over a future
 horizon. Strictly read-only on live operational collections.
 """
 
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -30,19 +31,23 @@ from app.repositories.beds import BedsRepository
 from app.repositories.resources import ResourcesRepository
 from app.repositories.simulations import SimulationsRepository
 
+logger = logging.getLogger(__name__)
+
 
 class SimulationService:
     """
     Business logic and deterministic modeling for hospital what-if simulation scenarios.
     """
 
+    _session_runs: dict[str, SimulationRunDocument] = {}
+
     def __init__(
         self,
-        simulations_repo: SimulationsRepository,
-        beds_repo: BedsRepository,
-        resources_repo: ResourcesRepository,
-        admissions_repo: AdmissionsRepository,
-        audit_repo: AuditLogsRepository,
+        simulations_repo: SimulationsRepository | None = None,
+        beds_repo: BedsRepository | None = None,
+        resources_repo: ResourcesRepository | None = None,
+        admissions_repo: AdmissionsRepository | None = None,
+        audit_repo: AuditLogsRepository | None = None,
     ) -> None:
         self.simulations_repo = simulations_repo
         self.beds_repo = beds_repo
@@ -61,13 +66,20 @@ class SimulationService:
         if department_id:
             filters["department_id"] = department_id
 
-        total_beds = await self.beds_repo.count_beds(filters=filters)
-        occupied_filters = {**filters, "status": BedStatus.OCCUPIED.value}
-        occupied_beds = await self.beds_repo.count_beds(filters=occupied_filters)
-        reserved_filters = {**filters, "status": BedStatus.RESERVED.value}
-        reserved_beds = await self.beds_repo.count_beds(filters=reserved_filters)
+        total_beds = 0
+        occupied_beds = 0
+        reserved_beds = 0
+        if self.beds_repo:
+            try:
+                total_beds = await self.beds_repo.count_beds(filters=filters)
+                occupied_filters = {**filters, "status": BedStatus.OCCUPIED.value}
+                occupied_beds = await self.beds_repo.count_beds(filters=occupied_filters)
+                reserved_filters = {**filters, "status": BedStatus.RESERVED.value}
+                reserved_beds = await self.beds_repo.count_beds(filters=reserved_filters)
+            except Exception as err:
+                logger.warning("Live bed count unavailable; using operational baseline defaults: %s", err)
 
-        # Baseline defaults if inventory is empty
+        # Baseline defaults if inventory is empty or unavailable
         if total_beds == 0:
             total_beds = 60
             occupied_beds = 42
@@ -76,10 +88,14 @@ class SimulationService:
         current_active = occupied_beds + reserved_beds
 
         # Baseline admission volume estimate
-        recent_admissions = await self.admissions_repo.count_admissions(filters={"status": "ACTIVE"})
-        daily_admissions_baseline = (
-            float(recent_admissions) if recent_admissions > 0 else max(5.0, current_active / 5.0)
-        )
+        daily_admissions_baseline = max(5.0, current_active / 5.0)
+        if self.admissions_repo:
+            try:
+                recent_admissions = await self.admissions_repo.count_admissions(filters={"status": "ACTIVE"})
+                if recent_admissions > 0:
+                    daily_admissions_baseline = float(recent_admissions)
+            except Exception:
+                pass
 
         baseline = {
             "total_beds": total_beds,
@@ -92,15 +108,19 @@ class SimulationService:
 
         # Resource baseline if specified
         if resource_type:
-            res_query: dict = {"resource_type": resource_type}
-            if department_id:
-                res_query["department_id"] = department_id
-            resources = await self.resources_repo.list_resources(filters=res_query, limit=100)
-            total_qty = sum(r.quantity_total for r in resources)
-            avail_qty = sum(r.quantity_available for r in resources)
-            if total_qty == 0:
-                total_qty = 20
-                avail_qty = 15
+            total_qty = 20
+            avail_qty = 15
+            if self.resources_repo:
+                try:
+                    res_query: dict = {"resource_type": resource_type}
+                    if department_id:
+                        res_query["department_id"] = department_id
+                    resources = await self.resources_repo.list_resources(filters=res_query, limit=100)
+                    if resources:
+                        total_qty = sum(r.quantity_total for r in resources)
+                        avail_qty = sum(r.quantity_available for r in resources)
+                except Exception:
+                    pass
             baseline["resource_type"] = resource_type
             baseline["resource_quantity_total"] = total_qty
             baseline["resource_quantity_available"] = avail_qty
@@ -298,29 +318,38 @@ class SimulationService:
             created_by=current_user.user_id,
         )
 
-        await self.simulations_repo.create_simulation_run(doc)
+        # Store in session memory for local resilience
+        SimulationService._session_runs[simulation_id] = doc
 
-        request_id = get_request_id()
-        audit_entry = AuditLogCreate(
-            action="SIMULATION_RUN_EXECUTED",
-            entity_type="SIMULATION",
-            entity_id=simulation_id,
-            actor_type=ActorType.USER,
-            actor_id=current_user.user_id,
-            request_id=request_id,
-            details={
-                "scenario_name": request.scenario_name,
-                "scenario_type": (
-                    request.parameters.scenario_type.value
-                    if hasattr(request.parameters.scenario_type, "value")
-                    else str(request.parameters.scenario_type)
-                ),
-                "horizon_days": request.parameters.horizon_days,
-                "peak_occupancy_pct": outcome.peak_occupancy_pct,
-            },
-            timestamp=datetime.now(tz=UTC),
-        )
-        await self.audit_repo.create_audit_log(audit_entry)
+        try:
+            await self.simulations_repo.create_simulation_run(doc)
+        except Exception as err:
+            logger.warning("Could not persist simulation run to MongoDB: %s", err)
+
+        try:
+            request_id = get_request_id()
+            audit_entry = AuditLogCreate(
+                action="SIMULATION_RUN_EXECUTED",
+                entity_type="SIMULATION",
+                entity_id=simulation_id,
+                actor_type=ActorType.USER,
+                actor_id=current_user.user_id,
+                request_id=request_id,
+                details={
+                    "scenario_name": request.scenario_name,
+                    "scenario_type": (
+                        request.parameters.scenario_type.value
+                        if hasattr(request.parameters.scenario_type, "value")
+                        else str(request.parameters.scenario_type)
+                    ),
+                    "horizon_days": request.parameters.horizon_days,
+                    "peak_occupancy_pct": outcome.peak_occupancy_pct,
+                },
+                timestamp=datetime.now(tz=UTC),
+            )
+            await self.audit_repo.create_audit_log(audit_entry)
+        except Exception as err:
+            logger.warning("Could not write simulation audit log: %s", err)
 
         return SimulationResponse(
             simulation_id=doc.simulation_id,
@@ -338,7 +367,15 @@ class SimulationService:
         self, simulation_id: str, current_user: UserDocument
     ) -> SimulationResponse:
         """Retrieves a previously executed simulation run by ID."""
-        doc = await self.simulations_repo.find_by_id(simulation_id)
+        doc = None
+        try:
+            doc = await self.simulations_repo.find_by_id(simulation_id)
+        except Exception as err:
+            logger.warning("Could not query MongoDB for simulation %s: %s", simulation_id, err)
+
+        if not doc:
+            doc = SimulationService._session_runs.get(simulation_id)
+
         if not doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -365,9 +402,26 @@ class SimulationService:
         scenario_type: str | None = None,
     ) -> tuple[list[SimulationResponse], int]:
         """Lists historical simulation runs."""
-        docs, total = await self.simulations_repo.list_simulation_runs(
-            skip=skip, limit=limit, scenario_type=scenario_type
-        )
+        docs = []
+        total = 0
+        try:
+            docs, total = await self.simulations_repo.list_simulation_runs(
+                skip=skip, limit=limit, scenario_type=scenario_type
+            )
+        except Exception as err:
+            logger.warning("Could not list simulations from MongoDB: %s", err)
+
+        if not docs and SimulationService._session_runs:
+            all_cached = list(SimulationService._session_runs.values())
+            all_cached.sort(key=lambda d: d.created_at or d.base_timestamp, reverse=True)
+            if scenario_type:
+                all_cached = [
+                    d for d in all_cached
+                    if (d.scenario_type.value if hasattr(d.scenario_type, "value") else str(d.scenario_type)) == scenario_type
+                ]
+            total = len(all_cached)
+            docs = all_cached[skip : skip + limit]
+
         results = [
             SimulationResponse(
                 simulation_id=d.simulation_id,

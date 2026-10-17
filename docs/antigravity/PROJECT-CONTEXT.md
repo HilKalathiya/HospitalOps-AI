@@ -67,7 +67,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **2.7** | **Forecasting API** | ✅ Complete | REST endpoints for admissions, ICU, benchmarks, runs, validation-selected model resolution, 15/15 tests passed |
 | | **2.8** | **Forecast Dashboard** | ✅ Complete | Production dashboard, real historical + prediction series, strict CI bounds, 400 guardrail, run inspection, 146 tests passed |
 | **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
-| | 3.2 | Simulation UI & Scenario Comparison | ⬜ Planned | Frontend scenario runner, overlay charts |
+| | **3.2** | **Simulation UI & Scenario Comparison** | ✅ Complete | Multi-scenario comparison matrix, SVG trajectory chart, shortage analysis, session persistence & JSON inspect |
 | **M4: Resource Optimization**| 4.1 | Optimization Engine (MIP) | ⬜ Planned | PuLP/OR-Tools constraint solver |
 | **M5: Agentic AI & RAG** | 5.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | LangChain tools, vector retrieval |
 
@@ -206,5 +206,43 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `ruff check backend`: 0 errors.
      - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
      - Frontend build (`npm run build`): Built in 2.09s with 0 errors.
-     - Browser Subagent: Full visual verification across Hero DMC daily (+7d, +14d, +30d), NHSN ICU weekly (+1w, +2w, +4w), Occupancy 400 guardrail card, scenario overlay, and mobile viewport (390px).
-* **Next Planned Work:** Milestone 3, Chunk 3.2 (Scenario Comparison & Simulation UI).
+* **Next Chunk:** Milestone 3, Chunk 3.2 (Scenario Comparison & Simulation UI) — Completed.
+
+---
+
+## 9. Completed Workstream: Milestone 3, Chunk 3.2 (Scenario Comparison & Simulation UI)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Production Scenario Comparison Workspace (`/simulations`):**
+     - Full interactive analytical workspace (`ScenarioComparison.tsx`) replacing mockups with a dedicated operational scenario runner.
+     - Accessible via top-level sidebar navigation (`GitCompare` icon) and via cross-dashboard deep link ("Open in Scenario Workspace") from the Forecast Dashboard (`/forecasts`).
+  2. **Three Verified Simulation Archetypes:**
+     - **Admission Surge (`ADMISSION_SURGE`):** Models surge percentages ($\pm 100\%$, presets: +15%, +30%) and projection horizon (1–30 days) to evaluate surges and bed deficit intervals.
+     - **Bed Capacity Change (`BED_CAPACITY_CHANGE`):** Hypothesizes physical ward expansions or contractions ($\pm 50$ beds, presets: +10, +25, -10 beds) while explicitly isolating hypothetical capacity adjustments from live bed inventory.
+     - **Resource Bottleneck (`RESOURCE_BOTTLENECK`):** Evaluates equipment demand ratios (ventilators, infusion pumps, dialysis machines) per occupied bed against current verified inventory limits.
+  3. **Multi-Scenario Comparison Matrix:**
+     - Orchestrates concurrent and incremental simulation executions against a common operational baseline ($T_0$, horizon, target unit).
+     - Side-by-side comparison table reporting: Peak Occupancy %, Peak Bed Deficit, Days in Shortage, Cumulative Unmet Admissions, and Bottleneck Resource.
+     - Retains individual scenario results and inputs on rerun, addition, or removal without cross-scenario contamination.
+  4. **Dynamic SVG Trajectory & Shortage Chart:**
+     - `ScenarioTrajectoryChart.tsx` plots baseline occupancy curve against up to 4 concurrent scenario trajectories with distinct color mapping (`#f59e0b`, `#06b6d4`, `#a855f7`, `#ec4899`).
+     - Renders effective capacity threshold line ($C$) and highlights active shortage/deficit intervals where simulated demand exceeds capacity.
+     - Interactive coordinate tooltip and legend toggles for individual scenario curve visibility.
+  5. **Shortage Interval Breakdown & Operational Implications:**
+     - Tabular analysis of contiguous shortage periods: Start Day, End Day, Duration, Peak Deficit, and Affected Resource.
+     - Deterministic operational takeaways synthesized strictly from backend outcome fields (no LLM hallucination, no clinical prescriptive claims).
+  6. **Run History Drawer & Raw Artifact Inspector:**
+     - Slide-over run history drawer listing completed and session-persisted simulation runs with UTC timestamps and scenario parameters.
+     - Clickable run ID opens raw JSON modal to inspect genuine backend simulation responses (`outcome`, `projections`, `shortage_periods`).
+  7. **Backend Resilience & Session Persistence:**
+     - Updated `init_db` in `backend/app/database/client.py` to reset `_database = None` upon connection failure, eliminating 5-second socket stalls during local development when MongoDB is offline.
+     - Enhanced `SimulationService` with in-memory session persistence (`_session_runs`) ensuring instant fallback, run history tracking, and retrieval across requests.
+  8. **Verification & Testing:**
+     - 7/7 backend simulation tests in `backend/tests/test_simulation.py` passed in 7.57s.
+     - Full backend test suite: 146 passed, 10 skipped.
+     - `ruff check backend`: 0 errors.
+     - Frontend lint (`npm run lint`): 0 warnings, 0 errors.
+     - Frontend build (`npm run build`): Built in 2.04s with 0 errors.
+     - Browser Subagent: Full interactive verification (Surge +20%, Capacity +10 beds, Bottleneck Ventilator 0.8x/bed, multi-scenario comparison matrix, shortage interval table, run history drawer, and raw JSON modal inspection).
+* **Next Planned Work:** Milestone 4, Chunk 4.1 (Resource Optimization Engine MIP).

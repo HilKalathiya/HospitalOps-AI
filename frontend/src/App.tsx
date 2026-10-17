@@ -5,6 +5,7 @@ import { Login } from './pages/Login'
 import { DashboardShell } from './components/layout/DashboardShell'
 import { Dashboard } from './pages/Dashboard/Dashboard'
 import { CapacityForecasts } from './pages/Forecasts/CapacityForecasts'
+import { ScenarioComparison } from './pages/Simulations/ScenarioComparison'
 import { ModelEvaluation } from './pages/Evaluation/ModelEvaluation'
 import { DatasetCatalog } from './pages/Datasets/DatasetCatalog'
 import { BedsPage } from './pages/Operations/BedsPage'
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/forecasts" element={<CapacityForecasts />} />
+                <Route path="/simulations" element={<ScenarioComparison />} />
                 <Route path="/evaluation" element={<ModelEvaluation />} />
                 <Route path="/datasets" element={<DatasetCatalog />} />
                 

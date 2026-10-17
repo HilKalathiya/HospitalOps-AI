@@ -148,22 +148,60 @@ def get_simulations_repository(
     return SimulationsRepository(db)
 
 
-def get_simulation_service(
-    simulations_repo: Annotated[SimulationsRepository, Depends(get_simulations_repository)],
-    beds_repo: Annotated[BedsRepository, Depends(get_beds_repository)],
-    resources_repo: Annotated[ResourcesRepository, Depends(get_resources_repository)],
-    admissions_repo: Annotated[AdmissionsRepository, Depends(get_admission_repository)],
-    audit_repo: Annotated[AuditLogsRepository, Depends(get_audit_log_repository)],
-) -> SimulationService:
-    return SimulationService(
-        simulations_repo, beds_repo, resources_repo, admissions_repo, audit_repo
-    )
-
-
 async def get_optional_database() -> AsyncIOMotorDatabase | None:  # type: ignore[type-arg]
     """Returns database instance if initialised, or None without raising."""
     from app.database.client import _database
     return _database
+
+
+def get_optional_simulations_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> SimulationsRepository | None:
+    return SimulationsRepository(db) if db is not None else None
+
+
+def get_optional_beds_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> BedsRepository | None:
+    return BedsRepository(db) if db is not None else None
+
+
+def get_optional_resources_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> ResourcesRepository | None:
+    return ResourcesRepository(db) if db is not None else None
+
+
+def get_optional_admission_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> AdmissionsRepository | None:
+    return AdmissionsRepository(db) if db is not None else None
+
+
+def get_optional_audit_log_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> AuditLogsRepository | None:
+    return AuditLogsRepository(db) if db is not None else None
+
+
+def get_simulation_service(
+    simulations_repo: Annotated[
+        SimulationsRepository | None, Depends(get_optional_simulations_repository)
+    ] = None,
+    beds_repo: Annotated[BedsRepository | None, Depends(get_optional_beds_repository)] = None,
+    resources_repo: Annotated[
+        ResourcesRepository | None, Depends(get_optional_resources_repository)
+    ] = None,
+    admissions_repo: Annotated[
+        AdmissionsRepository | None, Depends(get_optional_admission_repository)
+    ] = None,
+    audit_repo: Annotated[
+        AuditLogsRepository | None, Depends(get_optional_audit_log_repository)
+    ] = None,
+) -> SimulationService:
+    return SimulationService(
+        simulations_repo, beds_repo, resources_repo, admissions_repo, audit_repo
+    )
 
 
 def get_optional_user_repository(

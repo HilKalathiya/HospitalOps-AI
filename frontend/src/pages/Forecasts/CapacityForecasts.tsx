@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { TopHeader } from '../../components/layout/TopHeader'
 import { CapacityForecastChart } from '../../components/charts/CapacityForecastChart'
 import {
@@ -141,7 +142,7 @@ export const CapacityForecasts: React.FC = () => {
       setBenchmarkData(bmResult.data)
 
       if (scResult && scResult.data) {
-        setScenarioPoints(scResult.data.trajectory || [])
+        setScenarioPoints(scResult.data.outcome?.projections || scResult.data.trajectory || [])
       } else {
         setScenarioPoints([])
       }
@@ -518,12 +519,21 @@ export const CapacityForecasts: React.FC = () => {
                     <strong>Scenario Preview Active:</strong> Trajectory reflects hypothetical admission surge evaluated via the deterministic What-if Engine (Chunk 3.1). Baseline statistical forecast remains unmodified.
                   </span>
                 </div>
-                <button
-                  onClick={() => setScenarioOption('NONE')}
-                  className="text-[9px] underline hover:text-white transition-colors"
-                >
-                  Dismiss
-                </button>
+                <div className="flex items-center gap-3">
+                  <Link
+                    to="/simulations"
+                    className="px-2 py-0.5 rounded bg-[#e8c182]/20 hover:bg-[#e8c182]/30 text-[#e8c182] text-[9.5px] font-medium flex items-center gap-1 transition-all"
+                  >
+                    <span>Open in Scenario Workspace</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </Link>
+                  <button
+                    onClick={() => setScenarioOption('NONE')}
+                    className="text-[9px] underline hover:text-white transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             )}
 

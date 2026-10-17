@@ -73,8 +73,15 @@ async def init_db(settings: Settings) -> None:
 
     # Verify connectivity eagerly at startup so the application fails fast
     # rather than serving requests with a broken database connection.
-    await _database.command("ping")
-    logger.info("MongoDB connection established | db=%s", settings.mongodb_database)
+    try:
+        await _database.command("ping")
+        logger.info("MongoDB connection established | db=%s", settings.mongodb_database)
+    except Exception:
+        _database = None
+        if _client is not None:
+            _client.close()
+            _client = None
+        raise
 
 
 async def close_db() -> None:
