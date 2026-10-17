@@ -1,7 +1,5 @@
 import React, { useState } from 'react'
 import { TopHeader } from '../../components/layout/TopHeader'
-import { ContextBar } from '../../components/common/ContextBar'
-import { Select } from '../../components/common/Select'
 import { CapacityForecastChart } from '../../components/charts/CapacityForecastChart'
 import { 
   NHSN_ICU_BENCHMARK, 
@@ -9,270 +7,218 @@ import {
   DatasetBenchmarkSummary
 } from '../../data/benchmarkData'
 import { 
-  TrendingUp, 
+  Database, 
   ChevronDown, 
   ChevronUp, 
-  Info
+  ShieldCheck
 } from 'lucide-react'
 
 export const CapacityForecasts: React.FC = () => {
   const [selectedDatasetKey, setSelectedDatasetKey] = useState<'nhsn_hrd' | 'hero_dmc'>('nhsn_hrd')
-  const [selectedHorizon, setSelectedHorizon] = useState<string>('4w')
-  const [selectedModel, setSelectedModel] = useState<string>('Moving Average (4)')
+  const [selectedHorizon, setSelectedHorizon] = useState<number>(4)
   const [methodologyOpen, setMethodologyOpen] = useState(false)
 
   const activeDataset: DatasetBenchmarkSummary = 
     selectedDatasetKey === 'nhsn_hrd' ? NHSN_ICU_BENCHMARK : HERO_DMC_BENCHMARK
 
-  // Horizon options depending on dataset
-  const horizonOptions = selectedDatasetKey === 'nhsn_hrd'
-    ? [{ key: '4w', label: '4 Weeks' }, { key: '8w', label: '8 Weeks' }, { key: '12w', label: '12 Weeks' }]
-    : [{ key: '7d', label: '7 Days' }, { key: '14d', label: '14 Days' }, { key: '30d', label: '30 Days' }]
+  const winningModel = activeDataset.models.find(m => m.isWinner) || activeDataset.models[0]
+  const finalTestModel = activeDataset.models.find(m => m.split === 'test') || winningModel
 
-  const modelOptions = activeDataset.models.map(m => m.modelName)
+  const actualPoints = activeDataset.timeSeries.filter(p => p.actual !== undefined)
+  const latestActual = actualPoints[actualPoints.length - 1]
+  const latestVal = latestActual?.actual || 0
 
-  const datasetSelectOptions = [
-    { 
-      value: 'nhsn_hrd', 
-      label: 'NHSN Hospital Capacity (ICU Beds)', 
-      description: 'Weekly respiratory aggregates • CDC HRD' 
-    },
-    { 
-      value: 'hero_dmc', 
-      label: 'Hero DMC Hospital (Daily Admissions)', 
-      description: 'Daily inpatient admissions • India retrospective' 
-    },
-  ]
-
-  const modelSelectOptions = modelOptions.map(m => {
-    let desc = 'Statistical forecasting model'
-    if (m.includes('Winner') || m.includes('Moving Average (4)')) {
-      desc = 'Lowest validation error configuration (Champion)'
-    } else if (m.includes('ARIMA')) {
-      desc = 'Autoregressive integrated moving average'
-    } else if (m.includes('Prophet')) {
-      desc = 'Decomposable trend & seasonality model'
-    } else if (m.includes('Seasonal Naive')) {
-      desc = 'Seasonal repeat lag baseline'
-    } else if (m.includes('Naive')) {
-      desc = 'Persistence baseline (last observed step)'
-    }
-    return {
-      value: m,
-      label: m,
-      description: desc
-    }
-  })
-
-  // Forecast values subset for table
   const forecastPoints = activeDataset.timeSeries.filter(p => p.forecast !== undefined)
+  const currentForecast = forecastPoints[Math.min(selectedHorizon - 1, forecastPoints.length - 1)]
+  const forecastVal = currentForecast?.forecast || latestVal
+
+  const deltaPct = latestVal > 0 ? (((forecastVal - latestVal) / latestVal) * 100).toFixed(1) : '0.0'
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F5F7F5]">
+    <div className="flex flex-col min-h-full bg-bg text-ink">
       <TopHeader 
         title="Capacity forecasts" 
-        subtitle="Actual-versus-forecast projections and walk-forward trajectories"
-        breadcrumbs={[{ label: 'Workspace' }, { label: 'Capacity Forecasts' }]}
+        subtitle="Inspect observed history, forecast origin, horizon and uncertainty"
+        breadcrumbs={[{ label: 'Capacity forecasts' }]}
       />
 
-      <div className="p-6 max-w-7xl w-full mx-auto space-y-6">
+      <div className="p-6 sm:p-8 max-w-[1490px] w-full mx-auto space-y-6">
         
-        <ContextBar 
-          datasetName={activeDataset.datasetName}
-          temporalGrain={activeDataset.cadence}
-          dateCoverage={activeDataset.dateCoverage}
-          isHistorical={true}
-        />
-
-        {/* Analytical Controls Strip */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl p-4 shadow-2xs">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            
-            <div className="flex flex-wrap items-center gap-5">
-              {/* Dataset control */}
-              <div>
-                <Select
-                  label="Dataset Target"
-                  value={selectedDatasetKey}
-                  onChange={(val) => {
-                    const key = val as 'nhsn_hrd' | 'hero_dmc'
-                    setSelectedDatasetKey(key)
-                    if (key === 'hero_dmc') {
-                      setSelectedHorizon('14d')
-                      setSelectedModel('Moving Average (14)')
-                    } else {
-                      setSelectedHorizon('4w')
-                      setSelectedModel('Moving Average (4)')
-                    }
-                  }}
-                  options={datasetSelectOptions}
-                  triggerClassName="w-64"
-                />
-              </div>
-
-              {/* Horizon control */}
-              <div>
-                <label className="block text-xs font-semibold text-[#52635B] uppercase tracking-wider mb-1">
-                  Forecast Horizon
-                </label>
-                <div className="flex items-center gap-1 h-9">
-                  {horizonOptions.map(opt => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setSelectedHorizon(opt.key)}
-                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                        selectedHorizon === opt.key
-                          ? 'bg-[#176B57] text-white shadow-2xs font-semibold'
-                          : 'bg-[#F0F3F0] text-[#52635B] hover:text-[#192923] hover:bg-[#E6EBE7]'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Model selector */}
-              <div>
-                <Select
-                  label="Forecasting Engine"
-                  value={selectedModel}
-                  onChange={(val) => setSelectedModel(val)}
-                  options={modelSelectOptions}
-                  triggerClassName="w-60"
-                />
-              </div>
-            </div>
-
-            {/* Metric pill */}
-            <div className="flex items-center gap-4 text-xs font-mono text-[#52635B] bg-[#F7F9F7] px-3.5 py-2.5 rounded-lg border border-[#E6EBE7]">
-              <span>Split: <strong>{activeDataset.splitRatio}</strong></span>
-              <span>•</span>
-              <span>Observed: <strong>{activeDataset.totalRecords.toLocaleString()} pts</strong></span>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Primary Actuals vs Forecast Chart */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl p-6 shadow-2xs">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E6EBE7]">
-            <div>
-              <h2 className="text-sm font-semibold text-[#192923] tracking-tight flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#176B57]" />
-                Actual vs Forecast Trajectory
-              </h2>
-              <p className="text-xs text-[#52635B] mt-0.5">
-                Target: <span className="font-mono text-[#192923]">{activeDataset.targetColumn}</span> ({activeDataset.cadence}).
-                Forecast origin dividing line partitions fitting data from out-of-sample projections.
-              </p>
-            </div>
-            <div className="text-xs font-mono text-[#155B49] bg-[#E8F2ED] px-2.5 py-1 rounded font-semibold">
-              Model: {selectedModel}
-            </div>
-          </div>
-
-          <CapacityForecastChart 
-            data={activeDataset.timeSeries} 
-            unit={activeDataset.targetUnit}
-            modelName={selectedModel}
-            height={380}
-          />
-        </div>
-
-        {/* Forecast Values Data Table (Linear Table Standard) */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl shadow-2xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#E6EBE7] flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-[#192923]">Out-of-Sample Forecast Table</h3>
-              <p className="text-xs text-[#52635B]">
-                Numerical point forecasts and calibrated 95% intervals for horizon periods.
-              </p>
-            </div>
-            <span className="text-xs text-[#77847D] font-mono">
-              {forecastPoints.length} projected intervals
+        {/* Sourcebar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-line text-[10px] text-muted">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[#dbdbdf] font-[560] flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-[#93939a]" />
+              {activeDataset.datasetName}
+            </span>
+            <span className="h-3.5 w-px bg-line-strong hidden sm:inline-block" />
+            <span>Target: <code className="text-ink font-mono">{activeDataset.targetColumn}</code></span>
+            <span className="px-2 py-0.5 rounded-[4px] bg-[#9ba8ff]/[0.08] border border-[#9ba8ff]/20 text-[#aab4ff] text-[8.5px] font-semibold tracking-[0.075em] uppercase">
+              Walk-Forward
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-[#192923]">
-              <thead className="bg-[#F7F9F7] border-b border-[#E6EBE7] text-[#52635B] font-semibold">
-                <tr>
-                  <th scope="col" className="px-6 py-3">Forecast Date / Horizon</th>
-                  <th scope="col" className="px-6 py-3 text-right">Point Forecast</th>
-                  <th scope="col" className="px-6 py-3 text-right">95% Lower Bound</th>
-                  <th scope="col" className="px-6 py-3 text-right">95% Upper Bound</th>
-                  <th scope="col" className="px-6 py-3 text-right">Confirmed Actual</th>
-                  <th scope="col" className="px-6 py-3 text-right">Absolute Residual</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E6EBE7] font-mono">
-                {forecastPoints.map((pt, idx) => {
-                  const residual = pt.actual !== undefined && pt.forecast !== undefined
-                    ? Math.abs(pt.actual - pt.forecast)
-                    : undefined
-                  return (
-                    <tr key={idx} className="hover:bg-[#F7F9F7]/60 transition-colors">
-                      <td className="px-6 py-3.5 font-medium text-[#192923] flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#1D7764]" />
-                        {pt.date}
-                      </td>
-                      <td className="px-6 py-3.5 text-right font-semibold text-[#176B57] tabular-nums">
-                        {pt.forecast?.toLocaleString()} {activeDataset.targetUnit}
-                      </td>
-                      <td className="px-6 py-3.5 text-right text-[#52635B] tabular-nums">
-                        {pt.lowerBound?.toLocaleString() || '—'}
-                      </td>
-                      <td className="px-6 py-3.5 text-right text-[#52635B] tabular-nums">
-                        {pt.upperBound?.toLocaleString() || '—'}
-                      </td>
-                      <td className="px-6 py-3.5 text-right text-[#192923] tabular-nums font-semibold">
-                        {pt.actual !== undefined ? `${pt.actual.toLocaleString()} ${activeDataset.targetUnit}` : 'Pending'}
-                      </td>
-                      <td className="px-6 py-3.5 text-right text-[#52635B] tabular-nums">
-                        {residual !== undefined ? residual.toLocaleString() : '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-1.5 bg-[#171719] border border-line p-0.5 rounded-[6px]">
+            <button
+              onClick={() => {
+                setSelectedDatasetKey('nhsn_hrd')
+                setSelectedHorizon(4)
+              }}
+              className={`px-2.5 py-1 text-[9.5px] rounded-[4px] font-medium transition-colors ${
+                selectedDatasetKey === 'nhsn_hrd'
+                  ? 'bg-[#303034] text-[#e5e5e9] shadow-xs'
+                  : 'text-[#777780] hover:text-[#c8c8ce]'
+              }`}
+            >
+              NHSN (Weekly)
+            </button>
+            <button
+              onClick={() => {
+                setSelectedDatasetKey('hero_dmc')
+                setSelectedHorizon(14)
+              }}
+              className={`px-2.5 py-1 text-[9.5px] rounded-[4px] font-medium transition-colors ${
+                selectedDatasetKey === 'hero_dmc'
+                  ? 'bg-[#303034] text-[#e5e5e9] shadow-xs'
+                  : 'text-[#777780] hover:text-[#c8c8ce]'
+              }`}
+            >
+              Hero DMC (Daily)
+            </button>
           </div>
         </div>
 
-        {/* Methodology and Provenance Disclosure Accordion */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl shadow-2xs overflow-hidden">
-          <button
-            onClick={() => setMethodologyOpen(prev => !prev)}
-            className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[#F7F9F7] transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-[#176B57]" />
-              <span className="text-sm font-semibold text-[#192923]">
-                Forecasting Methodology, Data Integrity & Limitations Disclosure
-              </span>
+        {/* 4-Metric Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-line">
+          <div className="min-w-0 pr-4">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Latest observed
             </div>
-            {methodologyOpen ? (
-              <ChevronUp className="w-4 h-4 text-[#77847D]" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-[#77847D]" />
-            )}
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-[#f0f0f2] tabular-nums leading-none">
+              {selectedDatasetKey === 'hero_dmc' ? latestVal.toFixed(0) : Math.round(latestVal).toLocaleString()}
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              {latestActual?.date || 'Confirmed history'}
+            </div>
+          </div>
+
+          <div className="min-w-0 md:border-l md:border-line md:pl-6 pr-4">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Forecast endpoint ({selectedHorizon}{selectedDatasetKey === 'hero_dmc' ? 'D' : 'W'})
+            </div>
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-[#f0f0f2] tabular-nums leading-none">
+              {selectedDatasetKey === 'hero_dmc' ? forecastVal.toFixed(1) : Math.round(forecastVal).toLocaleString()}
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d] flex items-center gap-1.5">
+              <span className="text-good font-medium">+{deltaPct}%</span>
+              <span>vs. origin</span>
+            </div>
+          </div>
+
+          <div className="min-w-0 border-t pt-4 md:pt-0 md:border-t-0 md:border-l md:border-line md:pl-6 pr-4">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Validation model
+            </div>
+            <div className="mt-2.5 text-[17px] tracking-[-0.045em] font-[560] text-[#f0f0f2] truncate leading-tight pt-1">
+              {winningModel.modelName.replace(' [Final Test]', '')}
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              Selected benchmark
+            </div>
+          </div>
+
+          <div className="min-w-0 border-t pt-4 md:pt-0 md:border-t-0 md:border-l md:border-line md:pl-6">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Held-out test MAE
+            </div>
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-[#f0f0f2] tabular-nums leading-none">
+              {finalTestModel.mae.toLocaleString()}
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              {activeDataset.targetUnit}
+            </div>
+          </div>
+        </div>
+
+        {/* Primary Chart View */}
+        <CapacityForecastChart 
+          data={activeDataset.timeSeries}
+          horizon={selectedHorizon}
+          onHorizonChange={(h) => setSelectedHorizon(h)}
+          unit={activeDataset.targetUnit}
+          modelName={winningModel.modelName}
+          isHeroDmc={selectedDatasetKey === 'hero_dmc'}
+        />
+
+        {/* Horizon Detail Table */}
+        <section className="craft-surface p-5">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-line">
+            <div>
+              <div className="text-[12px] font-[560] tracking-[-0.025em] text-[#e0e0e4]">
+                Horizon detail
+              </div>
+              <div className="text-[9.5px] text-[#777780] mt-0.5">
+                Prediction points and 95% confidence intervals from selected saved run
+              </div>
+            </div>
+            <span className="craft-tag active">STORED RUN ARTIFACT</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[10.5px] tabular-nums">
+              <thead>
+                <tr className="border-b border-line">
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] pb-2.5 px-3">Horizon</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] pb-2.5 px-3">Target Date</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] pb-2.5 px-3">Prediction</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] pb-2.5 px-3">Lower Bound</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] pb-2.5 px-3">Upper Bound</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {forecastPoints.slice(0, selectedHorizon).map((pt, j) => (
+                  <tr key={j} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-2.5 px-3 text-[#e0e0e4] font-medium">+{j + 1} {selectedDatasetKey === 'hero_dmc' ? 'day' : 'week'}{j === 0 ? '' : 's'}</td>
+                    <td className="py-2.5 px-3 text-[#b2b2ba]">{pt.date}</td>
+                    <td className="py-2.5 px-3 text-[#9ba8ff] font-semibold">
+                      {selectedDatasetKey === 'hero_dmc' ? pt.forecast?.toFixed(1) : Math.round(pt.forecast || 0).toLocaleString()} {activeDataset.targetUnit}
+                    </td>
+                    <td className="py-2.5 px-3 text-[#777e8a]">
+                      {pt.lowerBound !== undefined ? (selectedDatasetKey === 'hero_dmc' ? pt.lowerBound.toFixed(1) : Math.round(pt.lowerBound).toLocaleString()) : '—'}
+                    </td>
+                    <td className="py-2.5 px-3 text-[#777e8a]">
+                      {pt.upperBound !== undefined ? (selectedDatasetKey === 'hero_dmc' ? pt.upperBound.toFixed(1) : Math.round(pt.upperBound).toLocaleString()) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Methodology Accordion */}
+        <div className="craft-surface p-4">
+          <button
+            onClick={() => setMethodologyOpen(!methodologyOpen)}
+            className="w-full flex items-center justify-between text-[11px] font-[560] text-[#dbdbdf] hover:text-[#f0f0f3] transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-accent" />
+              Evaluation Methodology & Temporal Walk-Forward Rules
+            </span>
+            {methodologyOpen ? <ChevronUp className="w-4 h-4 text-muted" /> : <ChevronDown className="w-4 h-4 text-muted" />}
           </button>
 
           {methodologyOpen && (
-            <div className="px-6 py-4 border-t border-[#E6EBE7] bg-[#F7F9F7] text-xs text-[#52635B] space-y-3 leading-relaxed">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3 bg-white border border-[#E6EBE7] rounded-lg">
-                  <strong className="text-[#192923] block mb-1">Walk-Forward Evaluation Protocol</strong>
-                  Models are fit strictly using observations chronologically prior to each forecast origin. No future test observation is ever permitted into hyperparameter tuning or parameter estimation.
-                </div>
-                <div className="p-3 bg-white border border-[#E6EBE7] rounded-lg">
-                  <strong className="text-[#192923] block mb-1">Frequency-Specific Modeling</strong>
-                  For NHSN HRD weekly data, daily seasonality is strictly disabled. Weekly and yearly seasonal patterns are evaluated. For Hero DMC daily admissions, weekly 7-day cyclicality is modeled.
-                </div>
-              </div>
-              <p className="text-xs text-[#77847D]">
-                Data Provenance: {activeDataset.provenance}. All reported metrics are verified from persisted execution runs in backend/ml/runs/.
+            <div className="mt-3 pt-3 border-t border-line text-[10px] text-muted space-y-2 leading-relaxed">
+              <p>
+                1. <strong>Chronological Partition:</strong> 70% Train, 15% Validation, 15% Test. Training strictly precedes validation; validation strictly precedes held-out testing.
+              </p>
+              <p>
+                2. <strong>Zero Data Leakage:</strong> Scaling, transformations, and model parameters are fitted exclusively on preceding data points. No future observations are ever leaked.
+              </p>
+              <p>
+                3. <strong>Model Selection Protocol:</strong> The champion model is selected on validation MAE alone. The test split is evaluated exactly once for final reporting.
               </p>
             </div>
           )}

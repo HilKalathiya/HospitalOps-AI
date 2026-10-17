@@ -44,7 +44,12 @@ def get_hero_dmc_grid():
         ),
     ]
 
-    return baselines + arima_grid + prophet_grid
+    lstm_grid = [
+        ("lstm", "lstm_default", {"lstm_hidden_dim": 32, "lstm_num_layers": 2, "lstm_epochs": 15}),
+    ]
+
+    return baselines + arima_grid + prophet_grid + lstm_grid
+
 
 
 def get_nhsn_grid():
@@ -69,7 +74,12 @@ def get_nhsn_grid():
         ),
     ]
 
-    return baselines + arima_grid + prophet_grid
+    lstm_grid = [
+        ("lstm", "lstm_default", {"lstm_hidden_dim": 32, "lstm_num_layers": 2, "lstm_epochs": 15}),
+    ]
+
+    return baselines + arima_grid + prophet_grid + lstm_grid
+
 
 
 async def run_benchmark(
@@ -113,6 +123,9 @@ async def run_benchmark(
                 cfg_kwargs["arima_seasonal_order"] = kwargs["arima_seasonal_order"]
             elif model_type == "prophet":
                 cfg_kwargs["prophet_kwargs"] = kwargs
+            elif model_type == "lstm":
+                cfg_kwargs.update(kwargs)
+
 
             config = ForecastConfig(
                 dataset_name=dataset_name,
@@ -219,6 +232,25 @@ async def run_benchmark(
                     "Test sMAPE": round(best_prophet["test_smape"], 2),
                 }
             )
+
+        # Select best lstm
+        df_lstm = df_res[df_res["model_type"] == "lstm"]
+        if not df_lstm.empty:
+            best_lstm = df_lstm.sort_values(["val_mae", "val_rmse"]).iloc[0]
+            final_table.append(
+                {
+                    "Dataset": dataset_name.upper(),
+                    "Target": target,
+                    "Class": "LSTM",
+                    "Winner Config": best_lstm["config_name"],
+                    "Horizon": f"{horizon}{horizon_unit}",
+                    "Val MAE": round(best_lstm["val_mae"], 2),
+                    "Test MAE": round(best_lstm["test_mae"], 2),
+                    "Test RMSE": round(best_lstm["test_rmse"], 2),
+                    "Test sMAPE": round(best_lstm["test_smape"], 2),
+                }
+            )
+
 
     df_final = pd.DataFrame(final_table)
     if not df_final.empty:

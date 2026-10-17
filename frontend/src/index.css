@@ -2,53 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── HospitalOps AI Design System Tokens ────────────────────────────────────────── */
+/* ─── HospitalOps Craft v2/v3 Design System Tokens ───────────────────────────────── */
 :root {
-  color-scheme: light;
-  --app-bg: #F5F7F5;
-  --surface: #FFFFFF;
-  --surface-muted: #F0F3F0;
-  --surface-hover: #F7F9F7;
-  --surface-selected: #E8F2ED;
-  --surface-inset: #F6F8F6;
+  color-scheme: dark;
+  --bg: #171717;
+  --bg-2: #1b1b1c;
+  --panel: #1d1d1f;
+  --panel-raised: #222224;
+  --panel-hover: #29292c;
+  --ink: #f0f0f1;
+  --ink-2: #c4c4c8;
+  --muted: #929299;
+  --subtle: #6f6f78;
+  --line: rgba(240, 240, 245, 0.085);
+  --line-strong: rgba(240, 240, 245, 0.13);
+  --accent: #9ba8ff;
+  --accent-soft: rgba(155, 168, 255, 0.12);
+  --accent-2: #c0c7ff;
+  --good: #8fd6b2;
+  --warn: #e8c182;
+  --bad: #ed9199;
+  --shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
+  --radius: 10px;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  --text-primary: #192923;
-  --text-secondary: #52635B;
-  --text-muted: #77847D;
-  --text-disabled: #9BA69F;
-  --text-on-brand: #FFFFFF;
+  /* Semantic Compatibility Aliases */
+  --app-bg: var(--bg);
+  --surface: var(--panel);
+  --surface-muted: var(--bg-2);
+  --surface-hover: var(--panel-hover);
+  --surface-selected: var(--panel-raised);
+  --surface-inset: #151516;
 
-  --border-subtle: #E6EBE7;
-  --border-default: #DCE4DE;
-  --border-strong: #C5D1C9;
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted: var(--muted);
+  --text-disabled: var(--subtle);
+  --text-on-brand: #14151b;
 
-  --brand-primary: #176B57;
-  --brand-hover: #105544;
-  --brand-pressed: #0C4538;
-  --brand-soft: #E8F2ED;
-  --brand-text: #155B49;
+  --border-subtle: var(--line);
+  --border-default: var(--line);
+  --border-strong: var(--line-strong);
 
-  --focus-ring: #3D8C79;
+  --brand-primary: var(--accent);
+  --brand-hover: var(--accent-2);
+  --brand-pressed: #808fed;
+  --brand-soft: var(--accent-soft);
+  --brand-text: var(--accent-2);
 
-  --status-success: #24704F;
-  --status-success-bg: #EAF4EE;
-  --status-warning: #956316;
-  --status-warning-bg: #FBF3E4;
-  --status-danger: #A83F3D;
-  --status-danger-bg: #F9ECEB;
-  --status-info: #3A6378;
-  --status-info-bg: #EAF1F5;
+  --focus-ring: var(--accent);
 
-  --chart-actual: #3F657A;
-  --chart-forecast: #1D7764;
-  --chart-baseline: #87958D;
-  --chart-comparison: #A87D3A;
-  --chart-grid: #E5EAE6;
-  --chart-axis: #68776F;
-  --chart-interval: rgba(29, 119, 100, 0.13);
+  --status-success: var(--good);
+  --status-success-bg: rgba(143, 214, 178, 0.08);
+  --status-warning: var(--warn);
+  --status-warning-bg: rgba(232, 193, 130, 0.08);
+  --status-danger: var(--bad);
+  --status-danger-bg: rgba(237, 145, 153, 0.08);
+  --status-info: #a6b1ff;
+  --status-info-bg: rgba(166, 177, 255, 0.08);
 
-  --shadow-popover: 0 8px 28px rgba(22, 42, 32, 0.10);
-  --shadow-dialog: 0 18px 60px rgba(22, 42, 32, 0.18);
+  --chart-actual: #a1b8cb;
+  --chart-forecast: #9ba8ff;
+  --chart-baseline: #707b87;
+  --chart-comparison: #c4cbff;
+  --chart-grid: rgba(232, 235, 243, 0.06);
+  --chart-axis: #777e89;
+  --chart-interval: rgba(155, 168, 255, 0.085);
+
+  --shadow-popover: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --shadow-dialog: 0 22px 70px rgba(0, 0, 0, 0.45);
 }
 
 /* ─── Global Base Settings ──────────────────────────────────────────────────────── */
@@ -57,18 +79,22 @@
 }
 
 html {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font);
+  background-color: var(--bg);
+  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
-  background-color: var(--app-bg);
-  color: var(--text-primary);
+  background-color: var(--bg);
+  color: var(--ink);
   min-height: 100vh;
-  font-size: 0.9375rem;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  overflow-x: hidden;
 }
 
 #root {
@@ -77,7 +103,24 @@ body {
   flex-direction: column;
 }
 
-/* Tabular numerals for all quantitative figures */
+button, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(155, 168, 255, 0.28);
+}
+
+/* Tabular numerals for quantitative figures */
 .tabular-nums {
   font-feature-settings: "tnum" 1, "cv05" 1;
   font-variant-numeric: tabular-nums;
@@ -89,14 +132,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--app-bg);
+  background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: var(--line-strong);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--muted);
 }
 
 /* Remove scrollbars from dropdown options, listboxes, and custom select menus */
@@ -111,6 +154,96 @@ body {
 .no-scrollbar,
 [role="listbox"],
 .dropdown-options {
-  -ms-overflow-style: none !important; /* IE and Edge */
-  scrollbar-width: none !important;    /* Firefox */
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Craft Design Utilities */
+.craft-surface {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006)), var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.015) inset;
+}
+
+.craft-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: #acacb4;
+  font-size: 8.5px;
+  font-weight: 560;
+  letter-spacing: 0.04em;
+}
+.craft-tag.active {
+  border-color: rgba(143, 214, 178, 0.15);
+  background: rgba(143, 214, 178, 0.055);
+  color: #92c9aa;
+}
+.craft-tag.legacy {
+  color: #d4b778;
+  border-color: rgba(232, 193, 130, 0.13);
+  background: rgba(232, 193, 130, 0.04);
+}
+
+/* Entrance & line drawing keyframes */
+@keyframes drawMark {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes signalNodeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes wordmarkIn {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lineDraw {
+  from {
+    stroke-dashoffset: 1600;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes graphReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.graph-draw {
+  stroke-dasharray: 1600;
+  stroke-dashoffset: 1600;
+  animation: lineDraw 0.72s cubic-bezier(0.2, 0.7, 0.2, 1) 0.08s forwards;
+}
+.graph-appear {
+  animation: graphReveal 0.55s ease 0.25s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

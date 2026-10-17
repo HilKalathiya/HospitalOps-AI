@@ -42,7 +42,7 @@ class ForecastConfig(BaseModel):
 
     # Chunk 2.3 Additions
     model_type: str = Field(
-        default="baseline", description="Category of model: baseline, arima, prophet"
+        default="baseline", description="Category of model: baseline, arima, prophet, lstm"
     )
     arima_order: tuple[int, int, int] = Field(default=(1, 0, 0), description="(p, d, q) for ARIMA")
     arima_seasonal_order: tuple[int, int, int, int] = Field(
@@ -51,3 +51,20 @@ class ForecastConfig(BaseModel):
     prophet_kwargs: dict = Field(
         default_factory=dict, description="Configuration overrides for Prophet"
     )
+
+    # Chunk 2.4 Additions (Deep Learning / LSTM)
+    lstm_hidden_dim: int = Field(default=64, description="Hidden state dimension for LSTM units.")
+    lstm_num_layers: int = Field(default=2, description="Number of stacked LSTM layers.")
+    lstm_dropout: float = Field(default=0.2, description="Dropout probability for regularization.")
+    lstm_epochs: int = Field(default=25, description="Training epochs for LSTM optimizer.")
+    lstm_batch_size: int = Field(
+        default=32, description="Batch size for LSTM mini-batch gradient descent."
+    )
+    lstm_learning_rate: float = Field(default=0.005, description="Learning rate for AdamW optimizer.")
+    lstm_sequence_length: int = Field(
+        default=14, description="Sliding lookback sequence window length."
+    )
+    lstm_mc_samples: int = Field(
+        default=20, description="Monte Carlo dropout forward passes for CI bounds."
+    )
+

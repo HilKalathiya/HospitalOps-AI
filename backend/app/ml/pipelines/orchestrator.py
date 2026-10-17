@@ -16,6 +16,7 @@ from app.ml.models.baseline import (
     NaiveBaselineModel,
     SeasonalNaiveBaselineModel,
 )
+from app.ml.models.lstm import LSTMForecastModel
 from app.ml.models.prophet import ProphetForecastModel
 from app.ml.preprocessing.scalers import DataPreprocessor
 from app.ml.splitting.temporal import TemporalSplitter
@@ -150,7 +151,21 @@ class MLPipelineOrchestrator:
                 time_column=dataset.time_column,
                 **self.config.prophet_kwargs,
             )
+        elif self.config.model_type == "lstm":
+            return LSTMForecastModel(
+                target_column=dataset.target_column,
+                horizon=self.config.horizon,
+                sequence_length=self.config.lstm_sequence_length,
+                hidden_dim=self.config.lstm_hidden_dim,
+                num_layers=self.config.lstm_num_layers,
+                dropout=self.config.lstm_dropout,
+                epochs=self.config.lstm_epochs,
+                batch_size=self.config.lstm_batch_size,
+                learning_rate=self.config.lstm_learning_rate,
+                mc_samples=self.config.lstm_mc_samples,
+            )
         raise ValueError(f"Unknown model_type: {self.config.model_type}")
+
 
     def _evaluate_baseline(
         self,

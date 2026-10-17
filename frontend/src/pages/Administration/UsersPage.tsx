@@ -1,7 +1,6 @@
 import React from 'react'
 import { TopHeader } from '../../components/layout/TopHeader'
-import { Badge } from '../../components/common/Badge'
-import { ShieldCheck, UserCheck, Key, Lock } from 'lucide-react'
+import { ShieldCheck, UserCheck, Key } from 'lucide-react'
 
 interface UserItem {
   id: string
@@ -54,113 +53,100 @@ const MOCK_REGISTERED_USERS: UserItem[] = [
 
 export const UsersPage: React.FC = () => {
   return (
-    <div className="flex flex-col min-h-full bg-[#F5F7F5]">
+    <div className="flex flex-col min-h-full bg-bg text-ink">
       <TopHeader 
         title="User management & role governance" 
         subtitle="Role-based access control (RBAC), department scoping, and operational permissions"
-        breadcrumbs={[{ label: 'Administration' }, { label: 'User Management' }]}
+        breadcrumbs={[{ label: 'Administration' }, { label: 'Users' }]}
       />
 
-      <div className="p-6 max-w-7xl w-full mx-auto space-y-6">
+      <div className="p-6 sm:p-8 max-w-[1490px] w-full mx-auto space-y-6">
         
-        {/* Role Matrix Summary */}
+        {/* Security Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white border border-[#DCE4DE] rounded-xl p-4 shadow-2xs">
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-4 h-4 text-[#176B57]" />
-              <strong className="text-xs font-semibold text-[#192923]">Role-Based Access (RBAC)</strong>
+          <div className="craft-surface p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[8px] bg-accent/[0.1] border border-accent/20 flex items-center justify-center text-accent">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <p className="text-xs text-[#52635B]">
-              Enforced at FastAPI endpoint level via JWT claims and permission dependencies.
-            </p>
+            <div>
+              <span className="text-[9px] uppercase tracking-[0.085em] text-muted font-medium">Role System</span>
+              <strong className="block text-[13px] font-[560] text-ink">Strict RBAC Enforced</strong>
+            </div>
           </div>
 
-          <div className="bg-white border border-[#DCE4DE] rounded-xl p-4 shadow-2xs">
-            <div className="flex items-center gap-2 mb-1">
-              <Lock className="w-4 h-4 text-[#3A6378]" />
-              <strong className="text-xs font-semibold text-[#192923]">Department Scoping</strong>
+          <div className="craft-surface p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[8px] bg-good/[0.1] border border-good/20 flex items-center justify-center text-good">
+              <UserCheck className="w-5 h-5" />
             </div>
-            <p className="text-xs text-[#52635B]">
-              Clinical staff access is scoped to their department (e.g. ICU, Emergency) by default.
-            </p>
+            <div>
+              <span className="text-[9px] uppercase tracking-[0.085em] text-muted font-medium">Active Profiles</span>
+              <strong className="block text-[13px] font-[560] text-ink">4 Seeded System Accounts</strong>
+            </div>
           </div>
 
-          <div className="bg-white border border-[#DCE4DE] rounded-xl p-4 shadow-2xs">
-            <div className="flex items-center gap-2 mb-1">
-              <Key className="w-4 h-4 text-[#956316]" />
-              <strong className="text-xs font-semibold text-[#192923]">Token Expiration</strong>
+          <div className="craft-surface p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[8px] bg-white/[0.04] border border-line flex items-center justify-center text-muted">
+              <Key className="w-5 h-5" />
             </div>
-            <p className="text-xs text-[#52635B]">
-              Short-lived HMAC-SHA256 JWT access tokens with rotating session invalidation.
-            </p>
+            <div>
+              <span className="text-[9px] uppercase tracking-[0.085em] text-muted font-medium">Authentication</span>
+              <strong className="block text-[13px] font-[560] text-ink">JWT + HttpOnly Cookie</strong>
+            </div>
           </div>
         </div>
 
-        {/* User Registry Table */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl shadow-2xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#E6EBE7] flex items-center justify-between">
+        {/* User Accounts Table */}
+        <section className="craft-surface overflow-hidden">
+          <div className="p-4 border-b border-line flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-[#192923] flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-[#176B57]" />
-                Registered Operational Accounts
+              <h2 className="text-[12px] font-[560] text-[#e0e0e4]">
+                Configured Personnel Directory
               </h2>
-              <p className="text-xs text-[#52635B]">
-                Accounts seeded in local authentication database for testing and operational management.
+              <p className="text-[9.5px] text-[#777780] mt-0.5">
+                Profiles governed by FastAPI authorization policies
               </p>
             </div>
-            <span className="text-xs font-mono text-[#52635B]">
-              Total Users: <strong className="text-[#192923]">{MOCK_REGISTERED_USERS.length}</strong>
-            </span>
+            <span className="craft-tag active">ACTIVE PROFILES</span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-[#192923]">
-              <thead className="bg-[#F7F9F7] border-b border-[#E6EBE7] text-[#52635B] font-semibold">
-                <tr>
-                  <th scope="col" className="px-6 py-3">User</th>
-                  <th scope="col" className="px-6 py-3">Email Address</th>
-                  <th scope="col" className="px-6 py-3">Role</th>
-                  <th scope="col" className="px-6 py-3">Department Scope</th>
-                  <th scope="col" className="px-6 py-3">Assigned Permissions</th>
-                  <th scope="col" className="px-6 py-3">Status</th>
+            <table className="w-full text-left text-[10.5px]">
+              <thead>
+                <tr className="border-b border-line">
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Name / ID</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Email Address</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">System Role</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Department Scope</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Permissions</th>
+                  <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4 text-right">Account State</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E6EBE7]">
+              <tbody className="divide-y divide-white/[0.04]">
                 {MOCK_REGISTERED_USERS.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#F7F9F7] transition-colors">
-                    <td className="px-6 py-3.5 font-medium text-[#192923]">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-[#E8F2ED] text-[#176B57] flex items-center justify-center font-bold text-2xs">
-                          {u.name.charAt(0)}
-                        </div>
-                        <span>{u.name}</span>
-                      </div>
+                  <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-4 text-[#e0e0e4] font-medium">
+                      <div>{u.name}</div>
+                      <span className="text-[9px] font-mono text-muted block">{u.id}</span>
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-[#52635B]">
-                      {u.email}
+                    <td className="py-3 px-4 text-[#ababB3] font-mono text-[10px]">{u.email}</td>
+                    <td className="py-3 px-4">
+                      <span className="craft-tag active">{u.role}</span>
                     </td>
-                    <td className="px-6 py-3.5">
-                      <span className={`inline-block px-2 py-0.5 rounded text-2xs font-semibold ${
-                        u.role === 'ADMIN' ? 'bg-[#E8F2ED] text-[#155B49]' : 'bg-[#F0F3F0] text-[#52635B]'
-                      }`}>
-                        {u.role}
-                      </span>
+                    <td className="py-3 px-4 text-muted">
+                      {u.department || 'Global / Unrestricted'}
                     </td>
-                    <td className="px-6 py-3.5 text-[#52635B]">
-                      {u.department || 'Hospital-wide (Global)'}
-                    </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-[#77847D]">
+                    <td className="py-3 px-4 text-muted text-[9.5px]">
                       {u.permissions.join(', ')}
                     </td>
-                    <td className="px-6 py-3.5">
-                      <Badge variant="success">Active</Badge>
+                    <td className="py-3 px-4 text-right">
+                      <span className="craft-tag active">Active</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
 
       </div>
     </div>

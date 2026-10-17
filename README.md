@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Implementation Status: Chunk 2.3 — ML Forecasting (ARIMA & Prophet)
+## ✅ Implementation Status: Chunk 2.4 — Deep Learning Forecasting (LSTM / Temporal Networks)
 
 | Chunk | Description | Status |
 |---|---|---|
@@ -12,18 +12,19 @@
 | 1.2 | Authentication + RBAC | ✅ Complete |
 | 1.3 | Patient + Admission APIs | ✅ Complete |
 | 1.4 | Bed + Resource Management | ✅ Complete |
-| 1.5 | Historical Dataset Ingestion (Hero DMC & NHSN) | ✅ Complete |
+| 1.5 | Historical Dataset Ingestion (Hero DMC, NHSN & MIMIC-IV) | ✅ Complete |
 | 1.6 | Hospital Operations Dashboard | ✅ Complete |
 | 2.1 | Data / ML Pipeline Foundation | ✅ Complete |
 | 2.2 | Baseline Forecasting Models | ✅ Complete |
 | 2.3 | ARIMA + Prophet Statistical Forecasting | ✅ Complete |
-| 2.4 | Deep Learning Forecasting (LSTM / Transformers) | ⬜ Planned |
+| 2.4 | Deep Learning Forecasting (LSTM / Temporal Networks) | ✅ Complete |
 | 3.1 | What-if Simulation Engine | ⬜ Planned |
 | 4.1 | Resource Optimization Engine (MIP) | ⬜ Planned |
 | 5.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
-**The core system and ML foundation are live.**
-The backend features strict RBAC, data ingestion, and a full walk-forward evaluation ML pipeline. Statistical baselines and ARIMA/Prophet models are implemented. The modern React frontend dashboard visualizes current capacity and admissions. Deep learning forecasting, simulation, optimization, and agentic orchestration will be built in subsequent chunks. 
+**The core system, ML foundation, and deep learning forecasting pipeline are live.**
+The backend features strict RBAC, data ingestion, and a full walk-forward evaluation ML pipeline. Statistical baselines, ARIMA/Prophet models, and PyTorch multi-layer LSTM neural networks with Monte Carlo Dropout uncertainty bounds are implemented. The modern React frontend dashboard visualizes operational capacity and model evaluation. What-if simulation, resource optimization, and agentic orchestration will be built in subsequent milestones.
+
 
 > 💡 **For Interviewers:** A comprehensive 40-page technical guide to this repository is available at [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 

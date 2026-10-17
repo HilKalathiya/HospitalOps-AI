@@ -7,6 +7,34 @@ export default {
   theme: {
     extend: {
       colors: {
+        bg: {
+          DEFAULT: 'var(--bg)',
+          2: 'var(--bg-2)',
+        },
+        panel: {
+          DEFAULT: 'var(--panel)',
+          raised: 'var(--panel-raised)',
+          hover: 'var(--panel-hover)',
+        },
+        ink: {
+          DEFAULT: 'var(--ink)',
+          2: 'var(--ink-2)',
+        },
+        muted: 'var(--muted)',
+        subtle: 'var(--subtle)',
+        line: {
+          DEFAULT: 'var(--line)',
+          strong: 'var(--line-strong)',
+        },
+        accent: {
+          DEFAULT: 'var(--accent)',
+          soft: 'var(--accent-soft)',
+          2: 'var(--accent-2)',
+        },
+        good: 'var(--good)',
+        warn: 'var(--warn)',
+        bad: 'var(--bad)',
+
         app: 'var(--app-bg)',
         surface: {
           DEFAULT: 'var(--surface)',
@@ -61,14 +89,14 @@ export default {
         dialog: 'var(--shadow-dialog)',
       },
       fontSize: {
-        '2xs': ['0.75rem', { lineHeight: '1rem' }],        // 12px
-        xs: ['0.8125rem', { lineHeight: '1.2rem' }],       // 13px (elevated from 12px)
-        sm: ['0.9375rem', { lineHeight: '1.4rem' }],       // 15px (elevated from 14px)
-        base: ['1.0625rem', { lineHeight: '1.6rem' }],     // 17px (elevated from 16px)
-        lg: ['1.1875rem', { lineHeight: '1.75rem' }],      // 19px (elevated from 18px)
-        xl: ['1.3125rem', { lineHeight: '1.875rem' }],     // 21px (elevated from 20px)
-        '2xl': ['1.625rem', { lineHeight: '2.125rem' }],   // 26px (elevated from 24px)
-        '3xl': ['2rem', { lineHeight: '2.5rem' }],         // 32px (elevated from 30px)
+        '2xs': ['0.6875rem', { lineHeight: '0.9rem' }],    // 11px
+        xs: ['0.75rem', { lineHeight: '1.05rem' }],        // 12px
+        sm: ['0.8125rem', { lineHeight: '1.25rem' }],      // 13px
+        base: ['0.875rem', { lineHeight: '1.4rem' }],      // 14px
+        lg: ['1rem', { lineHeight: '1.5rem' }],            // 16px
+        xl: ['1.1875rem', { lineHeight: '1.75rem' }],      // 19px
+        '2xl': ['1.4375rem', { lineHeight: '1.9rem' }],    // 23px
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],    // 30px
       }
     },
   },

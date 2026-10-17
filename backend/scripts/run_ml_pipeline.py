@@ -23,9 +23,10 @@ async def main() -> None:
     parser.add_argument(
         "--model",
         default="naive",
-        choices=["naive", "seasonal_naive", "moving_average"],
-        help="Baseline model to run",
+        choices=["naive", "seasonal_naive", "moving_average", "lstm"],
+        help="Forecasting model to run",
     )
+
     parser.add_argument("--horizon", type=int, default=1, help="Forecast horizon")
     parser.add_argument(
         "--seasonal-period", type=int, default=7, help="Seasonal period for seasonal naive"
@@ -58,11 +59,15 @@ async def main() -> None:
                 include_month=True,
             ),
             split=SplitConfig(train_ratio=0.7, val_ratio=0.15, test_ratio=0.15),
-            baseline_model_type=args.model,
+            model_type="lstm" if args.model == "lstm" else "baseline",
+            baseline_model_type=args.model if args.model != "lstm" else "naive",
             baseline_model_kwargs={"seasonal_period": args.seasonal_period, "window": args.window},
             horizon=args.horizon,
             walk_forward_origins=args.walk_forward,
             high_demand_quantile=0.90,
+            lstm_hidden_dim=32,
+            lstm_num_layers=2,
+            lstm_epochs=15,
         )
     else:
         repo = HistoricalHospitalCapacityRepository(db)
@@ -78,12 +83,17 @@ async def main() -> None:
                 include_month=True,
             ),
             split=SplitConfig(train_ratio=0.7, val_ratio=0.15, test_ratio=0.15),
-            baseline_model_type=args.model,
+            model_type="lstm" if args.model == "lstm" else "baseline",
+            baseline_model_type=args.model if args.model != "lstm" else "naive",
             baseline_model_kwargs={"seasonal_period": args.seasonal_period, "window": args.window},
             horizon=args.horizon,
             walk_forward_origins=args.walk_forward,
             high_demand_quantile=0.85,
+            lstm_hidden_dim=32,
+            lstm_num_layers=2,
+            lstm_epochs=15,
         )
+
 
     # 2. Fetch Dataset
     print(f"Fetching dataset {args.dataset}...")

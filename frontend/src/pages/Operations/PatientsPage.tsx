@@ -1,26 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { TopHeader } from '../../components/layout/TopHeader'
-import { Badge } from '../../components/common/Badge'
-import { EmptyState } from '../../components/common/EmptyState'
-import { Select } from '../../components/common/Select'
 import { patientsApi, PatientResponse } from '../../api/patients'
 import { admissionsApi, AdmissionResponse } from '../../api/admissions'
-import { ShieldCheck, Filter } from 'lucide-react'
+import { Shield, RefreshCw } from 'lucide-react'
 
 export const PatientsPage: React.FC = () => {
-  const [tab, setTab] = useState<'patients' | 'admissions'>('patients')
+  const [tab, setTab] = useState<'clinical' | 'operational'>('clinical')
   const [patients, setPatients] = useState<PatientResponse[]>([])
   const [admissions, setAdmissions] = useState<AdmissionResponse[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [departmentFilter, setDepartmentFilter] = useState<string>('')
 
-  const loadData = useCallback(async () => {
+  const loadOperational = useCallback(async () => {
     try {
       setLoading(true)
       const [patRes, admRes] = await Promise.allSettled([
-        patientsApi.list({ page: 1, page_size: 50, department_id: departmentFilter || undefined }),
-        admissionsApi.list({ page: 1, page_size: 50, department_id: departmentFilter || undefined })
+        patientsApi.list({ page: 1, page_size: 50 }),
+        admissionsApi.list({ page: 1, page_size: 50 })
       ])
 
       if (patRes.status === 'fulfilled') {
@@ -35,226 +31,230 @@ export const PatientsPage: React.FC = () => {
       setLoading(false)
       setIsRefreshing(false)
     }
-  }, [departmentFilter])
+  }, [])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (tab === 'operational') {
+      loadOperational()
+    }
+  }, [tab, loadOperational])
 
   const handleRefresh = () => {
     setIsRefreshing(true)
-    loadData()
-  }
-
-  const getSeverityBadge = (sev: string | null | undefined) => {
-    switch (sev) {
-      case 'CRITICAL':
-        return <Badge variant="danger">Critical</Badge>
-      case 'HIGH':
-        return <Badge variant="warning">High</Badge>
-      case 'MEDIUM':
-        return <Badge variant="neutral">Medium</Badge>
-      case 'LOW':
-        return <Badge variant="success">Low</Badge>
-      default:
-        return <span className="text-gray-400">—</span>
+    if (tab === 'operational') {
+      loadOperational()
+    } else {
+      setTimeout(() => setIsRefreshing(false), 300)
     }
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F5F7F5]">
+    <div className="flex flex-col min-h-full bg-bg text-ink">
       <TopHeader 
-        title="Patients & admissions registry" 
-        subtitle="Operational intake tracking and clinical encounter status"
+        title="Clinical prediction & cohorts" 
+        subtitle="Stay-level modeling built on MIMIC-IV — not a live electronic health record"
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
-        breadcrumbs={[{ label: 'Operations' }, { label: 'Patients & Admissions' }]}
+        breadcrumbs={[{ label: 'Clinical prediction' }]}
       />
 
-      <div className="p-6 max-w-7xl w-full mx-auto space-y-6">
+      <div className="p-6 sm:p-8 max-w-[1490px] w-full mx-auto space-y-6">
         
-        {/* Data Minimization Disclosure Banner */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl p-4 shadow-2xs flex items-start gap-3">
-          <ShieldCheck className="w-5 h-5 text-[#176B57] flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-[#52635B] space-y-1">
-            <strong className="text-[#192923] block font-semibold">
-              Data Minimization Principle & EHR Boundary Disclosure
+        {/* Notice on MIMIC-IV Clinical Protection */}
+        <div className="flex items-start gap-3 p-3.5 rounded-[7px] bg-accent/[0.04] border border-accent/[0.12] text-xs">
+          <Shield className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+          <div className="text-[10px] leading-relaxed">
+            <strong className="text-[#d0d3ee] font-[560] block mb-0.5">
+              Local clinical research data boundary
             </strong>
-            <p>
-              HospitalOps AI tracks facility-level admission flow and bed assignments. In compliance with operational security and HIPAA data minimization, this platform does not record bedside telemetry, real-time vitals, or clinical progress notes. Patient records are tied strictly to operational intake events.
+            <p className="text-[#8e91a8]">
+              MIMIC-IV v3.1 credentialed data is stored strictly on local disk and excluded from version control and cloud logging. This interface is for retrospective research validation and must not imply bedside clinical decision support.
             </p>
           </div>
         </div>
 
-        {/* Tab Switcher & Filter Toolbar */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTab('patients')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                tab === 'patients'
-                  ? 'bg-[#176B57] text-white font-semibold'
-                  : 'bg-[#F0F3F0] text-[#52635B] hover:text-[#192923]'
-              }`}
-            >
-              Patient Cohort ({patients.length})
-            </button>
-            <button
-              onClick={() => setTab('admissions')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                tab === 'admissions'
-                  ? 'bg-[#176B57] text-white font-semibold'
-                  : 'bg-[#F0F3F0] text-[#52635B] hover:text-[#192923]'
-              }`}
-            >
-              Admission Encounters ({admissions.length})
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Filter className="w-3.5 h-3.5 text-[#52635B]" />
-            <Select
-              value={departmentFilter}
-              onChange={(val) => setDepartmentFilter(val)}
-              options={[
-                { value: '', label: 'All Departments' },
-                { value: 'EMERGENCY', label: 'Emergency (ED)' },
-                { value: 'ICU', label: 'Intensive Care Unit (ICU)' },
-                { value: 'GENERAL', label: 'General Ward' },
-                { value: 'SURGERY', label: 'Surgery' },
-              ]}
-              triggerClassName="w-48"
-              align="right"
-            />
-          </div>
-        </div>
-
-        {/* Tables */}
-        <div className="bg-white border border-[#DCE4DE] rounded-xl shadow-2xs overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center text-xs text-[#77847D]">
-              Querying operational registry from API...
+        {/* 4-Metric Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-line">
+          <div className="min-w-0 pr-4">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Ingestion Stream
             </div>
-          ) : tab === 'patients' ? (
-            patients.length === 0 ? (
-              <div className="p-8">
-                <EmptyState 
-                  title="No Registered Patients in Local Database"
-                  description="The local operational database currently contains zero patient records. You can seed synthetic demo patients using the backend CLI."
-                  actionLabel="Seed Demo Patients"
-                  onAction={() => {
-                    alert('Run backend CLI in local terminal:\n.venv\\Scripts\\python.exe -m app.cli seed-demo')
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-[#192923]">
-                  <thead className="bg-[#F7F9F7] border-b border-[#E6EBE7] text-[#52635B] font-semibold">
-                    <tr>
-                      <th scope="col" className="px-6 py-3">Patient Identifier</th>
-                      <th scope="col" className="px-6 py-3">Name</th>
-                      <th scope="col" className="px-6 py-3">Department</th>
-                      <th scope="col" className="px-6 py-3">Diagnosis Category</th>
-                      <th scope="col" className="px-6 py-3">Severity</th>
-                      <th scope="col" className="px-6 py-3">Status</th>
-                      <th scope="col" className="px-6 py-3">Admitted At</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E6EBE7]">
-                    {patients.map((p) => (
-                      <tr key={p.patient_id} className="hover:bg-[#F7F9F7] transition-colors">
-                        <td className="px-6 py-3.5 font-mono text-[#192923]">
-                          {p.patient_id}
-                        </td>
-                        <td className="px-6 py-3.5 font-medium text-[#192923]">
-                          {p.name}
-                        </td>
-                        <td className="px-6 py-3.5 text-[#52635B]">
-                          {p.department_id || 'General'}
-                        </td>
-                        <td className="px-6 py-3.5 text-[#52635B]">
-                          {p.diagnosis_category || 'Unspecified'}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          {getSeverityBadge(p.severity)}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <span className={`inline-block px-2 py-0.5 rounded text-2xs font-semibold ${
-                            p.admission_status === 'ADMITTED' 
-                              ? 'bg-[#EAF4EE] text-[#24704F]' 
-                              : 'bg-[#F0F3F0] text-[#52635B]'
-                          }`}>
-                            {p.admission_status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 font-mono text-xs text-[#52635B]">
-                          {p.admitted_at ? new Date(p.admitted_at).toLocaleDateString() : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : (
-            admissions.length === 0 ? (
-              <div className="p-8">
-                <EmptyState 
-                  title="No Active Admission Encounters"
-                  description="The local operational database has no recorded admission records. Seed demo data to preview active admissions."
-                  actionLabel="Seed Demo Admissions"
-                  onAction={() => {
-                    alert('Run backend CLI in local terminal:\n.venv\\Scripts\\python.exe -m app.cli seed-demo')
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-[#192923]">
-                  <thead className="bg-[#F7F9F7] border-b border-[#E6EBE7] text-[#52635B] font-semibold">
-                    <tr>
-                      <th scope="col" className="px-6 py-3">Admission ID</th>
-                      <th scope="col" className="px-6 py-3">Patient ID</th>
-                      <th scope="col" className="px-6 py-3">Department</th>
-                      <th scope="col" className="px-6 py-3">Bed Assigned</th>
-                      <th scope="col" className="px-6 py-3">Type</th>
-                      <th scope="col" className="px-6 py-3">Severity</th>
-                      <th scope="col" className="px-6 py-3">Admission Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E6EBE7]">
-                    {admissions.map((a) => (
-                      <tr key={a.admission_id} className="hover:bg-[#F7F9F7] transition-colors">
-                        <td className="px-6 py-3.5 font-mono text-[#192923]">
-                          {a.admission_id}
-                        </td>
-                        <td className="px-6 py-3.5 font-mono text-[#52635B]">
-                          {a.patient_id}
-                        </td>
-                        <td className="px-6 py-3.5 text-[#52635B]">
-                          {a.department_id}
-                        </td>
-                        <td className="px-6 py-3.5 font-mono text-[#192923]">
-                          {a.bed_id || <span className="text-[#77847D]">Unallocated</span>}
-                        </td>
-                        <td className="px-6 py-3.5 text-xs font-semibold text-[#52635B]">
-                          {a.admission_type}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          {getSeverityBadge(a.severity)}
-                        </td>
-                        <td className="px-6 py-3.5 font-mono text-xs text-[#52635B]">
-                          {new Date(a.admitted_at).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          )}
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-[#f0f0f2] leading-none">
+              Chunked
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              Memory-bounded (5,000 stays/chunk)
+            </div>
+          </div>
+
+          <div className="min-w-0 md:border-l md:border-line md:pl-6 pr-4">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Natural Key
+            </div>
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-accent font-mono leading-none">
+              stay_id
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              Unique per ICU encounter
+            </div>
+          </div>
+
+          <div className="min-w-0 border-t pt-4 md:pt-0 md:border-t-0 md:border-l md:border-line md:pl-6 pr-4">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Feature Grain
+            </div>
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-good leading-none">
+              Stay-Level
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              No cross-patient date aggregation
+            </div>
+          </div>
+
+          <div className="min-w-0 border-t pt-4 md:pt-0 md:border-t-0 md:border-l md:border-line md:pl-6">
+            <div className="text-[9px] uppercase tracking-[0.085em] text-[#85858e] font-[580]">
+              Model Milestone
+            </div>
+            <div className="mt-2.5 text-[23px] tracking-[-0.055em] font-[560] text-[#d7b879] leading-none">
+              Next ML Chunk
+            </div>
+            <div className="mt-2 text-[10px] text-[#85858d]">
+              Adapter ready in backend
+            </div>
+          </div>
         </div>
+
+        {/* View Selection Tabs */}
+        <div className="flex items-center gap-4 border-b border-line text-[10.5px]">
+          <button
+            onClick={() => setTab('clinical')}
+            className={`pb-2.5 font-medium transition-colors relative ${
+              tab === 'clinical' ? 'text-ink font-semibold' : 'text-muted hover:text-ink'
+            }`}
+          >
+            MIMIC-IV ICU Stays (Synthetic Layout Preview)
+            {tab === 'clinical' && (
+              <span className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-accent rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setTab('operational')}
+            className={`pb-2.5 font-medium transition-colors relative ${
+              tab === 'operational' ? 'text-ink font-semibold' : 'text-muted hover:text-ink'
+            }`}
+          >
+            Live Operational Cohort (/api/v1/patients)
+            {tab === 'operational' && (
+              <span className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-accent rounded-full" />
+            )}
+          </button>
+        </div>
+
+        {tab === 'clinical' ? (
+          /* Clinical MIMIC-IV Layout Worklist (Using Synthetic Review Fixtures) */
+          <section className="craft-surface overflow-hidden">
+            <div className="p-4 border-b border-line flex items-center justify-between">
+              <div>
+                <h2 className="text-[12px] font-[560] text-[#e0e0e4]">
+                  ICU Stay Clinical Worklist
+                </h2>
+                <p className="text-[9.5px] text-[#777780] mt-0.5">
+                  Synthetic test records for UI validation. Runtime clinical queries execute strictly against local MongoDB.
+                </p>
+              </div>
+              <span className="craft-tag legacy">Synthetic Fixtures</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[10.5px]">
+                <thead>
+                  <tr className="border-b border-line">
+                    <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Stay Identifier</th>
+                    <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">First Care Unit</th>
+                    <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Length of Stay (los)</th>
+                    <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Mortality Flag</th>
+                    <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4 text-right">Model Pipeline</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  <tr className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-4 font-mono font-medium text-[#e0e0e4]">SYN-STAY-3001</td>
+                    <td className="py-3 px-4 text-[#ababB3]">Medical Intensive Care Unit (MICU)</td>
+                    <td className="py-3 px-4 font-mono text-accent">3.62 days</td>
+                    <td className="py-3 px-4"><span className="craft-tag active">Survived (0)</span></td>
+                    <td className="py-3 px-4 text-right"><span className="craft-tag">Awaiting Training</span></td>
+                  </tr>
+                  <tr className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-4 font-mono font-medium text-[#e0e0e4]">SYN-STAY-3002</td>
+                    <td className="py-3 px-4 text-[#ababB3]">Surgical Intensive Care Unit (SICU)</td>
+                    <td className="py-3 px-4 font-mono text-accent">1.25 days</td>
+                    <td className="py-3 px-4"><span className="craft-tag active">Survived (0)</span></td>
+                    <td className="py-3 px-4 text-right"><span className="craft-tag">Awaiting Training</span></td>
+                  </tr>
+                  <tr className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-4 font-mono font-medium text-[#e0e0e4]">SYN-STAY-3003</td>
+                    <td className="py-3 px-4 text-[#ababB3]">Coronary Care Unit (CCU)</td>
+                    <td className="py-3 px-4 font-mono text-accent">7.40 days</td>
+                    <td className="py-3 px-4"><span className="craft-tag legacy">Expired (1)</span></td>
+                    <td className="py-3 px-4 text-right"><span className="craft-tag">Awaiting Training</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : (
+          /* Live Operational Cohort */
+          <section className="craft-surface overflow-hidden">
+            <div className="p-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-[12px] font-[560] text-[#e0e0e4]">
+                Active Operational Cohort
+              </h2>
+              <span className="text-[9.5px] font-mono text-muted">
+                {patients.length} Registered Patients · {admissions.length} Admissions
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="py-12 text-center text-xs text-muted flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-accent" /> Loading operational cohorts...
+              </div>
+            ) : patients.length === 0 ? (
+              <div className="py-12 text-center text-xs text-muted">
+                Operational patient collection is empty.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[10.5px]">
+                  <thead>
+                    <tr className="border-b border-line">
+                      <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Patient MRN</th>
+                      <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Gender / Age</th>
+                      <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Severity</th>
+                      <th className="text-[8px] uppercase tracking-[0.085em] text-[#777780] font-[580] py-3 px-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {patients.map((p) => (
+                      <tr key={p.patient_id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 px-4 text-[#e0e0e4] font-medium">
+                          <div>{p.name}</div>
+                          <span className="text-[9px] font-mono text-muted block">{p.patient_id}</span>
+                        </td>
+                        <td className="py-3 px-4 text-[#ababB3]">{p.gender}</td>
+                        <td className="py-3 px-4">
+                          <span className="craft-tag">{p.severity}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="craft-tag active">{p.admission_status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
       </div>
     </div>

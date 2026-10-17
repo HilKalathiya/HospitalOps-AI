@@ -2,7 +2,8 @@
 
 **Subtitle:** Deep Technical Guide to Hospital Operations Intelligence, Forecasting, Optimization and Agentic AI
 **Focus:** Engineering, Architecture, Machine Learning, and System Design
-**Status:** Chunk 2.3 Completed (Backend, ML pipelines, Baselines, ARIMA, Prophet)
+**Status:** Chunk 2.4 Completed (Backend, ML pipelines, Baselines, ARIMA, Prophet, LSTM Deep Learning)
+
 
 ---
 
@@ -629,15 +630,18 @@ We ran a full benchmark comparing Baselines vs ARIMA across two hospital dataset
 > **Key Fact:** Walk-forward cross validation prevents a model from gaining an unfair advantage by simulating actual daily production retraining.
 
 
-## 27. FUTURE DEEP LEARNING
+## 27. DEEP LEARNING FORECASTING (LSTM)
 
-🔵 **FUTURE / PLANNED** (Not implemented)
+✅ **CURRENTLY IMPLEMENTED** (Chunk 2.4)
 
 While ARIMA establishes a solid statistical baseline, hospital forecasting is inherently multivariate (weather, flu rates, holidays, staff schedules). Classical ARIMA struggles with multivariate time series at scale.
 
-### Deep Learning Candidates:
-- **LSTM (Long Short-Term Memory):** Recurrent Neural Networks designed to capture long-term sequence dependencies. Capable of handling multiple input features simultaneously.
-- **Temporal Fusion Transformers (TFT):** State-of-the-art transformer architecture for time series. It provides interpretability (attention weights), showing exactly *which* features (e.g., a specific holiday) caused a spike in the forecast.
+### Deep Learning Architecture & Implementation:
+- **LSTM (Long Short-Term Memory):** Recurrent Neural Networks designed to capture long-term sequence dependencies. Implemented in `backend/app/ml/models/lstm.py` using PyTorch (`HospitalLSTMNet`).
+- **Multivariate Sequence Windowing:** Sliding sequence windows transform tabular feature sets into 3D tensors `(batch_size, sequence_length, input_dim)` with backward-looking guardrails that strictly eliminate future lookahead leakage.
+- **Uncertainty Quantification (Monte Carlo Dropout):** By maintaining active dropout during inference, the model samples multiple stochastic forward passes ($N=20$) to estimate prediction standard deviation and output empirical 95% confidence intervals ($ŷ_{lower}, ŷ_{upper}$).
+- **Target Normalization:** Normalizes admissions/capacity targets during training and inverse-transforms predictions to original patient/bed count scale for evaluation.
+
 
 ---
 

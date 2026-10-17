@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HospitalOps — Product craft prototype</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#171717; --bg-2:#1b1b1c; --panel:#1d1d1f; --panel-raised:#222224;
+  --panel-hover:#29292c; --ink:#f0f0f1; --ink-2:#c4c4c8; --muted:#929299; --subtle:#6f6f78;
+  --line:rgba(240,240,245,.085); --line-strong:rgba(240,240,245,.13);
+  --accent:#9ba8ff; --accent-soft:rgba(155,168,255,.12); --accent-2:#c0c7ff;
+  --good:#8fd6b2; --warn:#e8c182; --bad:#ed9199;
+  --shadow:0 18px 55px rgba(0,0,0,.22); --radius:10px;
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13px;line-height:1.45;letter-spacing:-.01em;min-width:320px;overflow-x:hidden}
+button,input{font:inherit}button{color:inherit;cursor:pointer}a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+::selection{background:rgba(155,168,255,.28)}
+/* Custom HospitalOps signature: an open frame around a measured, rising capacity trace. */
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-mark{width:34px;height:34px;flex:none;overflow:visible}
+.brand-mark .logo-structure{fill:none;stroke:#e8e9ee;stroke-width:2.65;stroke-linecap:round;stroke-linejoin:round;opacity:1}
+.brand-mark .logo-node{display:none}
+.brand-name{font-size:13.5px;font-weight:640;letter-spacing:-.055em;line-height:1.1;color:#eeeef1}.brand-op{color:inherit;font-weight:inherit}
+.brand-meta{margin-top:4px;color:var(--subtle);font-size:8.5px;letter-spacing:.11em;font-weight:560;text-transform:uppercase}
+/* A deliberately tiny shell: content, not chrome, owns the contrast. */
+.app{display:grid;grid-template-columns:218px minmax(0,1fr);min-height:100vh;opacity:0;transform:translateY(5px);filter:blur(1px);transition:opacity .42s ease,transform .52s cubic-bezier(.2,.7,.2,1),filter .42s ease}
+.app.ready{opacity:1;transform:none;filter:none}
+.sidebar{background:#19191b;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:100vh;padding:17px 10px 12px;position:sticky;top:0;height:100vh;z-index:8}
+.brand-block{padding:0 10px 19px;border-bottom:1px solid var(--line);margin-bottom:21px;display:flex;align-items:center;justify-content:space-between}
+.version{font-size:9px;color:#696971;letter-spacing:.03em;white-space:nowrap;margin-top:4px}
+.workspace-switch{border:1px solid transparent;background:transparent;border-radius:6px;display:flex;align-items:center;gap:8px;padding:7px 8px;width:100%;text-align:left;transition:background .18s,border-color .18s}
+.workspace-switch:hover{background:rgba(255,255,255,.035);border-color:var(--line)}
+.workspace-avatar{width:35px;height:35px;flex:none;border:0;border-radius:0;display:grid;place-items:center;color:var(--accent);background:transparent;padding:0}.mini-brand-mark{width:31px;height:31px;display:block;overflow:visible}.mini-brand-mark .logo-structure{fill:none;stroke:#e8e9ee;stroke-width:2.65;stroke-linecap:round;stroke-linejoin:round;opacity:1}.mini-brand-mark .logo-node{display:none}
+.workspace-name{font-size:11px;font-weight:620;letter-spacing:-.04em;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e9e9ed}.workspace-name .brand-op{font-weight:inherit;color:inherit}
+.workspace-chevron{width:13px;height:13px;color:var(--subtle)}
+.nav-section{font-size:9px;font-weight:610;color:#696970;letter-spacing:.11em;padding:0 13px;margin:0 0 7px;text-transform:uppercase}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-link{border:1px solid transparent;background:transparent;position:relative;height:32px;display:flex;align-items:center;gap:10px;padding:0 11px;border-radius:6px;color:#a5a5ac;font-size:11.5px;letter-spacing:-.015em;transition:background .16s,color .16s,border-color .16s}
+.nav-link svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;opacity:.82;flex:none}
+.nav-link:hover{background:rgba(255,255,255,.04);color:#dedee1}
+.nav-link.active{background:rgba(255,255,255,.065);color:#f0f0f3;border-color:rgba(255,255,255,.035)}
+.nav-link.active:before{content:"";position:absolute;width:2px;height:15px;left:-1px;top:8px;background:var(--accent);border-radius:0 2px 2px 0}
+.nav-link.active svg{color:var(--accent);opacity:1}
+.nav-spacer{height:24px}
+.sidebar-bottom{margin-top:auto;border-top:1px solid var(--line);padding:12px 7px 0}
+.user-row{display:flex;align-items:center;gap:9px;padding:5px 3px}
+.user-avatar{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#2c2c30;border:1px solid var(--line-strong);font-size:9px;color:#c7c7cc}
+.user-name{font-size:10.5px;color:#d7d7da;font-weight:530}
+.user-role{font-size:9px;color:#777780;margin-top:2px}
+.sidebar-status{font-size:9px;color:#74747c;margin:12px 3px 1px;display:flex;align-items:center;gap:7px}
+.tiny-dot{width:5px;height:5px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(143,214,178,.08)}
+.main{min-width:0;min-height:100vh;background:radial-gradient(ellipse 68% 55% at 72% -12%,rgba(95,106,180,.055),transparent 75%),var(--bg)}
+.topbar{height:51px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;background:rgba(23,23,23,.88);backdrop-filter:blur(18px);z-index:6}
+.breadcrumbs{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10.5px}
+.breadcrumbs .sep{color:#4f4f56}
+.breadcrumbs .current{color:#dedee1;font-weight:540}
+.top-actions{display:flex;align-items:center;gap:8px}
+.environment{font-size:9px;letter-spacing:.025em;border:1px solid var(--line);background:rgba(255,255,255,.022);border-radius:5px;padding:5px 8px;color:#a7a7ae;display:flex;gap:7px;align-items:center}
+.environment .tiny-dot{width:5px;height:5px;box-shadow:none}
+.icon-button{width:29px;height:29px;border:1px solid transparent;border-radius:6px;display:grid;place-items:center;background:transparent;color:#8c8c94;transition:background .16s,border-color .16s,color .16s}
+.icon-button:hover{border-color:var(--line);background:rgba(255,255,255,.045);color:#eee}
+.icon-button svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+.content{max-width:1490px;margin:0 auto;padding:31px 38px 52px;animation:contentIn .55s cubic-bezier(.2,.7,.2,1) both}
+@keyframes contentIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+.eyebrow{font-size:9px;color:#85858d;letter-spacing:.12em;font-weight:600;text-transform:uppercase;margin-bottom:10px}
+h1{font-size:25px;line-height:1.18;letter-spacing:-.055em;font-weight:570;margin:0;color:#f2f2f3}
+.page-subtitle{color:#8e8e96;font-size:11.5px;margin-top:8px;letter-spacing:-.015em}
+.head-actions{display:flex;align-items:center;gap:8px;padding-bottom:3px}
+.button{height:31px;border:1px solid var(--line-strong);border-radius:6px;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.022));box-shadow:0 1px 0 rgba(255,255,255,.025) inset,0 1px 1px rgba(0,0,0,.12);padding:0 11px;color:#d0d0d6;font-size:10.5px;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:background .18s,border-color .18s,transform .18s,box-shadow .18s;white-space:nowrap}
+.button svg{height:13px;width:13px;stroke:currentColor;fill:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+.button:hover{background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.04));border-color:rgba(255,255,255,.19);transform:translateY(-.5px)}
+.button.primary{background:linear-gradient(180deg,#b0baff,#98a5f8);border-color:rgba(213,218,255,.5);color:#14151b;font-weight:620;box-shadow:0 1px 0 rgba(255,255,255,.48) inset,0 2px 9px rgba(90,103,214,.12)}
+.button.primary:hover{background:#c0c7ff;box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 3px 13px rgba(90,103,214,.18)}
+.sourcebar{display:flex;align-items:center;gap:11px;padding:10px 0 13px;border-bottom:1px solid var(--line);color:#a9a9b0;font-size:10px;margin-bottom:22px}
+.sourcebar .source-name{color:#dbdbdf;font-weight:560;display:flex;align-items:center;gap:7px}
+.sourcebar svg{width:13px;height:13px;stroke:#93939a;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.source-sep{height:15px;width:1px;background:var(--line-strong)}
+.status-label{margin-left:auto;border:1px solid rgba(232,193,130,.13);background:rgba(232,193,130,.055);border-radius:4px;padding:4px 7px;color:#d7b879;font-size:8.5px;letter-spacing:.075em;font-weight:600}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:25px;border-bottom:1px solid var(--line);padding-bottom:24px}
+.metric{padding:0 24px 0 0;min-width:0;position:relative}
+.metric+.metric{border-left:1px solid var(--line);padding-left:24px}
+.metric-label{font-size:9px;line-height:1.2;text-transform:uppercase;letter-spacing:.085em;color:#85858e;font-weight:580;white-space:nowrap}
+.metric-value{margin-top:10px;font-size:23px;letter-spacing:-.055em;line-height:1.1;font-weight:560;color:#f0f0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.metric-value.long{font-size:17px;letter-spacing:-.045em; padding-top:4px}
+.metric-foot{margin-top:7px;color:#85858d;font-size:10px;line-height:1.3;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.metric-foot .positive{color:var(--good)}
+.dashboard-grid{display:grid;grid-template-columns:minmax(0,2.08fr) minmax(270px,.82fr);gap:17px;align-items:stretch}
+.surface{background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006)),var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:0 1px 0 rgba(255,255,255,.015) inset;min-width:0}
+.chart-panel{overflow:hidden;position:relative}
+.panel-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:18px 19px 14px}
+.panel-title{font-size:12px;font-weight:560;letter-spacing:-.025em;color:#e3e3e7}
+.panel-caption{color:#85858e;font-size:10px;margin-top:5px;line-height:1.45}
+.range-switch{display:flex;align-items:center;padding:2px;background:#171719;border:1px solid rgba(255,255,255,.07);border-radius:6px;gap:1px;flex:none}
+.range-switch button{background:transparent;border:0;border-radius:4px;color:#777780;font-size:9px;padding:4px 7px;transition:background .16s,color .16s}
+.range-switch button:hover{color:#c8c8ce}
+.range-switch button.selected{color:#e5e5e9;background:#303034;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.chart-legend{display:flex;align-items:center;gap:14px;padding:0 19px 3px;color:#9a9aa2;font-size:9px}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-line{width:17px;height:2px;border-radius:1px;background:#a1b8cb}
+.legend-line.forecast{background:linear-gradient(90deg,var(--accent) 0 63%,transparent 63% 80%,var(--accent) 80%)}
+.legend-line.baseline{background:#6e7a87;background-image:linear-gradient(90deg,#6e7a87 50%,transparent 50%);background-size:4px 1px}
+.legend-band{width:13px;height:8px;border-radius:2px;background:rgba(155,168,255,.14);border:1px solid rgba(155,168,255,.18)}
+.chart-wrap{position:relative;padding:0 14px 0 8px;margin-top:1px}
+.chart-svg{width:100%;height:auto;display:block;overflow:visible}
+.chart-grid-line{stroke:rgba(238,238,245,.075);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart-axis{font-family:var(--font);font-size:10px;fill:#777780;letter-spacing:-.015em}
+.chart-axis.x{font-size:9px;fill:#73737b}
+.chart-value{font-family:var(--font);font-size:10px;fill:#9e9ea6;font-variant-numeric:tabular-nums}
+.chart-actual{fill:none;stroke:#96adc2;stroke-width:1.8;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1px rgba(150,173,194,.12))}
+.chart-forecast{fill:none;stroke:var(--accent);stroke-width:1.9;stroke-dasharray:4 4;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+.chart-baseline{fill:none;stroke:#707b87;stroke-width:1.1;stroke-dasharray:2.5 4;opacity:.85;vector-effect:non-scaling-stroke}
+.chart-band{fill:rgba(155,168,255,.08);stroke:none}
+.forecast-origin{stroke:rgba(190,195,214,.45);stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.origin-label{font-family:var(--font);font-size:8px;letter-spacing:.06em;fill:#858590;text-transform:uppercase}
+.chart-point{fill:#9ba8ff;stroke:#1d1d1f;stroke-width:2;vector-effect:non-scaling-stroke;cursor:crosshair;transition:r .16s,fill .16s}
+.chart-hit{fill:transparent;cursor:crosshair}
+.chart-tooltip{position:absolute;min-width:148px;background:rgba(31,31,34,.97);border:1px solid rgba(255,255,255,.13);border-radius:7px;padding:9px 10px;box-shadow:0 10px 25px rgba(0,0,0,.32);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;z-index:3;backdrop-filter:blur(16px)}
+.chart-tooltip.visible{opacity:1;transform:none}
+.tooltip-date{font-size:9px;color:#92929b;margin-bottom:6px}
+.tooltip-row{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:10px;color:#bdbdc4;margin-top:3px}
+.tooltip-row strong{font-weight:590;color:#efeff1;font-variant-numeric:tabular-nums}
+.chart-foot{border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:10px 19px 12px;color:#75757d;font-size:9px;margin-top:-2px}
+.chart-foot strong{font-weight:520;color:#aaaab2}
+.insight-panel{padding:0 18px 16px;display:flex;flex-direction:column;min-height:100%}
+.insight-panel .panel-top{padding:18px 0 14px}
+.insight-intro{font-size:10px;color:#8e8e96;line-height:1.6;margin:0 0 17px}
+.insight-kicker{font-size:8.5px;letter-spacing:.095em;color:#7f7f88;font-weight:600;text-transform:uppercase}
+.insight-number{font-size:30px;letter-spacing:-.065em;font-weight:570;margin-top:5px;line-height:1.15;font-variant-numeric:tabular-nums}
+.insight-number span{font-size:12px;color:#92929a;letter-spacing:-.02em;font-weight:450;margin-left:3px}
+.insight-delta{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10px;color:#9e9ea6}
+.trend-mark{width:13px;height:13px;display:grid;place-items:center;color:var(--good)}
+.mini-spark{width:100%;height:39px;display:block;margin:12px 0 17px}
+.insight-section{border-top:1px solid var(--line);padding:14px 0 13px}
+.insight-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0}
+.insight-row .label{font-size:10px;color:#8d8d95}
+.insight-row .value{font-size:10px;color:#dddddf;font-weight:540;text-align:right}
+.model-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);font-size:9px;color:#c4c4cc}
+.model-chip .dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.provenance{margin-top:auto;border-radius:6px;padding:10px;background:rgba(255,255,255,.023);border:1px solid rgba(255,255,255,.055)}
+.provenance-title{display:flex;align-items:center;gap:7px;font-size:9px;color:#b7b7bf;font-weight:550}
+.provenance-title svg{width:13px;height:13px;stroke:#9ba8ff;fill:none;stroke-width:1.5}
+.provenance p{font-size:9px;color:#777781;line-height:1.55;margin:6px 0 0}
+.lower-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.95fr);gap:17px;margin-top:17px}
+.lower-panel{padding:16px 18px 15px;min-width:0}
+.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.section-title{font-size:11.5px;font-weight:560;letter-spacing:-.025em;color:#e0e0e4}
+.section-subtitle{font-size:9.5px;color:#777780;margin-top:4px}
+.text-link{border:0;background:transparent;color:#9ba8ff;font-size:10px;padding:0;transition:color .15s;display:inline-flex;align-items:center;gap:4px}.text-link svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.55;vertical-align:middle;flex:none}
+.text-link:hover{color:#c1c8ff}
+.run-table{width:100%;border-collapse:collapse;text-align:left;font-size:10px}
+.run-table thead th{font-size:8px;letter-spacing:.075em;font-weight:580;text-transform:uppercase;color:#73737c;padding:0 10px 10px 0;white-space:nowrap}
+.run-table tbody tr{border-top:1px solid rgba(255,255,255,.055);transition:background .15s}
+.run-table tbody tr:hover{background:rgba(255,255,255,.025)}
+.run-table td{padding:11px 10px 11px 0;color:#ababB3;white-space:nowrap;font-variant-numeric:tabular-nums}
+.run-table td:first-child{color:#dedee2;font-weight:510}
+.run-table td:last-child{padding-right:0}
+.state{font-size:8px;display:inline-flex;align-items:center;gap:5px;color:#a8d7be}
+.state:before{content:"";width:4px;height:4px;border-radius:50%;background:#83c8a4}
+.boundary-items{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.boundary-item{padding:11px 12px;background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.05);border-radius:6px;min-width:0;transition:background .18s,border-color .18s}
+.boundary-item:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10)}
+.boundary-label{display:flex;align-items:center;gap:7px;font-size:10px;color:#d4d4d9;font-weight:540}
+.boundary-label .mini-dot{width:5px;height:5px;border-radius:50%;background:#92c8a9}
+.boundary-item:last-child .mini-dot{background:#a4adcf}
+.boundary-desc{font-size:9px;line-height:1.55;color:#7f7f88;margin-top:7px}
+.footer{display:flex;justify-content:space-between;gap:18px;color:#66666f;font-size:9px;margin-top:23px;padding:0 1px}
+.footer .right{display:flex;gap:15px;align-items:center}
+/* Other sections share exactly the same chrome; layouts differ by task, not by random card style. */
+.subpage-toolbar{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:0 0 16px;margin-bottom:19px}
+.field-button{height:30px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:0 9px;background:rgba(255,255,255,.018);font-size:10px;color:#bcbcc3}
+.field-button svg{width:12px;height:12px;stroke:#8f8f98;fill:none;stroke-width:1.5}
+.field-button .chev{margin-left:8px;width:10px}
+.toolbar-spacer{flex:1}
+.tabstrip{display:flex;align-items:center;gap:17px;border-bottom:1px solid var(--line);margin:0 0 17px;padding:0 2px}
+.tabstrip button{position:relative;padding:0 0 11px;border:0;background:transparent;color:#888891;font-size:10.5px;transition:color .16s}
+.tabstrip button:hover{color:#dedee3}
+.tabstrip button.active{color:#f0f0f3}
+.tabstrip button.active:after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);border-radius:2px}
+.data-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.data-table thead th{border-bottom:1px solid var(--line);font-size:8px;letter-spacing:.085em;text-transform:uppercase;color:#777780;font-weight:580;padding:12px 15px;text-align:left;white-space:nowrap}
+.data-table tbody td{border-bottom:1px solid rgba(255,255,255,.045);font-size:10.5px;color:#b2b2ba;padding:13px 15px;white-space:nowrap}
+.data-table tbody td:first-child{color:#e0e0e4;font-weight:510}
+.data-table tbody tr:hover{background:rgba(255,255,255,.026)}
+.data-table tbody tr:last-child td{border-bottom:0}
+.tag{display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,.085);background:rgba(255,255,255,.035);border-radius:4px;padding:3px 6px;color:#acacb4;font-size:8.5px}
+.tag.active{border-color:rgba(143,214,178,.15);background:rgba(143,214,178,.055);color:#92c9aa}
+.tag.legacy{color:#d4b778;border-color:rgba(232,193,130,.13);background:rgba(232,193,130,.04)}
+.notice{display:flex;gap:10px;padding:12px 14px;border:1px solid rgba(155,168,255,.12);background:rgba(155,168,255,.04);border-radius:7px;margin-bottom:18px}
+.notice svg{flex:none;width:15px;height:15px;stroke:#a6b1ff;fill:none;stroke-width:1.5;margin-top:1px}
+.notice strong{display:block;font-weight:560;font-size:10.5px;color:#d0d3ee}
+.notice p{margin:4px 0 0;font-size:10px;color:#8e91a8;line-height:1.5}
+.page-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line);padding:0 0 21px;margin-bottom:19px}
+.simple-chart{padding:4px 14px 10px}
+.simple-chart svg{display:block;width:100%;height:auto}
+/* Login: intentionally quiet, precise, no fake credentials and no decorative hero clutter. */
+.login-screen{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse 55% 65% at 50% 45%,rgba(112,122,191,.09),transparent 75%),#171718;padding:28px;opacity:0;transition:opacity .24s ease}
+.login-screen.open{display:flex}
+.login-screen.visible{opacity:1}
+.login-shell{width:min(390px,100%);transform:translateY(7px);opacity:0;transition:transform .4s cubic-bezier(.2,.8,.2,1),opacity .4s ease}
+.login-screen.visible .login-shell{transform:none;opacity:1}
+.login-topbrand{display:flex;justify-content:center;margin-bottom:28px}
+.login-card{border:1px solid rgba(255,255,255,.105);background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008)),#1d1d1f;border-radius:10px;padding:25px 25px 22px;box-shadow:0 22px 80px rgba(0,0,0,.23),0 1px 0 rgba(255,255,255,.03) inset}
+.login-title{text-align:center;font-size:18px;font-weight:590;letter-spacing:-.045em;margin:0}
+.login-subtitle{text-align:center;color:#888891;font-size:11px;line-height:1.6;margin:8px auto 25px;max-width:275px}
+.form-label{font-size:10px;color:#bdbdc4;font-weight:530;display:block;margin-bottom:7px}
+.input{height:38px;display:block;width:100%;background:#171719;border:1px solid rgba(255,255,255,.13);border-radius:6px;padding:0 11px;color:#dedee2;font-size:11px;margin-bottom:17px;outline:none;transition:border-color .16s,box-shadow .16s}
+.input:focus{border-color:rgba(155,168,255,.6);box-shadow:0 0 0 3px rgba(155,168,255,.09)}
+.input::placeholder{color:#66666f}
+.login-submit{width:100%;height:38px;margin-top:2px}
+.login-divider{height:1px;background:var(--line);margin:20px 0 17px}
+.login-secondary{width:100%;height:35px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#bdbdc5;font-size:10.5px;transition:background .16s,border-color .16s}
+.login-secondary:hover{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.17)}
+.login-note{text-align:center;color:#66666e;font-size:9px;line-height:1.6;margin:16px auto 0;max-width:310px}
+.login-close{position:absolute;right:30px;top:26px}
+/* Entry choreography: the mark is drawn, not popped in as an emoji. */
+.intro{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:#171718;transition:opacity .45s ease,visibility .45s ease;overflow:hidden}
+.intro:before{content:"";position:absolute;inset:0;opacity:.06;background:radial-gradient(ellipse 28% 26% at 50% 46%,rgba(230,233,245,.12),transparent 75%);pointer-events:none}
+.intro.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.intro-center{position:relative;display:flex;align-items:center;flex-direction:column;gap:17px;transform:translateY(4px)}
+.intro-logo{width:60px;height:60px;overflow:visible}
+.intro-logo .logo-structure{fill:none;stroke:#e8e9ee;stroke-width:2.65;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:120;stroke-dashoffset:120;animation:drawMark .82s cubic-bezier(.25,.7,.2,1) .06s forwards;opacity:1}
+.intro-logo .logo-node{fill:var(--accent);stroke:var(--bg);stroke-width:1.2;stroke-linejoin:round;opacity:0;transform-origin:24px 24px;animation:signalNodeIn .25s cubic-bezier(.2,.7,.2,1) .6s forwards}
+@keyframes signalNodeIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+.intro-wordmark{font-size:16px;font-weight:650;letter-spacing:-.055em;color:#eeeeF2;opacity:0;transform:translateY(5px);animation:wordmarkIn .45s cubic-bezier(.2,.7,.2,1) .4s forwards}.intro-wordmark .brand-op{color:inherit;font-weight:inherit}
+.intro-caption{color:#74747c;font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:0;animation:fadeIn .35s ease .59s forwards}
+.intro-progress{width:104px;height:2px;background:rgba(255,255,255,.08);overflow:hidden;border-radius:2px;opacity:0;animation:fadeIn .25s ease .55s forwards;margin-top:4px}
+.intro-progress span{display:block;height:100%;width:100%;background:linear-gradient(90deg,#8d9cff,#c1c8ff);transform:scaleX(0);transform-origin:left;animation:progressIn 1.05s cubic-bezier(.4,0,.2,1) .52s forwards}
+@keyframes drawMark{to{stroke-dashoffset:0}}
+@keyframes wordmarkIn{to{opacity:1;transform:none}}
+@keyframes fadeIn{to{opacity:1}}
+@keyframes progressIn{to{transform:scaleX(1)}}
+@keyframes lineDraw{from{stroke-dashoffset:1600}to{stroke-dashoffset:0}}
+@keyframes graphReveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.graph-draw{stroke-dasharray:1600;stroke-dashoffset:1600;animation:lineDraw .72s cubic-bezier(.2,.7,.2,1) .08s forwards}
+.graph-appear{animation:graphReveal .55s ease .25s both}
+.reduce-motion *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+.toast{position:fixed;right:22px;bottom:22px;z-index:50;background:#27272b;border:1px solid var(--line-strong);border-radius:7px;padding:10px 12px;color:#dedee4;box-shadow:var(--shadow);font-size:10.5px;opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:none}
+/* Mobile is a genuinely reflowed interface, not a scaled desktop screenshot. */
+.mobile-menu{display:none}
+@media(max-width:1180px){.content{padding:27px 24px 42px}.dashboard-grid{grid-template-columns:minmax(0,1.8fr) minmax(245px,.82fr)}.metric{padding-right:12px}.metric+.metric{padding-left:15px}.metric-value{font-size:20px}.metric-value.long{font-size:15px}.panel-top{padding-left:15px;padding-right:15px}.chart-legend{padding-left:15px}.insight-panel{padding-left:14px;padding-right:14px}}
+@media(max-width:900px){.app{grid-template-columns:60px minmax(0,1fr)}.sidebar{padding:15px 7px}.brand-block{padding:0 8px 18px}.brand-block .brand-copy,.workspace-switch .workspace-name,.workspace-switch .workspace-chevron,.nav-section,.nav-link span,.sidebar-bottom .user-copy,.sidebar-status{display:none}.workspace-switch{justify-content:center;padding:7px 0}.workspace-avatar{flex:none}.nav-link{justify-content:center;padding:0;height:34px}.nav-link svg{width:16px;height:16px}.nav-link.active:before{left:-7px}.sidebar-bottom{padding:12px 0 0}.user-row{justify-content:center}.topbar{padding:0 18px}.content{padding:25px 18px 38px}.dashboard-grid{grid-template-columns:1fr}.insight-panel{min-height:unset}.provenance{margin-top:4px}.lower-grid{grid-template-columns:1fr}.pagehead{align-items:flex-start}.page-metrics{grid-template-columns:repeat(2,1fr);row-gap:18px}.page-metrics .metric:nth-child(3){border-left:0;padding-left:0}.page-metrics .metric:nth-child(3),.page-metrics .metric:nth-child(4){padding-top:15px;border-top:1px solid var(--line)}}
+@media(max-width:620px){.app{grid-template-columns:1fr}.sidebar{position:fixed;top:auto;bottom:0;width:100%;height:58px;min-height:58px;display:block;padding:5px 7px;border-right:0;border-top:1px solid var(--line);background:rgba(24,24,26,.94);backdrop-filter:blur(18px)}.brand-block,.sidebar-bottom,.nav-section,.nav-spacer{display:none}.nav{height:100%;flex-direction:row;justify-content:space-around;gap:3px}.nav-link{flex:1;height:46px;flex-direction:column;justify-content:center;gap:3px;padding:3px 0;border-radius:6px;font-size:8px}.nav-link span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nav-link svg{width:15px;height:15px}.nav-link.active:before{left:calc(50% - 8px);top:0;width:16px;height:2px;border-radius:0 0 2px 2px}.main{padding-bottom:57px}.topbar{height:47px;padding:0 13px}.environment{display:none}.content{padding:23px 14px 30px}.pagehead{gap:12px;flex-direction:column;margin-bottom:18px}.head-actions{padding:0}.pagehead h1{font-size:23px}.sourcebar{flex-wrap:wrap;gap:8px;font-size:9px}.sourcebar .source-sep{display:none}.status-label{margin-left:0}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:16px;padding-bottom:19px;margin-bottom:18px}.metric{padding-right:10px}.metric+.metric{padding-left:14px}.metric:nth-child(3){border-left:0;padding-left:0}.metric:nth-child(3),.metric:nth-child(4){padding-top:14px;border-top:1px solid var(--line)}.metric-value{font-size:21px}.metric-value.long{font-size:15px}.dashboard-grid{gap:13px}.panel-top{padding:15px 13px 12px}.panel-title{font-size:11px}.panel-caption{max-width:235px}.range-switch button{padding:4px 5px;font-size:8px}.chart-legend{gap:8px;padding:0 13px 4px;font-size:8px;flex-wrap:wrap}.legend-line{width:12px}.chart-wrap{padding:0 4px 0 1px}.chart-svg{min-height:190px}.chart-foot{padding:9px 13px;gap:10px;align-items:flex-start;flex-direction:column}.insight-panel{padding:0 13px 13px}.insight-panel .panel-top{padding-top:15px}.lower-grid{gap:13px;margin-top:13px}.lower-panel{padding:14px 13px}.run-table{min-width:460px}.lower-panel.table-overflow{overflow-x:auto}.boundary-items{gap:9px}.boundary-item{padding:9px}.footer{flex-direction:column;gap:8px}.footer .right{justify-content:space-between}.login-screen{padding:18px}.login-card{padding:22px 19px 19px}.login-close{right:15px;top:15px}}
+
+/* Analytical plot: a quiet axis system, direct endpoint labels, and a clearly bounded forecast window. */
+.chart-panel{align-self:stretch;overflow:hidden}
+.chart-wrap{position:relative;padding:0 10px 0 7px;margin-top:3px;touch-action:pan-y}
+.chart-svg{width:100%;height:auto;display:block;overflow:visible;aspect-ratio:1000/460;outline:none}
+.chart-svg:focus-visible{outline:1px solid rgba(164,175,255,.55);outline-offset:3px;border-radius:4px}
+.chart-grid-line{stroke:rgba(232,235,243,.078);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart-axis{font-family:var(--font);font-size:13px;fill:#838791;letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+.chart-axis.x{font-size:11px;fill:#777d86}
+.chart-axis-title{font-family:var(--font);font-size:10.5px;fill:#777d86;letter-spacing:.075em;font-weight:580}
+.chart-actual{fill:none;stroke:#a1b8cb;stroke-width:2.15;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;filter:none}
+.chart-forecast{fill:none;stroke:var(--accent);stroke-width:2.3;stroke-dasharray:5 4;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;filter:none}
+.chart-band{fill:rgba(155,168,255,.105);stroke:none}
+.chart-band-edge{fill:none;stroke:rgba(164,175,255,.28);stroke-width:1;stroke-dasharray:2 4;vector-effect:non-scaling-stroke}
+.chart-horizon-window{fill:rgba(155,168,255,.035);stroke:none}
+.forecast-origin{stroke:rgba(205,210,221,.48);stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.origin-label{font-family:var(--font);font-size:10.5px;letter-spacing:.055em;fill:#a1a6b1;font-weight:560;text-transform:uppercase}
+.chart-point{fill:#a1b8cb;stroke:var(--panel);stroke-width:2.2;vector-effect:non-scaling-stroke;cursor:crosshair}
+.chart-forecast-point{fill:var(--accent);stroke:var(--panel);stroke-width:1.7;vector-effect:non-scaling-stroke}
+.chart-interaction-plane{fill:transparent;pointer-events:all;cursor:crosshair}
+.chart-cursor{pointer-events:none}
+.chart-cursor line{stroke:rgba(218,222,232,.32);stroke-width:1;stroke-dasharray:2 4;vector-effect:non-scaling-stroke}
+.chart-cursor .cursor-observed{fill:#a1b8cb;stroke:var(--panel);stroke-width:2.4;vector-effect:non-scaling-stroke}
+.chart-cursor .cursor-forecast{fill:var(--accent);stroke:var(--panel);stroke-width:2.4;vector-effect:non-scaling-stroke}
+.chart-series-label{font-family:var(--font);font-size:12px;font-weight:560;letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+.chart-series-label.observed{fill:#c1ced8}
+.chart-series-label.forecast{fill:#c4cbff}
+.chart-endpoint-leader{stroke-width:1;opacity:.7;vector-effect:non-scaling-stroke}
+.chart-endpoint-leader.observed{stroke:#a1b8cb}
+.chart-endpoint-leader.forecast{stroke:var(--accent)}
+.chart-tooltip{position:absolute;min-width:188px;max-width:220px;background:rgba(29,30,34,.985);border:1px solid rgba(231,234,243,.14);border-radius:7px;padding:10px 11px;box-shadow:0 8px 22px rgba(0,0,0,.24);pointer-events:none;opacity:0;transform:translateY(3px);transition:opacity .12s ease,transform .12s ease;z-index:3;backdrop-filter:blur(12px)}
+.chart-tooltip.visible{opacity:1;transform:none}
+.tooltip-date{font-size:10px;color:#b8bbc4;margin-bottom:8px;font-weight:570;letter-spacing:-.01em}
+.tooltip-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:10px;color:#8f949f;margin-top:5px}
+.tooltip-row strong{font-size:10.5px;font-weight:570;color:#eef0f5;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tooltip-row .series-mark{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.tooltip-row .series-mark.actual{background:#a1b8cb}
+.tooltip-row .series-mark.forecast{background:var(--accent)}
+.chart-foot{border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 19px 12px;color:#7e838d;font-size:9.5px;margin-top:0;flex-wrap:wrap}
+.chart-foot strong{font-weight:540;color:#c1c4cc;font-variant-numeric:tabular-nums}
+.chart-foot .chart-horizon-label{color:#aeb7ef}
+@media(max-width:620px){.chart-svg{min-height:225px}.chart-axis{font-size:10px}.chart-axis.x{font-size:9px}.chart-series-label{font-size:10px}.chart-foot{padding:10px 13px;flex-direction:column;align-items:flex-start}.chart-tooltip{min-width:170px;max-width:190px}}
+
+
+.forecast-comparison{display:flex;align-items:baseline;gap:8px;margin:14px 0 16px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,.016)}
+.forecast-comparison .compare-label{font-size:8px;letter-spacing:.075em;text-transform:uppercase;color:#777d87;font-weight:580}
+.forecast-comparison .compare-value{font-size:10.5px;font-weight:600;color:#c5cbd4;font-variant-numeric:tabular-nums}
+.forecast-comparison .compare-target{color:#c5cdff}
+.forecast-comparison .compare-arrow{font-size:11px;color:#656c77;margin:0 1px}
+.insight-section{margin-top:1px}
+
+
+/* Final line-chart refinement: prioritize the signal, not the chart furniture. */
+.dashboard-grid{grid-template-columns:minmax(0,2.08fr) minmax(270px,.82fr);gap:15px}
+.chart-panel{background:linear-gradient(180deg,rgba(255,255,255,.012),transparent 34%),#1c1c1e;border-color:rgba(235,237,244,.085);box-shadow:0 1px 0 rgba(255,255,255,.025) inset}
+.chart-panel .panel-top{padding:20px 21px 14px}
+.chart-panel .panel-title{font-size:13px;letter-spacing:-.035em}
+.chart-panel .panel-caption{max-width:470px;line-height:1.5;color:#858a95}
+.chart-legend{gap:17px;padding:0 21px 5px;color:#a6aab3;font-size:9.5px}
+.legend-line{width:18px;height:2px;background:#a5b3c1}
+.legend-line.forecast{height:2px;background:repeating-linear-gradient(90deg,#aab4ff 0 5px,transparent 5px 8px)}
+.legend-band{width:15px;height:9px;background:rgba(164,175,255,.10);border:1px solid rgba(164,175,255,.17);border-radius:2px}
+.chart-wrap{padding:0 13px 0 8px;margin-top:2px;touch-action:pan-y}
+.chart-svg{width:100%;height:auto;display:block;overflow:visible;aspect-ratio:1000/460;outline:none}
+.chart-grid-line{stroke:rgba(232,235,243,.052);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart-axis{fill:#777e89;font-size:10px;font-variant-numeric:tabular-nums;letter-spacing:0}
+.chart-axis.x{font-size:9.5px;fill:#7d838e}
+.chart-axis-title{fill:#777e89;font-size:9px;letter-spacing:.085em;font-weight:560}
+.chart-horizon-window{fill:rgba(164,175,255,.035);stroke:rgba(164,175,255,.025);stroke-width:1}
+.chart-actual{stroke:#a4b4c3;stroke-width:1.8;filter:none;stroke-linecap:round;stroke-linejoin:round}
+.chart-forecast{stroke:#aab4ff;stroke-width:2.1;stroke-dasharray:5 4;stroke-linecap:round;stroke-linejoin:round}
+.chart-band{fill:rgba(164,175,255,.085);stroke:none}
+.chart-band-edge{stroke:rgba(164,175,255,.2);stroke-width:.85;stroke-dasharray:2 4;fill:none;vector-effect:non-scaling-stroke}
+.forecast-origin{stroke:rgba(205,209,223,.38);stroke-width:1;stroke-dasharray:2 4;vector-effect:non-scaling-stroke}
+.origin-label{font-size:8.5px;letter-spacing:.08em;fill:#7e8490;font-weight:560}
+.chart-series-label{font-size:11px;font-weight:590;letter-spacing:-.025em;paint-order:stroke;stroke:#1c1c1e;stroke-width:3.5px;stroke-linejoin:round}
+.chart-series-label.observed{fill:#c1ced9}.chart-series-label.forecast{fill:#c4cbff}
+.chart-endpoint-leader{stroke-width:1.1;opacity:.82;vector-effect:non-scaling-stroke}
+.chart-point{fill:#a4b4c3;stroke:#1c1c1e;stroke-width:2.2}
+.chart-forecast-point{fill:#aab4ff;stroke:#1c1c1e;stroke-width:1.8}
+.chart-interaction-plane{fill:transparent;cursor:crosshair;pointer-events:all}
+.chart-crosshair{stroke:rgba(228,231,241,.35);stroke-width:1;stroke-dasharray:2 4;vector-effect:non-scaling-stroke}
+.chart-foot{padding:11px 21px 13px;border-top-color:rgba(235,237,244,.055)}
+@media(max-width:900px){.dashboard-grid{grid-template-columns:1fr}}
+
+</style>
+<style id="craft-chart-final">
+/* Chart craft pass: hierarchy comes from measured geometry and typography, not card decoration. */
+.chart-panel{background:#1b1b1d;border-color:rgba(238,240,248,.075);box-shadow:0 1px 0 rgba(255,255,255,.018) inset;border-radius:8px}
+.chart-panel .panel-top{padding:21px 22px 13px;align-items:center}
+.chart-panel .panel-title{font-size:13px;font-weight:590;letter-spacing:-.035em;color:#ececf0}
+.chart-panel .panel-caption{font-size:10px;color:#858791;letter-spacing:-.005em}
+.chart-legend{padding:0 22px 5px;gap:19px;color:#a3a5ae;font-size:9px}
+.legend-line{width:19px;height:2px;background:#aabac8}
+.legend-line.forecast{background:repeating-linear-gradient(90deg,#b2bbff 0 5px,transparent 5px 8px)}
+.legend-band{width:14px;height:9px;border-radius:2px;background:rgba(170,180,255,.13);border:1px solid rgba(170,180,255,.25)}
+.chart-wrap{padding:0 12px 0 8px;margin-top:0}
+.chart-svg{width:100%;height:auto;display:block;overflow:visible;aspect-ratio:1100/468}
+.chart-grid-line{stroke:rgba(233,236,244,.055);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart-axis{font-size:11px;fill:#898d97;font-variant-numeric:tabular-nums;letter-spacing:0}
+.chart-axis.x{font-size:10px;fill:#858994}
+.chart-axis-title{font-size:10px;fill:#c2c5ce;font-weight:610;letter-spacing:.065em}
+.chart-unit-note{font-family:var(--font);font-size:8px;fill:#6e737e;letter-spacing:.105em;font-weight:560}
+.chart-horizon-window{fill:url(#mainChart-forecast-wash);stroke:rgba(170,180,255,.06);stroke-width:1}
+.chart-actual{stroke:#aabac8;stroke-width:2.05;stroke-linecap:round;stroke-linejoin:round;filter:none}
+.chart-forecast{stroke:#b2bbff;stroke-width:2.4;stroke-dasharray:5 4;stroke-linecap:round;stroke-linejoin:round}
+.chart-band{fill:url(#mainChart-range-fill);stroke:none}
+.chart-band-edge{fill:none;stroke:rgba(178,187,255,.22);stroke-width:.9;stroke-dasharray:2 5;vector-effect:non-scaling-stroke}
+.forecast-origin{stroke:rgba(195,200,220,.44);stroke-width:1;stroke-dasharray:2 5;vector-effect:non-scaling-stroke}
+.chart-origin-annotation rect{fill:#25262b;stroke:rgba(231,234,244,.09);stroke-width:1}
+.chart-origin-annotation text{font-family:var(--font);font-size:8px;fill:#c4c7d0;letter-spacing:.065em;font-weight:600}
+.chart-series-label{font-size:11px;font-weight:590;letter-spacing:-.02em;paint-order:normal;stroke:none}
+.chart-series-label.observed{fill:#d0d8df}.chart-series-label.forecast{fill:#c8ceff}
+.chart-endpoint-leader{stroke-width:1.1;opacity:.85;vector-effect:non-scaling-stroke}
+.chart-endpoint-leader.observed{stroke:#aabac8}.chart-endpoint-leader.forecast{stroke:#b2bbff}
+.chart-point{fill:#c2ccd5;stroke:#1b1b1d;stroke-width:2.5}
+.chart-forecast-point{fill:#b2bbff;stroke:#1b1b1d;stroke-width:2}
+.chart-origin-ring{fill:#1b1b1d;stroke:#b2bbff;stroke-width:2.2;vector-effect:non-scaling-stroke}
+.chart-baseline-rule{stroke:rgba(233,236,244,.12);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart-interaction-plane{fill:transparent;cursor:crosshair;pointer-events:all}
+.chart-tooltip{background:rgba(35,36,41,.985);border-color:rgba(235,237,246,.15);box-shadow:0 12px 32px rgba(0,0,0,.34)}
+.chart-foot{padding:11px 22px 13px;border-top-color:rgba(235,237,244,.055)}
+@media(max-width:620px){.chart-legend{gap:10px;flex-wrap:wrap}.chart-axis{font-size:10px}.chart-axis.x{font-size:9px}.chart-series-label{font-size:10px}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute;left:-9999px" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="m3 17 6-6 4 3 8-9"/><path d="M15 5h6v6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m7 15 4-4 3 2 5-7"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+  <symbol id="i-bed" viewBox="0 0 24 24"><path d="M3 19V5M3 14h18v5M5 14V9h5a3 3 0 0 1 3 3v2M13 14V8h4a4 4 0 0 1 4 4v2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M16 6a3 3 0 0 1 0 5.5M19 20v-1a4.5 4.5 0 0 0-3-4.2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10m4 0h2M4 12h2m4 0h10M4 18h8m4 0h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v5.5c0 4.5-3.2 7.5-8 9.5-4.8-2-8-5-8-9.5V6z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4.5 10a7.5 7.5 0 0 1 12.8-4.9L20 7M4 17v-5h5M19.5 14a7.5 7.5 0 0 1-12.8 4.9L4 17"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 6a3 3 0 1 1-3-3h3v6H6a3 3 0 1 1 3 3v6H6a3 3 0 1 1 3 3M15 6a3 3 0 1 0 3-3h-3v6h3a3 3 0 1 0-3 3v6h3a3 3 0 1 0-3 3"/></symbol>
+</svg>
+<!-- Intro is a small, precise piece of choreography; it does not block the app for seconds. -->
+<div class="intro" id="intro" aria-label="Loading HospitalOps">
+ <div class="intro-center">
+  <svg class="intro-logo" viewBox="0 0 48 48" aria-hidden="true"><path class="logo-structure" d="M13 10V38M35 10V38M13 24H18.5C22.5 24 22.5 16.5 26.5 16.5S30.5 24 35 24"/></svg>
+  <div class="intro-wordmark">Hospital<span class="brand-op">Ops</span></div>
+  <div class="intro-caption">Capacity intelligence</div>
+  <div class="intro-progress"><span></span></div>
+ </div>
+</div>
+<div class="app" id="app">
+<aside class="sidebar">
+ <div class="brand-block">
+  <button class="workspace-switch" id="workspaceHome" aria-label="Go to overview">
+   <span class="workspace-avatar"><svg class="mini-brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path class="logo-structure" d="M13 10V38M35 10V38M13 24H18.5C22.5 24 22.5 16.5 26.5 16.5S30.5 24 35 24"/></svg></span><span style="min-width:0"><div class="workspace-name">Hospital<span class="brand-op">Ops</span></div><div class="version">Research · v0.2</div></span>
+   <svg class="workspace-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m7 10 5 5 5-5"/></svg>
+  </button>
+ </div>
+ <div class="nav-section">Workspace</div>
+ <nav class="nav" id="nav">
+  <button class="nav-link active" data-view="overview"><svg><use href="#i-grid"/></svg><span>Overview</span></button>
+  <button class="nav-link" data-view="forecasts"><svg><use href="#i-trend"/></svg><span>Capacity forecasts</span></button>
+  <button class="nav-link" data-view="evaluation"><svg><use href="#i-chart"/></svg><span>Model evaluation</span></button>
+  <button class="nav-link" data-view="datasets"><svg><use href="#i-database"/></svg><span>Dataset catalog</span></button>
+  <button class="nav-link" data-view="beds"><svg><use href="#i-bed"/></svg><span>Capacity &amp; beds</span></button>
+  <button class="nav-link" data-view="clinical"><svg><use href="#i-users"/></svg><span>Clinical prediction</span></button>
+  <button class="nav-link" data-view="resources"><svg><use href="#i-sliders"/></svg><span>Resources</span></button>
+ </nav>
+ <div class="sidebar-bottom">
+  <div class="user-row"><div class="user-avatar">HA</div><div class="user-copy"><div class="user-name">HospitalOps Admin</div><div class="user-role">Local research workspace</div></div></div>
+  <div class="sidebar-status"><span class="tiny-dot"></span><span>Local data boundary</span></div>
+ </div>
+</aside>
+<main class="main">
+ <header class="topbar">
+  <div class="breadcrumbs"><span>Workspace</span><span class="sep">/</span><span class="current" id="crumb">Overview</span></div>
+  <div class="top-actions"><div class="environment"><span class="tiny-dot"></span>Local engine <span style="color:#4f4f57">·</span> FastAPI</div><button class="icon-button" title="Replay entrance animation" id="replay"><svg><use href="#i-refresh"/></svg></button><button class="icon-button" title="Sign in screen" id="openLogin"><svg><use href="#i-lock"/></svg></button></div>
+ </header>
+ <div class="content" id="content"></div>
+</main>
+</div>
+<div class="login-screen" id="loginScreen" aria-hidden="true">
+ <button class="icon-button login-close" id="closeLogin" title="Back to workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+ <div class="login-shell">
+  <div class="login-topbrand brand"><svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path class="logo-structure" d="M13 10V38M35 10V38M13 24H18.5C22.5 24 22.5 16.5 26.5 16.5S30.5 24 35 24"/></svg><div><div class="brand-name">Hospital<span class="brand-op">Ops</span></div><div class="brand-meta">Capacity intelligence</div></div></div>
+  <div class="login-card">
+   <h2 class="login-title">Welcome back</h2>
+   <p class="login-subtitle">Sign in to continue to your operations workspace.</p>
+   <form id="loginForm"><label class="form-label" for="email">Email address</label><input class="input" id="email" type="email" placeholder="you@organization.org" autocomplete="username" required/><label class="form-label" for="password">Password</label><input class="input" id="password" type="password" placeholder="Your password" autocomplete="current-password" required/><button class="button primary login-submit" type="submit">Continue <svg><use href="#i-arrow"/></svg></button></form>
+   <div class="login-divider"></div>
+   <button class="login-secondary" id="localMode">Open local research workspace</button>
+   <p class="login-note">This concept uses a preview sign-in flow. Production authentication must be provided by the configured backend. MIMIC-IV remains local.</p>
+  </div>
+  <p class="login-note" style="margin-top:18px">HospitalOps AI · Research workspace</p>
+ </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const icon=(name)=>`<svg><use href="#i-${name}"/></svg>`;
+const fmt=(n)=>n.toLocaleString('en-US');
+const datasetLabel='NHSN Hospital Respiratory Data';
+const chartActual=[214.0,212.8,212.1,211.2,210.1,209.5,210.0,211.3,211.5,212.4,213.0,212.8,212.4,211.5,210.168];
+const chartForecast=[210.7,211.2,211.5,211.8,211.6,211.4,211.2,211.0];
+const chartOriginIndex=14;
+const chartMaxIndex=23;
+let selectedHorizon=4;
+const chartIntervalWidth=[0.35,0.55,0.72,0.88,1.05,1.20,1.35,1.50,1.65];
+const chartDateForIndex=(index)=>{const d=new Date(Date.UTC(2026,4,2+index*7));return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});};
+const chartShortDate=(index)=>{const d=new Date(Date.UTC(2026,4,2+index*7));return d.toLocaleDateString('en-US',{month:'short',day:'2-digit',timeZone:'UTC'});};
+const chartValue=(v)=>Math.round(v*1000).toLocaleString('en-US');
+const views={
+ overview:{crumb:'Overview',eyebrow:'Workspace / retrospective analysis',title:'Overview',sub:'Capacity signals and forecast outlook.',body:'overview'},
+ forecasts:{crumb:'Capacity forecasts',eyebrow:'Workspace / planning',title:'Capacity forecasts',sub:'Inspect observed history, forecast origin, horizon and uncertainty.',body:'forecasts'},
+ evaluation:{crumb:'Model evaluation',eyebrow:'Workspace / model quality',title:'Model evaluation',sub:'Compare baselines using temporal validation and held-out test results.',body:'evaluation'},
+ datasets:{crumb:'Dataset catalog',eyebrow:'Workspace / data governance',title:'Dataset catalog',sub:'Understand what each source can support, its temporal contract and data boundary.',body:'datasets'},
+ beds:{crumb:'Capacity & beds',eyebrow:'Workspace / capacity planning',title:'Capacity & beds',sub:'Bed inventory layout for facilities with a verified operational source.',body:'beds'},
+ clinical:{crumb:'Clinical prediction',eyebrow:'Workspace / clinical analytics',title:'Clinical prediction',sub:'Stay-level modeling built on MIMIC-IV—not a live electronic health record.',body:'clinical'},
+ resources:{crumb:'Resources',eyebrow:'Workspace / resource planning',title:'Resources',sub:'Equipment inventory and demand planning without invented telemetry.',body:'resources'}
+};
+function appHeader(view){return `<div class="pagehead"><div><div class="eyebrow">${view.eyebrow}</div><h1>${view.title}</h1><div class="page-subtitle">${view.sub}</div></div><div class="head-actions"><button class="button" id="pageRefresh">${icon('refresh')}Refresh view</button>${view.body==='overview'?`<button class="button primary" id="goForecasts">Explore forecasts ${icon('arrow')}</button>`:''}</div></div>`}
+function sourcebar(label=datasetLabel,meta='Weekly · Saturday cadence · Oct 2024 — Aug 2026',tag='RETROSPECTIVE'){return `<div class="sourcebar"><span class="source-name">${icon('database')}${label}</span><span class="source-sep"></span><span>${icon('chart')} ${meta}</span><span class="status-label">${tag}</span></div>`}
+function metric(label,value,foot,opts={}){return `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value ${opts.long?'long':''}">${value}</div><div class="metric-foot">${foot}</div></div>`}
+function chartSvg(id='mainChart',horizon=selectedHorizon){
+  const W=1100,H=468,plotLeft=76,plotRight=940,plotTop=58,plotBottom=366;
+  const maxIndex=chartOriginIndex+horizon+1;
+  const step=(plotRight-plotLeft)/maxIndex;
+  const x=(i)=>plotLeft+i*step;
+  const y=(v)=>plotBottom-((v-206)/12)*(plotBottom-plotTop);
+  const pathFrom=(points)=>points.map((pt,i)=>`${i?'L':'M'}${x(pt.i).toFixed(2)},${y(pt.v).toFixed(2)}`).join(' ');
+  const actualPoints=chartActual.map((v,i)=>({i,v}));
+  const forecastPoints=[{i:chartOriginIndex,v:chartActual[chartOriginIndex]},...chartForecast.slice(0,horizon).map((v,j)=>({i:chartOriginIndex+j+1,v}))];
+  const actualPath=pathFrom(actualPoints),forecastPath=pathFrom(forecastPoints);
+  const bandUpper=forecastPoints.map((p,j)=>({i:p.i,v:Math.min(217.5,p.v+chartIntervalWidth[j])}));
+  const bandLower=forecastPoints.slice().reverse().map((p,j)=>{const k=forecastPoints.length-1-j;return{i:p.i,v:Math.max(206.5,p.v-chartIntervalWidth[k])};});
+  const bandPath=pathFrom(bandUpper)+' '+bandLower.map(p=>`L${x(p.i).toFixed(2)},${y(p.v).toFixed(2)}`).join(' ')+' Z';
+  const upperEdge=pathFrom(bandUpper),lowerEdge=pathFrom(forecastPoints.map((p,j)=>({i:p.i,v:Math.max(206.5,p.v-chartIntervalWidth[j])})));
+  const yTicks=[218,215,212,209,206];
+  const grids=yTicks.map(v=>`<line class="chart-grid-line" x1="${plotLeft}" x2="${plotRight}" y1="${y(v)}" y2="${y(v)}"/><text class="chart-axis" x="${plotLeft-15}" y="${y(v)+3.5}" text-anchor="end">${v}k</text>`).join('');
+  const originX=x(chartOriginIndex),endpointIndex=chartOriginIndex+horizon,endpointX=x(endpointIndex),originY=y(chartActual[chartOriginIndex]);
+  const tickIndices=[...new Set([0,4,8,12,chartOriginIndex,endpointIndex])].filter(i=>i<=maxIndex).sort((a,b)=>a-b);
+  const xTicks=tickIndices.map(i=>`<text class="chart-axis x" x="${x(i)}" y="${plotBottom+27}" text-anchor="${i===0?'start':i===endpointIndex?'end':'middle'}">${chartShortDate(i)}</text>`).join('');
+  const lastForecast=chartForecast[horizon-1],forecastY=y(lastForecast),actualLast=chartActual[chartActual.length-1],actualEndX=x(chartOriginIndex),actualEndY=y(actualLast);
+  const futurePoints=forecastPoints.slice(1).map((p,j)=>`<circle class="chart-forecast-point" cx="${x(p.i)}" cy="${y(p.v)}" r="${j===horizon-1?4.1:2.7}"/>`).join('');
+  const originLabelX=Math.min(originX+10,plotRight-120);
+  return `<svg class="chart-svg" id="${id}" viewBox="0 0 ${W} ${H}" role="img" tabindex="0" aria-label="Interactive weekly capacity line chart. Use left and right arrow keys to inspect values.">
+    <defs>
+      <clipPath id="${id}-plot-clip"><rect x="${plotLeft}" y="${plotTop}" width="${plotRight-plotLeft}" height="${plotBottom-plotTop}"/></clipPath>
+      <linearGradient id="${id}-forecast-wash" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#aab4ff" stop-opacity=".13"/><stop offset="100%" stop-color="#aab4ff" stop-opacity=".025"/></linearGradient>
+      <linearGradient id="${id}-range-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#aab4ff" stop-opacity=".13"/><stop offset="100%" stop-color="#aab4ff" stop-opacity=".045"/></linearGradient>
+    </defs>
+    <text class="chart-axis-title" x="${plotLeft}" y="25">OCCUPIED BEDS</text>
+    <text class="chart-unit-note" x="${plotLeft}" y="41">THOUSANDS · WEEKLY OBSERVATIONS</text>
+    <rect class="chart-horizon-window" x="${originX}" y="${plotTop}" width="${Math.max(0,endpointX-originX)}" height="${plotBottom-plotTop}"/>
+    ${grids}
+    <g clip-path="url(#${id}-plot-clip)">
+      <path class="chart-band graph-appear" d="${bandPath}" fill="url(#${id}-range-fill)"/>
+      <path class="chart-band-edge" d="${upperEdge}"/>
+      <path class="chart-band-edge" d="${lowerEdge}"/>
+      <path class="chart-actual graph-draw" d="${actualPath}"/>
+      <path class="chart-forecast graph-draw" d="${forecastPath}"/>
+      <line class="forecast-origin" x1="${originX}" x2="${originX}" y1="${plotTop}" y2="${plotBottom}"/>
+      ${futurePoints}
+      <circle class="chart-point" cx="${actualEndX}" cy="${actualEndY}" r="4.5"/>
+      <circle class="chart-origin-ring" cx="${originX}" cy="${originY}" r="7.5"/>
+    </g>
+    <g class="chart-origin-annotation"><rect x="${originLabelX-5}" y="${plotTop+7}" width="110" height="22" rx="4"/><text x="${originLabelX+3}" y="${plotTop+21}">FORECAST ORIGIN</text></g>
+    <path class="chart-endpoint-leader forecast" d="M${endpointX+4},${forecastY} L${endpointX+13},${forecastY}"/>
+    <text class="chart-series-label forecast" x="${endpointX+17}" y="${forecastY+4}">${lastForecast.toFixed(1)}k forecast</text>
+    ${xTicks}
+    <line class="chart-baseline-rule" x1="${plotLeft}" x2="${plotRight}" y1="${plotBottom}" y2="${plotBottom}"/>
+    <rect class="chart-interaction-plane" x="${plotLeft}" y="${plotTop}" width="${plotRight-plotLeft}" height="${plotBottom-plotTop}"/>
+    <g class="chart-cursor" id="chartCursor" style="display:none"><line id="chartCrosshair" x1="${originX}" x2="${originX}" y1="${plotTop}" y2="${plotBottom}"/><circle id="cursorObserved" class="cursor-observed" cx="${originX}" cy="${originY}" r="4.4"/><circle id="cursorForecast" class="cursor-forecast" cx="${originX}" cy="${originY}" r="4.4" style="display:none"/></g>
+  </svg>`;
+}
+function mainChartPanel(){return `<section class="surface chart-panel"><div class="panel-top"><div><div class="panel-title">Capacity trajectory</div><div class="panel-caption">Illustrative weekly series · selected horizon and prediction range</div></div><div class="range-switch" aria-label="Forecast horizon"><button data-horizon="1" class="${selectedHorizon===1?'selected':''}">1W</button><button data-horizon="2" class="${selectedHorizon===2?'selected':''}">2W</button><button data-horizon="4" class="${selectedHorizon===4?'selected':''}">4W</button><button data-horizon="8" class="${selectedHorizon===8?'selected':''}">8W</button></div></div><div class="chart-legend"><span class="legend-item"><i class="legend-line"></i>Observed</span><span class="legend-item"><i class="legend-line forecast"></i>Moving average (4)</span><span class="legend-item"><i class="legend-band"></i>Prediction range · illustrative</span></div><div class="chart-wrap">${chartSvg()}<div class="chart-tooltip" id="chartTooltip" aria-hidden="true"><div class="tooltip-date" id="tipDate">08 Aug 2026 · forecast origin</div><div class="tooltip-row"><span><i class="series-mark actual"></i>Observed</span><strong id="tipValue">210,168</strong></div><div class="tooltip-row"><span><i class="series-mark forecast"></i>Forecast</span><strong id="tipForecast">—</strong></div><div class="tooltip-row interval"><span>Illustrative range</span><strong id="tipInterval">—</strong></div></div></div><div class="chart-foot"><span>Forecast origin <strong class="chart-origin-date">08 Aug 2026</strong></span><span><strong class="chart-horizon-label">${selectedHorizon}-week target</strong> <strong class="chart-target-date">${chartDateForIndex(chartOriginIndex+selectedHorizon)}</strong><span style="color:#55555e"> · </span>Beds · Weekly cadence</span></div></section>`}
+function insightPanel(){return `<aside class="surface insight-panel"><div class="panel-top"><div><div class="panel-title">At a glance</div><div class="panel-caption">Current selected benchmark</div></div><button class="icon-button" id="moreInsights" title="More benchmark details">···</button></div><div class="insight-kicker">Four-week forecast target</div><div class="insight-number" id="forecastNumber">211,800<span>beds</span></div><div class="insight-delta"><span class="trend-mark">↗</span><span><b style="color:var(--good);font-weight:550">+0.8%</b> vs. forecast origin</span></div><div class="forecast-comparison"><span class="compare-label">Origin</span><strong class="compare-value">210,168</strong><span class="compare-arrow">→</span><span class="compare-label">Target</span><strong class="compare-value compare-target" id="forecastComparisonTarget">211,800</strong></div><div class="insight-section"><div class="insight-kicker">Selected model</div><div class="insight-row"><span class="model-chip"><i class="dot"></i>Moving Average (4)</span><span style="font-size:9px;color:#82828b">Validation winner</span></div><div class="insight-row"><span class="label">Validation MAE</span><span class="value">1,574.25 beds</span></div><div class="insight-row"><span class="label">Held-out test MAE</span><span class="value">3,174.43 beds</span></div></div><div class="provenance"><div class="provenance-title"><svg><use href="#i-shield"/></svg>Source and limits</div><p>NHSN HRD · Weekly aggregate · Retrospective analysis. Chart path and prediction range are illustrative design data. Replace with the selected saved run before production.</p></div></aside>`}
+function overviewView(){return `${sourcebar()}<div class="metrics">${metric('Latest observed target','210,168','Beds · 08 Aug 2026')}${metric('Forecast target','211,800','<span class="positive">+0.8%</span> vs. origin')}${metric('Validation winner','Moving Avg. (4)','Validation set selection',{long:true})}${metric('Held-out test MAE','3,174.43','Beds · RMSE 3,795.19')}</div><div class="dashboard-grid">${mainChartPanel()}${insightPanel()}</div><div class="lower-grid"><section class="surface lower-panel table-overflow"><div class="section-head"><div><div class="section-title">Recent evaluation runs</div><div class="section-subtitle">Temporal split · saved benchmark results</div></div><button class="text-link" data-route="evaluation">View all ${icon('arrow')}</button></div><table class="run-table"><thead><tr><th>Model</th><th>Validation MAE</th><th>Test MAE</th><th>State</th></tr></thead><tbody><tr><td>Moving Average (4)</td><td>1,574.25</td><td>3,174.43</td><td><span class="state">Selected</span></td></tr><tr><td>ARIMA / SARIMAX</td><td>—</td><td>—</td><td><span style="color:#82828b">Available to compare</span></td></tr><tr><td>Seasonal naive</td><td>—</td><td>—</td><td><span style="color:#82828b">Baseline</span></td></tr></tbody></table></section><section class="surface lower-panel"><div class="section-head"><div><div class="section-title">Data boundaries</div><div class="section-subtitle">Dataset roles, kept deliberately separate</div></div><button class="text-link" data-route="datasets">Catalog ${icon('arrow')}</button></div><div class="boundary-items"><div class="boundary-item"><div class="boundary-label"><i class="mini-dot"></i>NHSN HRD</div><div class="boundary-desc">Weekly facility-level capacity forecasting from a calendar-aligned aggregate series.</div></div><div class="boundary-item"><div class="boundary-label"><i class="mini-dot"></i>MIMIC-IV</div><div class="boundary-desc">Local-only stay-level clinical prediction. Patient dates are not a shared hospital calendar.</div></div></div></section></div><footer class="footer"><span>HospitalOps AI <span style="color:#494951">·</span> Research build</span><span class="right"><span>Historical data</span><span>Model provenance</span><span>Local data boundary</span></span></footer>`}
+function forecastsView(){return `${sourcebar(datasetLabel,'Weekly · target: icu_beds_occupied','WALK-FORWARD')}<div class="subpage-toolbar"><button class="field-button">${icon('chart')}Target: icu_beds_occupied ${icon('chevron')}</button><button class="field-button">Horizon: 4 weeks ${icon('chevron')}</button><button class="field-button">Chronological split ${icon('chevron')}</button><div class="toolbar-spacer"></div><span class="tag">PREVIEW · STORED RUN</span></div><div class="page-metrics">${metric('Latest observed','210,168','08 Aug 2026')}${metric('Forecast endpoint','211,800','+0.8% vs. origin')}${metric('Validation model','Moving Avg. (4)','Selected model',{long:true})}${metric('Held-out MAE','3,174.43','Beds')}</div>${mainChartPanel()}<section class="surface lower-panel" style="margin-top:16px"><div class="section-head"><div><div class="section-title">Horizon detail</div><div class="section-subtitle">Prediction intervals should be supplied by the selected saved run.</div></div></div><table class="data-table"><thead><tr><th>Horizon</th><th>Target date</th><th>Prediction</th><th>Lower bound</th><th>Upper bound</th></tr></thead><tbody><tr><td>+1 week</td><td>15 Aug 2026</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+2 weeks</td><td>22 Aug 2026</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+3 weeks</td><td>29 Aug 2026</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+4 weeks</td><td>05 Sep 2026</td><td>211,800</td><td>—</td><td>—</td></tr></tbody></table></section>`}
+function evaluationView(){return `${sourcebar(datasetLabel,'Weekly · target: icu_beds_occupied','SAVED RUN PREVIEW')}<div class="notice"><svg><use href="#i-shield"/></svg><div><strong>Evaluation integrity</strong><p>Models are selected using validation performance. Held-out test results are reported once at the end; they must never be used for model selection.</p></div></div><div class="page-metrics">${metric('Validation MAE','1,574.25','Moving Average (4)')}${metric('Held-out test MAE','3,174.43','Beds')}${metric('Held-out test RMSE','3,795.19','Beds')}${metric('High-demand recall','—','Not verified')}</div><section class="surface lower-panel table-overflow"><div class="section-head"><div><div class="section-title">Benchmark ledger</div><div class="section-subtitle">Chronological split · walk-forward evaluation</div></div><button class="button">Export results</button></div><table class="data-table"><thead><tr><th>Model</th><th>Validation MAE</th><th>Test MAE</th><th>Test RMSE</th><th>Selection</th></tr></thead><tbody><tr><td>Naive (t−1)</td><td>—</td><td>—</td><td>—</td><td><span class="tag">Baseline</span></td></tr><tr><td>Moving Average (4)</td><td>1,574.25</td><td>3,174.43</td><td>3,795.19</td><td><span class="tag active">Selected</span></td></tr><tr><td>ARIMA / SARIMAX</td><td>—</td><td>—</td><td>—</td><td><span class="tag">Compare</span></td></tr><tr><td>Prophet</td><td>—</td><td>—</td><td>—</td><td><span class="tag">Optional</span></td></tr></tbody></table></section>`}
+function datasetsView(){return `<section class="surface"><table class="data-table"><thead><tr><th>Dataset</th><th>Primary role</th><th>Temporal contract</th><th>Status</th><th>Boundary</th></tr></thead><tbody><tr><td>NHSN HRD</td><td>Facility capacity forecast</td><td>Weekly calendar series</td><td><span class="tag active">Active</span></td><td>Aggregate source</td></tr><tr><td>MIMIC-IV v3.1</td><td>Clinical stay prediction</td><td>Stay-level; dates shifted by patient</td><td><span class="tag active">Active</span></td><td>Local-only clinical data</td></tr><tr><td>Hero DMC</td><td>Legacy admissions baseline</td><td>Daily calendar series</td><td><span class="tag legacy">Legacy</span></td><td>Regression continuity</td></tr><tr><td>CMS inpatient</td><td>Exploratory reference</td><td>Annual aggregated data</td><td><span class="tag">Exploratory</span></td><td>Not a time series</td></tr></tbody></table></section><div class="notice" style="margin-top:15px"><svg><use href="#i-shield"/></svg><div><strong>MIMIC-IV dates are not a shared hospital calendar</strong><p>Each patient's dates are shifted independently. Use stay-level features for length of stay, mortality and care-unit trajectory. Never combine shifted dates into a facility-wide daily occupancy time series.</p></div></div>`}
+function clinicalView(){return `<div class="notice"><svg><use href="#i-shield"/></svg><div><strong>Local clinical data boundary</strong><p>MIMIC-IV is protected and remains local. This screen is not a live EHR and must not imply bedside decision support.</p></div></div><div class="subpage-toolbar"><button class="field-button">${icon('database')}Dataset: MIMIC-IV v3.1 ${icon('chevron')}</button><div class="toolbar-spacer"></div><span class="tag">SYNTHETIC PREVIEW</span></div><div class="page-metrics">${metric('Ingestion','Chunked','Memory-bounded')}${metric('Natural key','stay_id','Unique per ICU stay')}${metric('Feature grain','Stay-level','No date aggregation')}${metric('Model status','Not trained','Next ML milestone')}</div><section class="surface lower-panel table-overflow"><div class="section-head"><div><div class="section-title">ICU stay worklist</div><div class="section-subtitle">Synthetic rows for layout review only. Runtime data must come from a local query.</div></div><span class="tag legacy">Synthetic</span></div><table class="data-table"><thead><tr><th>Stay identifier</th><th>First care unit</th><th>Length of stay</th><th>Outcome label</th><th>Model state</th></tr></thead><tbody><tr><td>SYN-STAY-001</td><td>Medical ICU</td><td>3.6 days</td><td>Not generated</td><td>Awaiting run</td></tr><tr><td>SYN-STAY-002</td><td>Surgical ICU</td><td>1.2 days</td><td>Not generated</td><td>Awaiting run</td></tr><tr><td>SYN-STAY-003</td><td>Cardiac ICU</td><td>7.4 days</td><td>Not generated</td><td>Awaiting run</td></tr></tbody></table></section>`}
+function bedsView(){return `<div class="notice"><svg><use href="#i-database"/></svg><div><strong>Seeded inventory preview</strong><p>The counts below reflect the existing prototype's sample inventory, not a verified live facility feed.</p></div></div><div class="page-metrics">${metric('Total capacity','48','Preview units')}${metric('Available','18','Preview units')}${metric('Occupied','24','Preview units')}${metric('ICU available','4 / 12','Preview units')}</div><section class="surface lower-panel table-overflow"><div class="section-head"><div><div class="section-title">Bed inventory</div><div class="section-subtitle">Search and filter by unit, type or operational state</div></div><button class="button">${icon('search')}Search</button></div><table class="data-table"><thead><tr><th>Bed identifier</th><th>Department</th><th>Bed type</th><th>Room / floor</th><th>Operational status</th></tr></thead><tbody><tr><td>BED-ICU-101</td><td>ICU</td><td>ICU</td><td>Room 101 · Floor 1</td><td><span class="tag legacy">Occupied</span></td></tr><tr><td>BED-ICU-102</td><td>ICU</td><td>ICU</td><td>Room 102 · Floor 1</td><td><span class="tag legacy">Occupied</span></td></tr><tr><td>BED-ICU-103</td><td>ICU</td><td>ICU</td><td>Room 103 · Floor 1</td><td><span class="tag active">Available</span></td></tr><tr><td>BED-ICU-108</td><td>ICU</td><td>ICU</td><td>Room 108 · Floor 1</td><td><span class="tag">Reserved</span></td></tr><tr><td>BED-ICU-111</td><td>ICU</td><td>ICU</td><td>Room 111 · Floor 1</td><td><span class="tag" style="color:#ed9199">Maintenance</span></td></tr></tbody></table></section>`}
+function resourcesView(){return `<section class="surface" style="min-height:340px;display:grid;place-items:center;text-align:center;padding:36px"><div style="max-width:400px"><div style="width:43px;height:43px;border:1px solid var(--line-strong);border-radius:10px;display:grid;place-items:center;margin:0 auto 18px;color:#a6b1ff;background:rgba(255,255,255,.025)">${icon('sliders')}</div><div style="font-size:16px;letter-spacing:-.04em;font-weight:560">Resource inventory is not connected</div><p style="font-size:11px;color:#8b8b94;line-height:1.7;margin:10px 0 22px">When an approved source is configured, this workspace will show equipment availability, utilization, maintenance windows and predicted demand.</p><button class="button primary" data-route="datasets">Review data sources ${icon('arrow')}</button></div></section>`}
+const renderers={overview:overviewView,forecasts:forecastsView,evaluation:evaluationView,datasets:datasetsView,clinical:clinicalView,beds:bedsView,resources:resourcesView};
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>el.classList.remove('show'),2400)}
+function render(key,animate=true){if(!views[key])key='overview';document.querySelectorAll('.nav-link').forEach(n=>n.classList.toggle('active',n.dataset.view===key));document.getElementById('crumb').textContent=views[key].crumb;const c=document.getElementById('content');c.style.animation='none';void c.offsetWidth;c.innerHTML=appHeader(views[key])+renderers[key]();c.style.animation=animate?'contentIn .38s cubic-bezier(.2,.7,.2,1) both':'none';wireDynamicContent();window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
+function wireDynamicContent(){
+ document.querySelectorAll('[data-route]').forEach(b=>b.addEventListener('click',()=>render(b.dataset.route)));
+ document.getElementById('goForecasts')?.addEventListener('click',()=>render('forecasts'));
+ document.getElementById('pageRefresh')?.addEventListener('click',()=>{const chart=document.querySelector('.chart-svg');if(chart)animateChartLines(chart);toast('Preview refreshed. No API request was made.');});
+ document.getElementById('moreInsights')?.addEventListener('click',()=>toast('Benchmark details are available in Model evaluation.'));
+ document.querySelectorAll('[data-horizon]').forEach(b=>b.addEventListener('click',()=>setChartHorizon(Number(b.dataset.horizon))));
+ document.querySelectorAll('.chart-svg').forEach(bindChartInteraction);
+ syncForecastSummary(selectedHorizon);
+}
+function formatChartNumber(v){return Math.round(v*1000).toLocaleString('en-US')}
+function getRangeAtHorizon(h){const v=chartForecast[h-1],w=chartIntervalWidth[h];return{low:v-w,high:v+w}}
+function syncForecastSummary(horizon){
+ const value=chartForecast[horizon-1]*1000;
+ const formatted=Math.round(value).toLocaleString('en-US');
+ const target=chartDateForIndex(chartOriginIndex+horizon);
+ document.querySelectorAll('.metric').forEach(m=>{const label=m.querySelector('.metric-label')?.textContent?.trim().toLowerCase();if(label==='forecast target'||label==='forecast endpoint'){const val=m.querySelector('.metric-value');const foot=m.querySelector('.metric-foot');if(val)val.textContent=formatted;if(foot)foot.textContent=`Target · ${target}`;}});
+ const insight=document.getElementById('forecastNumber');if(insight)insight.innerHTML=`${formatted}<span>beds</span>`;
+ const kicker=document.querySelector('.insight-kicker');if(kicker)kicker.textContent=`${horizon}-week forecast target`;
+ const compareTarget=document.getElementById('forecastComparisonTarget');if(compareTarget)compareTarget.textContent=formatted;
+ const delta=document.querySelector('.insight-delta b');if(delta){const pct=((value/210168)-1)*100;delta.textContent=`${pct>=0?'+':''}${pct.toFixed(1)}%`;}
+ document.querySelectorAll('.chart-horizon-label').forEach(el=>el.textContent=`${horizon}-week target`);
+ document.querySelectorAll('.chart-target-date').forEach(el=>el.textContent=target);
+ document.querySelectorAll('.panel-caption').forEach(el=>{if(el.textContent.includes('Observed weekly values and')&&el.textContent.includes('forecast'))el.textContent=`Observed weekly values and ${horizon}-week forecast · ICU beds occupied`;});
+}
+function setChartHorizon(horizon){
+ if(![1,2,4,8].includes(horizon))return;
+ selectedHorizon=horizon;
+ document.querySelectorAll('[data-horizon]').forEach(x=>x.classList.toggle('selected',Number(x.dataset.horizon)===horizon));
+ document.querySelectorAll('.chart-wrap').forEach(wrap=>{const old=wrap.querySelector('.chart-svg');if(old){const id=old.id||'mainChart';old.outerHTML=chartSvg(id,horizon);const replacement=wrap.querySelector('.chart-svg');if(replacement)bindChartInteraction(replacement);} });
+ syncForecastSummary(horizon);
+}
+function animateChartLines(svg){
+ const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ svg.querySelectorAll('.graph-draw').forEach((path,index)=>{
+  let len=1600;try{len=path.getTotalLength()||1600}catch(e){}
+  path.style.animation='none';path.style.transition='none';path.style.strokeDasharray=String(len);path.style.strokeDashoffset=reduce?'0':String(len);
+  if(!reduce){void path.getBoundingClientRect();requestAnimationFrame(()=>{path.style.transition=`stroke-dashoffset ${560+index*90}ms cubic-bezier(.2,.7,.2,1)`;path.style.strokeDashoffset='0';});}
+ });
+}
+function bindChartInteraction(svg){
+ if(!svg||svg.dataset.interactionBound==='true')return;
+ svg.dataset.interactionBound='true';
+ animateChartLines(svg);
+ const wrap=svg.closest('.chart-wrap');if(!wrap)return;
+ let focusIndex=chartOriginIndex+selectedHorizon;
+ const maxIndex=chartOriginIndex+selectedHorizon+1;
+ const W=1100,plotLeft=76,plotRight=940,plotTop=58,plotBottom=366,step=(plotRight-plotLeft)/maxIndex;
+ const x=i=>plotLeft+i*step;const y=v=>plotBottom-((v-206)/12)*(plotBottom-plotTop);
+ const hide=()=>{const tip=wrap.querySelector('.chart-tooltip');if(tip){tip.classList.remove('visible');tip.setAttribute('aria-hidden','true')}const cursor=svg.querySelector('#chartCursor');if(cursor)cursor.style.display='none'};
+ const inspect=(idx,event=null)=>{
+  focusIndex=Math.max(0,Math.min(chartOriginIndex+selectedHorizon,idx));
+  const tip=wrap.querySelector('.chart-tooltip');const cursor=svg.querySelector('#chartCursor');if(!tip||!cursor)return;
+  const observed=focusIndex<=chartOriginIndex?chartActual[focusIndex]:null;
+  const horizonIndex=focusIndex-chartOriginIndex;
+  const hasForecast=focusIndex>chartOriginIndex&&horizonIndex<=selectedHorizon;
+  const forecast=hasForecast?chartForecast[horizonIndex-1]:null;
+  cursor.style.display='block';
+  const cross=svg.querySelector('#chartCrosshair');cross.setAttribute('x1',x(focusIndex));cross.setAttribute('x2',x(focusIndex));
+  const op=svg.querySelector('#cursorObserved');if(observed!==null){op.style.display='';op.setAttribute('cx',x(focusIndex));op.setAttribute('cy',y(observed));}else op.style.display='none';
+  const fp=svg.querySelector('#cursorForecast');if(forecast!==null){fp.style.display='';fp.setAttribute('cx',x(focusIndex));fp.setAttribute('cy',y(forecast));}else fp.style.display='none';
+  const when=chartDateForIndex(focusIndex);
+  const descriptor=focusIndex<chartOriginIndex?'observed':focusIndex===chartOriginIndex?'forecast origin':`+${horizonIndex} week${horizonIndex===1?'':'s'}`;
+  document.getElementById('tipDate').textContent=`${when} · ${descriptor}`;
+  document.getElementById('tipValue').textContent=observed===null?'—':formatChartNumber(observed);
+  document.getElementById('tipForecast').textContent=forecast===null?(focusIndex===chartOriginIndex?'Origin':'—'):formatChartNumber(forecast);
+  const interval=document.getElementById('tipInterval');
+  if(interval&&forecast!==null){const r=getRangeAtHorizon(horizonIndex);interval.textContent=`${formatChartNumber(r.low)}–${formatChartNumber(r.high)}`;interval.closest('.tooltip-row').style.display='';}else if(interval){interval.textContent='—';interval.closest('.tooltip-row').style.display=focusIndex===chartOriginIndex?'none':'';}
+  const rect=wrap.getBoundingClientRect();let px,py;
+  if(event&&Number.isFinite(event.clientX)){px=event.clientX-rect.left;py=event.clientY-rect.top;}else{const p=svg.createSVGPoint();p.x=x(focusIndex);p.y=observed!==null?y(observed):(forecast!==null?y(forecast):plotBottom);const screen=p.matrixTransform(svg.getScreenCTM());px=screen.x-rect.left;py=screen.y-rect.top;}
+  const tw=tip.offsetWidth||190,th=tip.offsetHeight||106;tip.style.left=`${Math.max(8,Math.min(rect.width-tw-8,px+14))}px`;tip.style.top=`${Math.max(8,Math.min(rect.height-th-8,py-th*.56))}px`;tip.classList.add('visible');tip.setAttribute('aria-hidden','false');
+ };
+ svg.addEventListener('pointermove',e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const local=p.matrixTransform(svg.getScreenCTM().inverse());if(local.x<plotLeft||local.x>plotRight||local.y<plotTop||local.y>plotBottom){hide();return;}inspect(Math.round((local.x-plotLeft)/step),e)});
+ svg.addEventListener('pointerleave',hide);
+ svg.addEventListener('focus',()=>inspect(focusIndex));
+ svg.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();focusIndex=Math.max(0,Math.min(chartOriginIndex+selectedHorizon,focusIndex+(e.key==='ArrowRight'?1:-1)));inspect(focusIndex);}else if(e.key==='Home'){e.preventDefault();inspect(0);}else if(e.key==='End'){e.preventDefault();inspect(chartOriginIndex+selectedHorizon);}});
+}
+function playIntro(){const intro=document.getElementById('intro'),app=document.getElementById('app');closeLogin();intro.classList.remove('hidden');intro.style.display='flex';intro.style.opacity='1';intro.querySelectorAll('.logo-frame,.signal').forEach(p=>{p.style.animation='none';void p.getBoundingClientRect();p.style.animation='drawMark .66s cubic-bezier(.25,.7,.2,1) .08s forwards'});const logoSignal=intro.querySelector('.signal');if(logoSignal)logoSignal.style.animation='drawMark .52s cubic-bezier(.25,.7,.2,1) .24s forwards';const node=intro.querySelector('.signal-dot');if(node){node.style.animation='none';node.style.opacity='0';void node.getBoundingClientRect();node.style.animation='signalNodeIn .25s cubic-bezier(.2,.7,.2,1) .6s forwards';}app.classList.remove('ready');setTimeout(()=>{intro.classList.add('hidden');app.classList.add('ready');document.querySelectorAll('.graph-draw').forEach(p=>{p.style.animation='none';void p.getBoundingClientRect();p.style.animation='lineDraw 1.1s cubic-bezier(.4,0,.2,1) .15s forwards'});setTimeout(openLogin,180)},1180)}
+function openLogin(){const el=document.getElementById('loginScreen');el.classList.add('open');el.setAttribute('aria-hidden','false');requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('visible')));setTimeout(()=>document.getElementById('email').focus(),180)}function closeLogin(){const el=document.getElementById('loginScreen');el.classList.remove('visible');el.setAttribute('aria-hidden','true');setTimeout(()=>el.classList.remove('open'),250)}
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(b)render(b.dataset.view)});document.getElementById('workspaceHome').addEventListener('click',()=>render('overview'));document.getElementById('replay').addEventListener('click',playIntro);document.getElementById('openLogin').addEventListener('click',openLogin);document.getElementById('closeLogin').addEventListener('click',closeLogin);document.getElementById('localMode').addEventListener('click',()=>{closeLogin();toast('Opening preview workspace. Production authentication is not connected.');});document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();toast('Preview only: connect the configured authentication backend before using sign-in.');});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLogin();if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();toast('Command palette is a future interaction, not enabled in this preview.')}});
+if(matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('reduce-motion');
+render('overview',false);const query=new URLSearchParams(location.search);if(query.has('no-intro')||query.has('workspace')){document.getElementById('intro').classList.add('hidden');document.getElementById('app').classList.add('ready')}else{setTimeout(()=>{document.getElementById('intro').classList.add('hidden');document.getElementById('app').classList.add('ready');setTimeout(openLogin,180)},1250)}
+</script>
+</body>
+</html>
+
+
