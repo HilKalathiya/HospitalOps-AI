@@ -1,12 +1,31 @@
 # HospitalOps AI
 
-> Agentic AI-powered hospital operations intelligence and resource optimization platform.
+**Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
+
+**Status:** 17 of 19 build steps shipped. 159 backend tests pass, and the frontend production build is clean. The next steps are a review screen for optimizer plans, then agent orchestration with RAG.
+
+A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
 ---
 
-## ✅ Implementation Status: Chunk 3.3 — Resource Optimization Engine
+## What it does
 
-| Chunk | Description | Status |
+| Area | What is built |
+|---|---|
+| **Operations data** | MongoDB data model, JWT authentication with role-based access, patient and admission APIs, bed and resource management |
+| **Historical data** | Ingestion pipelines for Hero DMC daily admissions, NHSN HRD weekly ICU capacity, and MIMIC-IV |
+| **Forecasting** | Baselines, ARIMA, Prophet and LSTM with Monte Carlo dropout intervals. A walk-forward evaluation engine picks the winner on validation MAE and keeps held-out test metrics separate, and every run is tracked in MLflow |
+| **Forecast API and dashboard** | Daily admissions (1–30 days) and weekly ICU occupancy (1–8 weeks), with model provenance and run inspection. Occupancy-rate forecasts are refused unless matching capacity data exists |
+| **What-if simulation** | Admission surges, bed-capacity changes and equipment bottlenecks, compared side by side against a baseline |
+| **Resource optimization** | A MILP solved with HiGHS (`scipy.optimize.milp`) that allocates surge beds and movable equipment across departments over a 30-day horizon in under 50 ms. An independent validator checks every solution, and the plan is compared against doing nothing |
+| **Planned** | A review screen for optimizer plans, and LLM agents with RAG over hospital policies, with human approval before any action |
+
+Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
+
+<details>
+<summary><b>Build progress, step by step</b></summary>
+
+| Step | Description | Status |
 |---|---|---|
 | 1.1 | MongoDB Data Model & Persistence Layer | ✅ Complete |
 | 1.2 | Authentication + RBAC | ✅ Complete |
@@ -28,31 +47,7 @@
 | 3.4 | Optimization UI & Plan Review | ⬜ Planned |
 | 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
-
-**The core system, ML forecasting foundation, evaluation engine, simulation workspace, and mathematical resource optimization engine are live.**
-The platform features strict RBAC, data ingestion, a full walk-forward evaluation ML pipeline, decoupled MLflow experiment tracking, an auditable what-if simulation engine, and an exact Mixed-Integer Linear Programming (MILP) planning engine powered by HiGHS/SciPy. The engine optimizes department surge bed activations and critical movable equipment distributions against projected demand over a multi-period horizon, validating every constraint independently and reporting counterfactual baseline improvements without mutating live operational state. All 159 backend tests and frontend production builds pass cleanly.
-
-
-> 💡 **For Interviewers:** A comprehensive 40-page technical guide to this repository is available at [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
-
----
-
-## What Is HospitalOps AI?
-
-HospitalOps AI will eventually become a comprehensive platform for hospital operations teams,
-combining:
-
-- **Real-time occupancy intelligence** — live bed and ward utilization
-- **ML-powered demand forecasting** — admission and ICU demand prediction
-- **What-if simulation** — scenario planning for operational decisions
-- **Resource optimization** — staff, bed, and equipment allocation
-- **RAG over hospital documents** — policy and procedure retrieval
-- **Multi-agent orchestration** — LLM agents coordinating operational workflows
-- **Human-in-the-loop approval** — consequential recommendations reviewed before action
-- **Auditability** — full trace of decisions and recommendations
-
-This is an **operational decision-support system**. It is not a clinical system and must never
-diagnose patients, prescribe treatment, or autonomously make clinical decisions.
+</details>
 
 ---
 
@@ -74,30 +69,26 @@ diagnose patients, prescribe treatment, or autonomously make clinical decisions.
 
 ```
 hospitalops-ai/
-├── frontend/            React + TypeScript + Vite frontend
-├── backend/             FastAPI Python backend
+├── frontend/              React + TypeScript + Vite + Tailwind
+├── backend/
 │   ├── app/
-│   │   ├── api/         Route handlers
-│   │   ├── core/        Config, logging, exceptions
-│   │   ├── models/      Domain models
-│   │   ├── schemas/     Pydantic request/response schemas
-│   │   ├── services/    Business logic (future)
-│   │   └── repositories/ Data access (future)
-│   └── tests/
-├── ml/                  ML models (future)
-├── agents/              Agent orchestration (future)
-├── rag/                 RAG pipeline (future)
-├── simulation/          What-if simulation (future)
-├── optimization/        Resource optimization (future)
-├── infra/               Infrastructure / IaC (future)
-├── tests/               Cross-service integration tests (future)
+│   │   ├── api/           Versioned REST routes (auth, patients, beds, forecast, simulations, optimization)
+│   │   ├── core/          Config, security, logging, exceptions
+│   │   ├── data_ingestion/ Hero DMC, NHSN HRD and MIMIC-IV pipelines
+│   │   ├── ml/            Forecasting models, features, evaluation and MLflow tracking
+│   │   ├── optimization/  MILP formulation, solver and validator
+│   │   ├── services/      Business logic, including simulation
+│   │   ├── repositories/  MongoDB data access
+│   │   └── database/, models/, schemas/
+│   ├── scripts/           Ingestion, benchmarking and model selection
+│   └── tests/             pytest suite
 ├── docs/
-│   ├── architecture/    Architecture documentation
-│   ├── decisions/       Architecture Decision Records (ADRs)
-│   └── development/     Developer guides
-├── .env.example         Environment variable template
-├── docker-compose.yml   Local development environment
-└── AGENTS.md            Engineering constitution
+│   ├── architecture/      Architecture and contracts
+│   ├── decisions/         Architecture Decision Records (ADR-001 to ADR-007)
+│   └── development/       Developer guides
+├── agents/, rag/          Placeholders for step 4.1
+├── docker-compose.yml     Local development environment
+└── AGENTS.md              Engineering rules for this repository
 ```
 
 ---
@@ -116,8 +107,8 @@ hospitalops-ai/
 ### 1. Clone and configure
 
 ```bash
-git clone <repo-url>
-cd hospitalops-ai
+git clone https://github.com/HilKalathiya/HospitalOps-AI.git
+cd HospitalOps-AI
 
 # Copy and configure environment
 cp .env.example .env
@@ -439,7 +430,7 @@ See `.env.example` for the full list including future-chunk placeholders.
 
 See [`docs/architecture/overview.md`](docs/architecture/overview.md) for the full architecture documentation.
 
-See [`docs/decisions/`](docs/decisions/) for Architecture Decision Records (ADRs 001–005).
+See [`docs/decisions/`](docs/decisions/) for Architecture Decision Records (ADR-001 to ADR-007).
 
 ---
 
