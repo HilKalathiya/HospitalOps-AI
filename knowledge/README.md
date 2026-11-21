@@ -1,8 +1,8 @@
-# HospitalOps AI — Hospital Knowledge & RAG Foundation (Chunks 4.1, 4.2 & 4.3)
+# HospitalOps AI — Hospital Knowledge, Retrieval & RAG Answer Generation (Chunks 4.1, 4.2, 4.3 & 4.4)
 
 ## Overview
 
-The **Hospital Knowledge & Retrieval Subsystem** establishes an authoritative, privacy-preserving, and mathematically validated knowledge foundation for Retrieval-Augmented Generation (RAG) and operational intelligence.
+The **Hospital Knowledge, Retrieval & RAG Subsystem** establishes an authoritative, privacy-preserving, and mathematically validated knowledge foundation for Retrieval-Augmented Generation (RAG) and operational decision intelligence.
 
 In strict alignment with the **HospitalOps AI Constitution (`AGENTS.md`)**:
 - The knowledge repository stores **operational guidelines, standard operating procedures (SOPs), clinical protocols, equipment manuals, and hospital policies**.
@@ -10,6 +10,7 @@ In strict alignment with the **HospitalOps AI Constitution (`AGENTS.md`)**:
 - Deterministic pipelines ensure that knowledge chunks maintain structural provenance, exact section paths, and parent-version integrity.
 - Semantic vector retrieval enforces server-side role-based access classification (RBAC), embedding space compatibility validation, and post-retrieval verification against persistent storage.
 - Context assembly packages retrieved knowledge into strict token budgets with prompt-safe boundary enclosures and deterministic source citations (`[S1]`, `[S2]`).
+- Grounded answer generation synthesizes authoritative operational answers strictly grounded in retrieved evidence, enforces deterministic citation validation with 1-shot retry, screens clinical diagnostic queries (`OUT_OF_SCOPE`), and supports offline deterministic mock and OpenAI-compatible providers.
 
 ---
 
@@ -47,6 +48,20 @@ flowchart TD
         CB --> SafeTag["Prompt Boundary Guard<br/>(&lt;reference_content&gt; enclosure)"]
         SafeTag --> CitBuilder["CitationBuilder<br/>(Stable [S1], [S2] Source Citations)"]
         CitBuilder --> FinalPkg["KnowledgeRetrievalResponse<br/>(SUCCESS / PARTIAL / INSUFFICIENT)"]
+    end
+
+    subgraph Generation ["Chunk 4.4 — Grounded RAG Answer Generation"]
+        UserPrompt["Operational Query"] --> ClinicalGuard{"Clinical Query Guard<br/>(Safety Boundary)"}
+        ClinicalGuard -- "Clinical / Diagnostic" --> Reject["Reject with OUT_OF_SCOPE<br/>(Non-clinical disclaimer)"]
+        ClinicalGuard -- "Operational Query" --> DirectOrch["Direct Python Invocation<br/>(orchestrator.retrieve_context)"]
+        FinalPkg -.-> DirectOrch
+        DirectOrch --> PromptWrap["PromptBuilder<br/>(&lt;reference_content&gt; + System Directives)"]
+        PromptWrap --> Provider["LLMProvider<br/>(Mock / OpenAI-Compatible / Null)"]
+        Provider --> RawJSON["Structured JSON Output<br/>(answer, citations, answer_type)"]
+        RawJSON --> CitVal{"CitationValidator<br/>(All markers exist in context?)"}
+        CitVal -- "Hallucinated Marker [S99]" --> Retry["1-Shot Correction Retry"]
+        Retry --> Provider
+        CitVal -- "Valid" --> AnswerOut["KnowledgeAnswerResponse<br/>(GROUNDED / INSUFFICIENT / CONFLICTING)"]
     end
 ```
 
@@ -163,6 +178,46 @@ Evaluated across an operational benchmark corpus:
 
 ---
 
+## Grounded RAG Answer Generation (Chunk 4.4)
+
+### Core Components (`backend/app/knowledge/generation/`):
+
+1. **`KnowledgeAnswerService` & In-Memory Pipeline**:
+   - Directly calls `RetrievalContextOrchestrator.retrieve_context` via Python in-memory invocation—zero HTTP loopbacks or serialization overhead.
+   - Orchestrates clinical screening, retrieval execution, prompt construction, provider invocation, deterministic citation verification, and structured response assembly.
+
+2. **Strict Healthcare Safety Boundary (`is_clinical_query`)**:
+   - Evaluates user queries against pre-generation regex patterns detecting diagnostic inquiries, treatment prescriptions, and medication dosing.
+   - Queries violating the clinical boundary are immediately short-circuited with `AnswerType.OUT_OF_SCOPE` and an authoritative non-clinical advisory disclaimer without invoking the LLM provider.
+
+3. **Grounded Prompt Construction (`PromptBuilder`)**:
+   - Wraps assembled reference text within `<reference_content>` boundary tags, neutralizing internal closing tags (`</reference_content>` $\to$ `&lt;/reference_content&gt;`).
+   - Injects strict operational system instructions:
+     - Cite exclusively using bracketed markers `[S1]`, `[S2]`.
+     - Output answers in a structured JSON schema (`answer`, `answer_type`, `citations`, `limitations`).
+     - Abstain with `INSUFFICIENT_EVIDENCE` if retrieved knowledge is lacking.
+     - Disclose policy contradictions with `CONFLICTING_EVIDENCE`.
+
+4. **Deterministic Citation Validation (`CitationValidator`) & 1-Shot Retry**:
+   - Parses answer text for bracketed markers `[S\d+]`.
+   - Cross-checks all cited markers against the valid citation set present in the assembled context.
+   - If hallucinated citation markers (e.g., `[S99]`) or ungrounded assertions are detected, triggers a bounded 1-shot retry prompting the model to remove invalid markers.
+   - If retry fails, automatically scrubs ungrounded citation tags from the final text.
+
+5. **Pluggable LLM Provider Abstraction (`LLMProvider`)**:
+   - `MockLLMProvider`: Deterministic, offline, keyword-synthesizing provider for CI, testing, and offline development.
+   - `OpenAICompatibleProvider`: Async HTTP provider supporting OpenAI, vLLM, Ollama, and local OpenAI-compatible endpoints with timeout containment.
+   - `NullLLMProvider`: Safe fallback when generative capabilities are disabled.
+
+6. **Interactive RAG Answer Assistant (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`)**:
+   - 4th navigation tab providing an interactive chat-style operational QA interface.
+   - Prominent non-clinical safety disclaimer banner.
+   - Clickable citation pills `[S1]`, `[S2]` that scroll to and highlight cited source chunks.
+   - Split evidence panel distinguishing chunks cited in the answer from other retrieved candidates.
+   - Telemetry footer displaying model, provider, generation latency, retrieval time, tokens used, and prompt version.
+
+---
+
 ## Document Categories & Access Levels
 
 ### Categories:
@@ -187,6 +242,8 @@ Evaluated across an operational benchmark corpus:
 
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
+| `POST` | `/api/v1/knowledge/answer` | `knowledge.read` | Grounded operational question answering with citation validation & 1-shot retry |
+| `GET` | `/api/v1/knowledge/answer/health` | `knowledge.read` | RAG answer generation readiness and active LLM provider diagnostics |
 | `POST` | `/api/v1/knowledge/retrieve` | `knowledge.read` | Token-budget-aware RAG context assembly with citations & prompt-safe boundaries |
 | `POST` | `/api/v1/knowledge/search` | `knowledge.read` | Natural-language semantic vector search with RBAC enforcement |
 | `GET` | `/api/v1/knowledge/search/health` | `knowledge.read` | Retrieval readiness and embedding space diagnostics |

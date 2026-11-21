@@ -71,6 +71,17 @@ class Settings(BaseSettings):
     embedding_model_name: str = "all-MiniLM-L6-v2"
     max_upload_size_bytes: int = 25 * 1024 * 1024  # 25 MB
 
+    # ── RAG Answer Generation (Chunk 4.4) ────────────────────────────────────
+    rag_generation_enabled: bool = True
+    rag_llm_provider: Literal["null", "openai_compatible", "mock"] = "mock"
+    rag_llm_model: str = "gpt-4o-mini"
+    rag_llm_base_url: str | None = None
+    rag_llm_api_key: str | None = None
+    rag_llm_timeout_seconds: float = 30.0
+    rag_llm_max_output_tokens: int = 1500
+    rag_llm_temperature: float = 0.0
+    rag_external_provider_enabled: bool = False
+
     # ── Computed properties ───────────────────────────────────────────────────
     @property
     def cors_origins_list(self) -> list[str]:

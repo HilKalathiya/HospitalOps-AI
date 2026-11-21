@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 19 of 20 build steps shipped. 174 backend tests pass, and the frontend production build is clean. The next step is agent orchestration with RAG (Milestone 4).
+**Status:** 23 build steps shipped. All 229 backend tests pass, and the frontend production build is clean. The next step is multi-agent orchestration and operational decision workflows (Milestone 4, Chunk 4.5).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -20,7 +20,9 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **Resource optimization** | A MILP solved with HiGHS (`scipy.optimize.milp`) that allocates surge beds and movable equipment across departments over a 30-day horizon in under 50 ms. An independent validator checks every solution, and the plan is compared against doing nothing |
 | **Optimization review & explanation** | Evidence-based recommendation explanations with multi-criteria objective deconstruction, department and equipment allocation rationales, binding constraint diagnostics, and a plan review workspace with human approval before action |
 | **Decision intelligence** | Unified simulation and optimization workspace (`/decision`) featuring a 3-way cross-workflow matrix (Baseline vs. Simulation vs. Optimization), automatic demand/bottleneck parameter derivation, and run provenance tracking |
-| **Planned** | LLM agents with RAG over hospital policies, tool-calling operational workflows, and human-in-the-loop multi-agent orchestration |
+| **RAG Knowledge & Retrieval** | 10-stage document ingestion pipeline (PDF, DOCX, MD, TXT, HTML) with PHI quarantine, structure-aware chunking, persistent ChromaDB vector storage, semantic search with RBAC, and token-budget context assembly (`[S1]`, `[S2]`) |
+| **RAG Answer Generation** | Grounded operational question answering with citation validation, 1-shot retry on hallucinated markers, non-clinical safety guardrails (`OUT_OF_SCOPE`), and interactive React workspace (`/knowledge`) |
+| **Planned** | LLM agents with tool-calling operational workflows and human-in-the-loop multi-agent orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
 
@@ -48,7 +50,11 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
 | 3.4 | Optimization UI & Plan Review | ✅ Complete |
 | 3.5 | Unified Simulation & Optimization Workspace | ✅ Complete |
-| 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
+| 4.1 | Document Ingestion Pipeline — RAG Knowledge Foundation | ✅ Complete |
+| 4.2 | Semantic Vector Search & Knowledge Retrieval Engine | ✅ Complete |
+| 4.3 | Retrieval API — RAG Context Retrieval & Assembly Layer | ✅ Complete |
+| 4.4 | RAG Answer Generation — Grounded Operational QA | ✅ Complete |
+| 4.5 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned |
 
 </details>
 

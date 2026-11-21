@@ -18,6 +18,12 @@ import os
 import uuid
 
 from app.core.config import get_settings
+from app.knowledge.generation import (
+    AnswerHealthResponse,
+    KnowledgeAnswerRequest,
+    KnowledgeAnswerResponse,
+    KnowledgeAnswerService,
+)
 from app.knowledge.pipeline import KnowledgeIngestionPipeline, PipelineExecutionResult
 from app.knowledge.retrieval import (
     KnowledgeRetrievalRequest,
@@ -64,6 +70,7 @@ class KnowledgeService:
         vector_store: VectorStore | None = None,
         pipeline: KnowledgeIngestionPipeline | None = None,
         retriever: KnowledgeRetriever | None = None,
+        answer_service: KnowledgeAnswerService | None = None,
     ) -> None:
         self.knowledge_repo = knowledge_repo
         self.audit_repo = audit_repo
@@ -76,6 +83,10 @@ class KnowledgeService:
         )
         self.orchestrator = RetrievalContextOrchestrator(retriever=self.retriever)
         self.settings = get_settings()
+        self.answer_service = answer_service or KnowledgeAnswerService(
+            orchestrator=self.orchestrator,
+            settings=self.settings,
+        )
 
         os.makedirs(self.settings.knowledge_storage_dir, exist_ok=True)
 
@@ -550,3 +561,21 @@ class KnowledgeService:
     async def check_retrieval_health(self) -> RetrievalHealthResponse:
         """Inspect retrieval readiness and embedding space diagnostics."""
         return await self.retriever.check_health()
+
+    async def generate_answer(
+        self,
+        request: KnowledgeAnswerRequest | None = None,
+        current_user: UserDocument | None = None,
+        req: KnowledgeAnswerRequest | None = None,
+        user: UserDocument | None = None,
+    ) -> KnowledgeAnswerResponse:
+        """Execute grounded RAG operational answer generation with citation verification."""
+        resolved_req = request or req
+        if resolved_req is None:
+            raise ValueError("KnowledgeAnswerRequest is required for answer generation.")
+        resolved_user = current_user or user
+        return await self.answer_service.generate_answer(resolved_req, current_user=resolved_user)
+
+    async def check_answer_health(self) -> AnswerHealthResponse:
+        """Inspect RAG answer generation subsystem health and LLM provider configuration."""
+        return await self.answer_service.check_health()

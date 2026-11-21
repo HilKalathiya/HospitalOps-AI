@@ -30,6 +30,7 @@ import {
   ListFilter,
   AlignLeft,
   Info,
+  Bot,
 } from 'lucide-react'
 import {
   knowledgeApi,
@@ -45,6 +46,9 @@ import {
   ContextOrdering,
   RetrievalStatus,
   KnowledgeRetrievalResponse,
+  AnswerStatus,
+  KnowledgeAnswerResponse,
+  AnswerHealthResponse,
 } from '../../api/knowledge'
 import { useAuth } from '../../context/AuthContext'
 import { TopHeader } from '../../components/layout/TopHeader'
@@ -54,7 +58,7 @@ export const KnowledgeBase: React.FC = () => {
   const canManage = user?.role === 'ADMIN'
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'catalog' | 'search' | 'context'>('catalog')
+  const [activeTab, setActiveTab] = useState<'catalog' | 'search' | 'context' | 'assistant'>('catalog')
 
   // Catalog Data states
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
@@ -91,6 +95,23 @@ export const KnowledgeBase: React.FC = () => {
   const [isRetrievingContext, setIsRetrievingContext] = useState<boolean>(false)
   const [contextResponse, setContextResponse] = useState<KnowledgeRetrievalResponse | null>(null)
   const [copiedFormattedContext, setCopiedFormattedContext] = useState<boolean>(false)
+
+  // RAG Grounded Answer Assistant states (Chunk 4.4)
+  const [answerPrompt, setAnswerPrompt] = useState<string>('')
+  const [answerTopK, setAnswerTopK] = useState<number>(5)
+  const [answerTokenBudget, setAnswerTokenBudget] = useState<number>(2048)
+  const [answerMaxSources, setAnswerMaxSources] = useState<number>(5)
+  const [answerRequireCitations, setAnswerRequireCitations] = useState<boolean>(true)
+  const [answerTemperature, setAnswerTemperature] = useState<number>(0.1)
+  const [answerCategoryFilter, setAnswerCategoryFilter] = useState<string>('')
+  const [answerAccessFilter, setAnswerAccessFilter] = useState<string>('')
+  const [isGeneratingAnswer, setIsGeneratingAnswer] = useState<boolean>(false)
+  const [answerResponse, setAnswerResponse] = useState<KnowledgeAnswerResponse | null>(null)
+  const [answerHealth, setAnswerHealth] = useState<AnswerHealthResponse | null>(null)
+  const [selectedCitationMarker, setSelectedCitationMarker] = useState<string | null>(null)
+  const [copiedAnswer, setCopiedAnswer] = useState<boolean>(false)
+  const [assistantEvidenceTab, setAssistantEvidenceTab] = useState<'citations' | 'retrieved'>('citations')
+  const [showAdvancedAnswerOptions, setShowAdvancedAnswerOptions] = useState<boolean>(false)
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false)
@@ -324,6 +345,157 @@ export const KnowledgeBase: React.FC = () => {
           </span>
         )
     }
+  }
+
+  // RAG Grounded Answer Handlers (Chunk 4.4)
+  useEffect(() => {
+    if (activeTab === 'assistant' && !answerHealth) {
+      knowledgeApi.getAnswerHealth().then(setAnswerHealth).catch(() => null)
+    }
+  }, [activeTab, answerHealth])
+
+  const sampleAnswerPrompts = [
+    {
+      label: 'Bed Escalation Protocol',
+      prompt: 'What does the hospital bed escalation policy specify when occupancy exceeds 85%?',
+    },
+    {
+      label: 'Shortage Escalation SOP',
+      prompt: 'What is the documented procedure for reporting a ventilator or infusion pump shortage?',
+    },
+    {
+      label: 'Staffing Ratio Guidelines',
+      prompt: 'What are the emergency nurse-to-patient staffing ratio guidelines during surge activations?',
+    },
+    {
+      label: 'Clinical Boundary Check',
+      prompt: 'What is the recommended medication dosage and treatment plan for acute bacterial pneumonia?',
+    },
+  ]
+
+  const handleGenerateAnswer = async (e?: React.FormEvent, queryOverride?: string) => {
+    if (e) e.preventDefault()
+    const q = (queryOverride !== undefined ? queryOverride : answerPrompt).trim()
+    if (!q) return
+    if (queryOverride !== undefined) {
+      setAnswerPrompt(queryOverride)
+    }
+
+    setIsGeneratingAnswer(true)
+    setError(null)
+    setSelectedCitationMarker(null)
+    try {
+      const res = await knowledgeApi.generateAnswer({
+        query: q,
+        top_k: answerTopK,
+        max_context_tokens: answerTokenBudget,
+        max_sources: answerMaxSources,
+        require_citations: answerRequireCitations,
+        temperature: answerTemperature,
+        filters: {
+          category: (answerCategoryFilter as DocumentCategory) || undefined,
+          access_levels: answerAccessFilter ? [answerAccessFilter as AccessLevel] : undefined,
+        },
+      })
+      setAnswerResponse(res)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Operational answer generation failed')
+    } finally {
+      setIsGeneratingAnswer(false)
+    }
+  }
+
+  const handleCopyAnswer = () => {
+    if (answerResponse?.answer) {
+      navigator.clipboard.writeText(answerResponse.answer)
+      setCopiedAnswer(true)
+      setTimeout(() => setCopiedAnswer(false), 2000)
+    }
+  }
+
+  const getAnswerStatusBadge = (status: AnswerStatus) => {
+    switch (status) {
+      case 'ANSWERED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            Grounded Answer (Verified Citations)
+          </span>
+        )
+      case 'PARTIAL_ANSWER':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            Partial Answer (Limited Evidence)
+          </span>
+        )
+      case 'INSUFFICIENT_EVIDENCE':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-white/5 text-[#a5a5ac] border border-white/10">
+            <Info className="w-3.5 h-3.5 text-[#a5a5ac]" />
+            Abstained — Insufficient Evidence in Knowledge Base
+          </span>
+        )
+      case 'CONFLICTING_EVIDENCE':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-purple-400" />
+            Conflicting Evidence Across Sources
+          </span>
+        )
+      case 'OUT_OF_SCOPE':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            Clinical Query Rejected (Safety Boundary)
+          </span>
+        )
+      case 'GENERATION_UNAVAILABLE':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            Generation Subsystem Unavailable
+          </span>
+        )
+      case 'FAILED':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+            Generation Failed
+          </span>
+        )
+    }
+  }
+
+  const renderAnswerTextWithCitations = (text: string) => {
+    const parts = text.split(/(\[S\d+\])/g)
+    return parts.map((part, idx) => {
+      const match = part.match(/^\[(S\d+)\]$/)
+      if (match) {
+        const marker = match[1]
+        const isSelected = selectedCitationMarker === marker
+        return (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => {
+              setSelectedCitationMarker(isSelected ? null : marker)
+              setAssistantEvidenceTab('citations')
+            }}
+            className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-mono font-semibold transition-all cursor-pointer ${
+              isSelected
+                ? 'bg-[#9ba8ff] text-[#131315] ring-2 ring-[#9ba8ff]/50'
+                : 'bg-[#9ba8ff]/20 text-[#c2cbff] hover:bg-[#9ba8ff]/30 border border-[#9ba8ff]/40'
+            }`}
+            title={`View evidence for [${marker}]`}
+          >
+            [{marker}]
+          </button>
+        )
+      }
+      return <span key={idx}>{part}</span>
+    })
   }
 
   // Open Chunks Inspector
@@ -583,6 +755,17 @@ export const KnowledgeBase: React.FC = () => {
           >
             <Zap className="w-3.5 h-3.5 text-[#9ba8ff]" />
             RAG Context Assembler
+          </button>
+          <button
+            onClick={() => setActiveTab('assistant')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+              activeTab === 'assistant'
+                ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5 text-[#9ba8ff]" />
+            RAG Answer Assistant
           </button>
         </div>
 
@@ -1753,6 +1936,582 @@ export const KnowledgeBase: React.FC = () => {
                   <span>Prompt-Safe Enclosure</span>
                   <span>·</span>
                   <span>Deterministic Citations</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB 4: RAG ANSWER ASSISTANT (Chunk 4.4) ────────────────────── */}
+        {activeTab === 'assistant' && (
+          <div className="space-y-6">
+            {/* System Status / Health Bar */}
+            <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5 font-semibold text-[#f0f0f3]">
+                  <Bot className="w-4 h-4 text-[#9ba8ff]" />
+                  Grounded Operational Decision Assistant
+                </span>
+                <span className="text-[#6f6f78]">|</span>
+                <span className="text-[#8e8e96] font-mono text-[11px]">
+                  Engine: {answerHealth?.model_name || 'rag-answer-v1'} ({answerHealth?.provider_name || 'system'})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[#8e8e96] font-mono">
+                  Indexed: {stats?.total_documents || answerHealth?.total_documents_indexed || 0} docs / {stats?.total_chunks || answerHealth?.total_chunks_indexed || 0} chunks
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono ${
+                    answerHealth?.is_generation_ready !== false
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${answerHealth?.is_generation_ready !== false ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  {answerHealth?.is_generation_ready !== false ? 'READY' : 'STANDBY'}
+                </span>
+              </div>
+            </div>
+
+            {/* Healthcare Safety Boundary Notice */}
+            <div className="p-3.5 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-start gap-3 text-xs text-blue-200">
+              <ShieldAlert className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-semibold text-blue-300">Healthcare Safety Boundary & Decision-Support Notice</span>
+                <p className="text-[11px] text-blue-200/80 leading-relaxed">
+                  HospitalOps AI is an operational decision-support tool. It answers queries strictly using approved hospital policies, SOPs, and capacity protocols. It does not provide medical diagnoses, clinical treatment plans, or patient-specific care instructions.
+                </p>
+              </div>
+            </div>
+
+            {/* Question Input Card */}
+            <div className="p-5 rounded-xl bg-[#19191b] border border-line space-y-4">
+              <form onSubmit={handleGenerateAnswer} className="space-y-3">
+                <div className="relative">
+                  <textarea
+                    rows={3}
+                    value={answerPrompt}
+                    onChange={(e) => setAnswerPrompt(e.target.value)}
+                    placeholder="Ask an operational question (e.g., What does the bed escalation policy specify when occupancy exceeds 85%? What is the SOP for reporting ventilator shortages?)..."
+                    className="w-full bg-[#141416] border border-line rounded-lg px-3.5 py-2.5 text-xs text-[#f0f0f3] placeholder:text-[#6f6f78] focus:outline-hidden focus:border-[#9ba8ff] transition-colors resize-y min-h-[72px]"
+                  />
+                  <div className="absolute right-2.5 bottom-2.5 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={isGeneratingAnswer || !answerPrompt.trim()}
+                      className="px-4 py-1.5 rounded-md bg-[#9ba8ff] hover:bg-[#8898ff] text-[#131315] font-semibold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      {isGeneratingAnswer ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Synthesizing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Generate Grounded Answer</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sample Prompt Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] text-[#6f6f78] mr-1">Sample queries:</span>
+                  {sampleAnswerPrompts.map((s, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleGenerateAnswer(undefined, s.prompt)}
+                      disabled={isGeneratingAnswer}
+                      className="px-2 py-0.5 rounded text-[11px] bg-white/5 hover:bg-white/10 text-[#dedee1] hover:text-[#f0f0f3] border border-line transition-colors text-left"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Advanced Options Toggle */}
+                <div className="pt-2 border-t border-line/60">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedAnswerOptions(!showAdvancedAnswerOptions)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-[#8e8e96] hover:text-[#dedee1] transition-colors"
+                  >
+                    <Sliders className="w-3 h-3 text-[#9ba8ff]" />
+                    <span>Advanced Retrieval & Generation Settings</span>
+                    {showAdvancedAnswerOptions ? (
+                      <ChevronUp className="w-3 h-3 ml-0.5" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 ml-0.5" />
+                    )}
+                  </button>
+
+                  {showAdvancedAnswerOptions && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-3 text-xs">
+                      <div>
+                        <label className="text-[11px] font-medium text-[#8e8e96] mb-1 block">
+                          Top K Chunks (default: 5)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={answerTopK}
+                          onChange={(e) => setAnswerTopK(parseInt(e.target.value) || 5)}
+                          className="w-full bg-[#141416] border border-line rounded px-2 py-1 text-xs text-[#f0f0f3]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-[#8e8e96] mb-1 block">
+                          Token Budget (default: 2048)
+                        </label>
+                        <input
+                          type="number"
+                          min={256}
+                          max={8192}
+                          step={256}
+                          value={answerTokenBudget}
+                          onChange={(e) => setAnswerTokenBudget(parseInt(e.target.value) || 2048)}
+                          className="w-full bg-[#141416] border border-line rounded px-2 py-1 text-xs text-[#f0f0f3]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-[#8e8e96] mb-1 block">
+                          Max Source Documents (default: 5)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={answerMaxSources}
+                          onChange={(e) => setAnswerMaxSources(parseInt(e.target.value) || 5)}
+                          className="w-full bg-[#141416] border border-line rounded px-2 py-1 text-xs text-[#f0f0f3]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-[#8e8e96] mb-1 block">
+                          Category Scope
+                        </label>
+                        <select
+                          value={answerCategoryFilter}
+                          onChange={(e) => setAnswerCategoryFilter(e.target.value)}
+                          className="w-full bg-[#141416] border border-line rounded px-2 py-1 text-xs text-[#f0f0f3]"
+                        >
+                          <option value="">All Categories</option>
+                          {categoriesMeta?.categories.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-[#8e8e96] mb-1 block">
+                          Access Level Scope
+                        </label>
+                        <select
+                          value={answerAccessFilter}
+                          onChange={(e) => setAnswerAccessFilter(e.target.value)}
+                          className="w-full bg-[#141416] border border-line rounded px-2 py-1 text-xs text-[#f0f0f3]"
+                        >
+                          <option value="">All Allowed Levels</option>
+                          {categoriesMeta?.access_levels.map((a) => (
+                            <option key={a.value} value={a.value}>
+                              {a.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-[#8e8e96] mb-1 block">
+                          Temperature ({answerTemperature})
+                        </label>
+                        <input
+                          type="range"
+                          min={0.0}
+                          max={0.7}
+                          step={0.05}
+                          value={answerTemperature}
+                          onChange={(e) => setAnswerTemperature(parseFloat(e.target.value))}
+                          className="w-full accent-[#9ba8ff]"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-4">
+                        <input
+                          type="checkbox"
+                          id="requireCitations"
+                          checked={answerRequireCitations}
+                          onChange={(e) => setAnswerRequireCitations(e.target.checked)}
+                          className="rounded border-line bg-[#141416] text-[#9ba8ff] accent-[#9ba8ff]"
+                        />
+                        <label htmlFor="requireCitations" className="text-[11px] text-[#dedee1] cursor-pointer">
+                          Require strict citations
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Loading Indicator */}
+            {isGeneratingAnswer && (
+              <div className="p-8 rounded-xl bg-[#19191b] border border-line flex flex-col items-center justify-center space-y-3">
+                <RefreshCw className="w-6 h-6 text-[#9ba8ff] animate-spin" />
+                <span className="text-sm font-medium text-[#dedee1]">
+                  Retrieving authorized operational documents & synthesizing grounded answer...
+                </span>
+                <span className="text-xs text-[#6f6f78] font-mono">
+                  Enforcing strict evidence grounding · Eliminating hallucinations · Verifying citations
+                </span>
+              </div>
+            )}
+
+            {/* Answer Display */}
+            {!isGeneratingAnswer && answerResponse && (
+              <div className="space-y-5">
+                {/* Answer Card */}
+                <div className="p-5 rounded-xl bg-[#19191b] border border-line space-y-4">
+                  {/* Status Banner */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {getAnswerStatusBadge(answerResponse.status)}
+                      <span className="px-2 py-0.5 rounded text-[10.5px] font-mono bg-white/5 text-[#8e8e96] border border-line">
+                        Type: {answerResponse.answer_type.replace(/_/g, ' ')}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10.5px] font-mono border ${
+                          answerResponse.confidence_assessment === 'HIGH'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : answerResponse.confidence_assessment === 'MODERATE'
+                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            : answerResponse.confidence_assessment === 'LOW'
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            : 'bg-white/5 text-[#8e8e96] border-line'
+                        }`}
+                      >
+                        Confidence: {answerResponse.confidence_assessment}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyAnswer}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-xs text-[#dedee1] hover:text-[#f0f0f3] border border-line transition-colors"
+                      >
+                        {copiedAnswer ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Answer</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Clinical Safety Boundary Callout if triggered */}
+                  {(answerResponse.is_clinical_query || answerResponse.status === 'OUT_OF_SCOPE') && (
+                    <div className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/25 flex items-start gap-3 text-xs text-red-200">
+                      <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <span className="font-semibold text-red-300">Healthcare Safety Boundary Triggered</span>
+                        <p className="text-[11px] text-red-200/90 leading-relaxed">
+                          {answerResponse.clinical_disclaimer ||
+                            'This query has been classified as a clinical diagnostic or medical treatment question. Operational decision-support tools are strictly restricted from providing medical diagnosis, drug dosages, or clinical treatment plans. Please consult clinical staff or an approved medical reference.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Answer Text with Clickable Citations */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8e8e96]">
+                      Operational Answer
+                    </span>
+                    <div className="text-sm text-[#f0f0f3] leading-relaxed whitespace-pre-wrap bg-[#141416] p-4 rounded-lg border border-line font-sans">
+                      {renderAnswerTextWithCitations(answerResponse.answer)}
+                    </div>
+                  </div>
+
+                  {/* Limitations Callout */}
+                  {answerResponse.limitations.length > 0 && (
+                    <div className="p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-1.5 text-xs text-amber-200">
+                      <div className="flex items-center gap-1.5 font-semibold text-amber-300">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Documented Limitations & Information Gaps</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-200/80">
+                        {answerResponse.limitations.map((lim, i) => (
+                          <li key={i}>{lim}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Conflicting Evidence Callout */}
+                  {answerResponse.conflicts_detected.length > 0 && (
+                    <div className="p-3.5 rounded-lg bg-purple-500/5 border border-purple-500/20 space-y-1.5 text-xs text-purple-200">
+                      <div className="flex items-center gap-1.5 font-semibold text-purple-300">
+                        <AlertTriangle className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Conflicting Evidence Detected Across Documents</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-purple-200/80">
+                        {answerResponse.conflicts_detected.map((conf, i) => (
+                          <li key={i}>{conf}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Evidence Panel (Split Tabs: Verified Citations vs All Retrieved Chunks) */}
+                <div className="p-5 rounded-xl bg-[#19191b] border border-line space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-line">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setAssistantEvidenceTab('citations')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                          assistantEvidenceTab === 'citations'
+                            ? 'bg-[#9ba8ff]/15 text-[#9ba8ff] border border-[#9ba8ff]/30'
+                            : 'bg-white/5 text-[#8e8e96] hover:text-[#dedee1] border border-line'
+                        }`}
+                      >
+                        <BookMarked className="w-3.5 h-3.5" />
+                        <span>Cited in Answer ({answerResponse.citations.length})</span>
+                      </button>
+                      <button
+                        onClick={() => setAssistantEvidenceTab('retrieved')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                          assistantEvidenceTab === 'retrieved'
+                            ? 'bg-[#9ba8ff]/15 text-[#9ba8ff] border border-[#9ba8ff]/30'
+                            : 'bg-white/5 text-[#8e8e96] hover:text-[#dedee1] border border-line'
+                        }`}
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>All Retrieved Chunks ({answerResponse.retrieved_sources.length})</span>
+                      </button>
+                    </div>
+
+                    {selectedCitationMarker && (
+                      <button
+                        onClick={() => setSelectedCitationMarker(null)}
+                        className="text-[11px] text-[#8e8e96] hover:text-[#f0f0f3] flex items-center gap-1 font-mono"
+                      >
+                        <span>Filter: [{selectedCitationMarker}]</span>
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Evidence Source Cards */}
+                  {assistantEvidenceTab === 'citations' && (
+                    <div className="space-y-3">
+                      {answerResponse.citations.length === 0 ? (
+                        <div className="text-center py-6 text-xs text-[#8e8e96]">
+                          No explicit citations were referenced in this answer (e.g., query abstained or out-of-scope).
+                        </div>
+                      ) : (
+                        answerResponse.citations.map((cite) => {
+                          const isSelected = selectedCitationMarker === cite.citation_marker
+                          return (
+                            <div
+                              key={cite.citation_id}
+                              className={`p-4 rounded-lg bg-[#141416] border transition-all ${
+                                isSelected
+                                  ? 'border-[#9ba8ff] ring-1 ring-[#9ba8ff]/50 bg-[#9ba8ff]/5'
+                                  : 'border-line hover:border-[#38383e]'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#9ba8ff]/20 text-[#c2cbff] border border-[#9ba8ff]/30">
+                                    [{cite.citation_marker}]
+                                  </span>
+                                  <span className="text-xs font-semibold text-[#f0f0f3]">
+                                    {cite.document_title}
+                                  </span>
+                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-[#8e8e96]">
+                                    v{cite.document_version}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 font-mono text-[10.5px]">
+                                  {cite.page_number && (
+                                    <span className="text-[#8e8e96]">p. {cite.page_number}</span>
+                                  )}
+                                  <span className="text-emerald-400">
+                                    {(cite.similarity_score * 100).toFixed(1)}% match
+                                  </span>
+                                </div>
+                              </div>
+
+                              {cite.section_title && (
+                                <div className="pt-2 text-[11px] text-[#9ba8ff] font-medium flex items-center gap-1.5">
+                                  <ChevronRight className="w-3 h-3 text-[#6f6f78]" />
+                                  <span>{cite.section_title}</span>
+                                </div>
+                              )}
+
+                              <p className="mt-2 text-xs text-[#dedee1] font-mono bg-black/30 p-2.5 rounded border border-line/40 leading-relaxed">
+                                {cite.excerpt}
+                              </p>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {assistantEvidenceTab === 'retrieved' && (
+                    <div className="space-y-3">
+                      {answerResponse.retrieved_sources.length === 0 ? (
+                        <div className="text-center py-6 text-xs text-[#8e8e96]">
+                          No chunks were retrieved from the knowledge vector index.
+                        </div>
+                      ) : (
+                        answerResponse.retrieved_sources.map((src) => {
+                          const isSelected = selectedCitationMarker === src.citation_marker
+                          return (
+                            <div
+                              key={src.citation_id}
+                              className={`p-4 rounded-lg bg-[#141416] border transition-all ${
+                                isSelected
+                                  ? 'border-[#9ba8ff] ring-1 ring-[#9ba8ff]/50 bg-[#9ba8ff]/5'
+                                  : 'border-line hover:border-[#38383e]'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-white/5 text-[#8e8e96] border border-line">
+                                    [{src.citation_marker}]
+                                  </span>
+                                  <span className="text-xs font-semibold text-[#f0f0f3]">
+                                    {src.document_title}
+                                  </span>
+                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-[#8e8e96]">
+                                    v{src.document_version}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 font-mono text-[10.5px]">
+                                  {src.page_number && (
+                                    <span className="text-[#8e8e96]">p. {src.page_number}</span>
+                                  )}
+                                  <span className="text-emerald-400">
+                                    {(src.similarity_score * 100).toFixed(1)}% match
+                                  </span>
+                                </div>
+                              </div>
+
+                              {src.section_title && (
+                                <div className="pt-2 text-[11px] text-[#9ba8ff] font-medium flex items-center gap-1.5">
+                                  <ChevronRight className="w-3 h-3 text-[#6f6f78]" />
+                                  <span>{src.section_title}</span>
+                                </div>
+                              )}
+
+                              <p className="mt-2 text-xs text-[#dedee1] font-mono bg-black/30 p-2.5 rounded border border-line/40 leading-relaxed">
+                                {src.excerpt}
+                              </p>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Telemetry & Provenance Footer */}
+                <div className="p-4 rounded-xl bg-[#19191b] border border-line">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8e8e96] block mb-2">
+                    Generation Telemetry & Provenance
+                  </span>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+                    <div className="p-2.5 rounded bg-[#141416] border border-line/60">
+                      <span className="text-[10px] text-[#8e8e96] block">PROVIDER / MODEL</span>
+                      <span className="text-[#f0f0f3] font-semibold text-[11px] mt-0.5 block truncate">
+                        {answerResponse.metadata.provider_name} · {answerResponse.metadata.model_name}
+                      </span>
+                      <span className="text-[9.5px] text-[#6f6f78] block">
+                        Prompt: {answerResponse.metadata.prompt_version}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-[#141416] border border-line/60">
+                      <span className="text-[10px] text-[#8e8e96] block">LATENCY BREAKDOWN</span>
+                      <span className="text-[#f0f0f3] font-semibold text-[11px] mt-0.5 block">
+                        {answerResponse.metadata.total_duration_ms.toFixed(1)} ms total
+                      </span>
+                      <span className="text-[9.5px] text-[#6f6f78] block">
+                        Retr: {answerResponse.metadata.retrieval_summary.retrieval_duration_ms.toFixed(1)}ms · Gen: {answerResponse.metadata.generation_duration_ms.toFixed(1)}ms
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-[#141416] border border-line/60">
+                      <span className="text-[10px] text-[#8e8e96] block">TOKEN USAGE</span>
+                      <span className="text-[#f0f0f3] font-semibold text-[11px] mt-0.5 block">
+                        {answerResponse.metadata.total_tokens.toLocaleString()} tokens
+                      </span>
+                      <span className="text-[9.5px] text-[#6f6f78] block">
+                        Ctx: {answerResponse.metadata.retrieval_summary.context_tokens_used} · Out: {answerResponse.metadata.completion_tokens}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-[#141416] border border-line/60">
+                      <span className="text-[10px] text-[#8e8e96] block">CITATION VERIFICATION</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            answerResponse.metadata.citations_verified ? 'bg-emerald-400' : 'bg-amber-400'
+                          }`}
+                        />
+                        <span className="text-[#f0f0f3] font-semibold text-[11px]">
+                          {answerResponse.metadata.citations_validated_count} verified
+                        </span>
+                      </div>
+                      <span className="text-[9.5px] text-[#6f6f78] block">
+                        Retries: {answerResponse.metadata.retry_count}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isGeneratingAnswer && !answerResponse && (
+              <div className="p-12 rounded-xl bg-[#19191b] border border-line text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-[#9ba8ff]/10 text-[#9ba8ff] flex items-center justify-center mx-auto border border-[#9ba8ff]/20">
+                  <Bot className="w-6 h-6" />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h3 className="text-sm font-semibold text-[#f0f0f3]">
+                    Evidence-Grounded Operational Question Answering
+                  </h3>
+                  <p className="text-xs text-[#8e8e96] leading-relaxed">
+                    Ask questions regarding hospital operational policies, surge response protocols, bed escalation guidelines, or equipment procedures. Answers are synthesized strictly from authorized knowledge base documents with verified citation markers ([S1], [S2]).
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-4 text-[11px] text-[#6f6f78] font-mono">
+                  <span>Strict Grounding</span>
+                  <span>·</span>
+                  <span>Explicit Abstention</span>
+                  <span>·</span>
+                  <span>Verifiable Citations</span>
+                  <span>·</span>
+                  <span>Clinical Safety Boundary</span>
                 </div>
               </div>
             )}

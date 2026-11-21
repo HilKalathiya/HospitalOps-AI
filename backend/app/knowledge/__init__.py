@@ -7,6 +7,18 @@ from app.knowledge.cleaners import clean_text
 from app.knowledge.embedders.base import EmbeddingProvider
 from app.knowledge.embedders.factory import get_embedding_provider
 from app.knowledge.extractors.factory import get_extractor
+from app.knowledge.generation import (
+    AnswerHealthResponse,
+    AnswerStatus,
+    AnswerType,
+    GroundedAnswerGenerator,
+    KnowledgeAnswerRequest,
+    KnowledgeAnswerResponse,
+    KnowledgeAnswerService,
+    MockLLMProvider,
+    NullLLMProvider,
+    OpenAICompatibleProvider,
+)
 from app.knowledge.pipeline import KnowledgeIngestionPipeline, PipelineExecutionResult
 from app.knowledge.privacy import scan_privacy_and_access
 from app.knowledge.retrieval import (
@@ -37,4 +49,14 @@ __all__ = [
     "RetrievalContextOrchestrator",
     "KnowledgeRetrievalRequest",
     "KnowledgeRetrievalResponse",
+    "KnowledgeAnswerService",
+    "KnowledgeAnswerRequest",
+    "KnowledgeAnswerResponse",
+    "AnswerStatus",
+    "AnswerType",
+    "AnswerHealthResponse",
+    "GroundedAnswerGenerator",
+    "NullLLMProvider",
+    "MockLLMProvider",
+    "OpenAICompatibleProvider",
 ]

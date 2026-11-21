@@ -325,6 +325,104 @@ export interface KnowledgeRetrievalResponse {
   warnings: string[]
 }
 
+// ── Chunk 4.4: RAG Grounded Answer Generation Types ─────────────────────────
+
+export type AnswerType =
+  | 'DIRECT_ANSWER'
+  | 'CONDITIONAL_ANSWER'
+  | 'PROCEDURAL_GUIDANCE'
+  | 'POLICY_STATEMENT'
+  | 'INSUFFICIENT_INFORMATION'
+  | 'CONFLICTING_INFORMATION'
+  | 'OUT_OF_SCOPE'
+
+export type AnswerStatus =
+  | 'ANSWERED'
+  | 'PARTIAL_ANSWER'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'CONFLICTING_EVIDENCE'
+  | 'OUT_OF_SCOPE'
+  | 'GENERATION_UNAVAILABLE'
+  | 'FAILED'
+
+export interface KnowledgeAnswerRequest {
+  query: string
+  top_k?: number
+  candidate_k?: number
+  max_context_tokens?: number
+  filters?: SearchFilters
+  max_sources?: number
+  require_citations?: boolean
+  temperature?: number
+}
+
+export interface CitationReference {
+  citation_marker: string
+  citation_id: string
+  document_id: string
+  document_title: string
+  document_version: number
+  chunk_id: string
+  section_title?: string | null
+  page_number?: number | null
+  source_reference: string
+  similarity_score: number
+  excerpt: string
+}
+
+export interface RetrievalSummary {
+  retrieval_id: string
+  retrieval_status: string
+  candidate_count: number
+  selected_chunks_count: number
+  context_tokens_used: number
+  retrieval_duration_ms: number
+}
+
+export interface GenerationMetadata {
+  provider_name: string
+  model_name: string
+  prompt_version: string
+  generation_duration_ms: number
+  total_duration_ms: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  retrieval_summary: RetrievalSummary
+  citations_verified: boolean
+  citations_validated_count: number
+  invalid_citations_detected: string[]
+  retry_count: number
+}
+
+export interface KnowledgeAnswerResponse {
+  answer_id: string
+  status: AnswerStatus
+  status_reason?: string | null
+  query: string
+  answer: string
+  answer_type: AnswerType
+  confidence_assessment: string
+  citations: CitationReference[]
+  retrieved_sources: CitationReference[]
+  limitations: string[]
+  conflicts_detected: string[]
+  is_clinical_query: boolean
+  clinical_disclaimer?: string | null
+  metadata: GenerationMetadata
+  created_at: string
+}
+
+export interface AnswerHealthResponse {
+  status: string
+  is_generation_ready: boolean
+  provider_name: string
+  model_name: string
+  external_provider_enabled: boolean
+  total_documents_indexed: number
+  total_chunks_indexed: number
+}
+
 export const knowledgeApi = {
   listDocuments: (params?: {
     category?: string
@@ -411,4 +509,10 @@ export const knowledgeApi = {
 
   getSearchHealth: () =>
     apiClient.get<RetrievalHealthResponse>('/knowledge/search/health'),
+
+  generateAnswer: (req: KnowledgeAnswerRequest) =>
+    apiClient.post<KnowledgeAnswerResponse>('/knowledge/answer', req),
+
+  getAnswerHealth: () =>
+    apiClient.get<AnswerHealthResponse>('/knowledge/answer/health'),
 }

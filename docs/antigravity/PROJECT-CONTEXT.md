@@ -74,7 +74,8 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | **M4: Agentic AI & RAG** | **4.1** | **Document Ingestion Pipeline — RAG Knowledge Foundation** | ✅ Complete | Multi-format parsers (PDF, DOCX, MD, TXT, HTML), 10-stage pipeline, PHI/MIMIC quarantine boundary, structure-aware chunking, persistent ChromaDB, 15/15 tests passed |
 | | **4.2** | **Semantic Vector Search & Knowledge Retrieval Engine** | ✅ Complete | Vector search over ChromaDB, space compatibility validation, server-side RBAC scoping, repository post-validation, provenance ranking, MRR=1.0, 28/28 tests passed (202 total) |
 | | **4.3** | **Retrieval API — RAG Context Retrieval & Assembly Layer** | ✅ Complete | Token-budget-aware context assembly, offline tiktoken cl100k_base counting, prompt boundary guard (<reference_content>), stable citations ([S1], [S2]), ordering strategies, 12/12 tests passed (214 total) |
-| | 4.4 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, tool-calling, autonomous operational workflows |
+| | **4.4** | **RAG Answer Generation — Grounded Operational QA** | ✅ Complete | Grounded QA, citation validation, 1-shot retry, clinical safety guard, mock/live LLM provider, 15/15 tests passed (229 total) |
+| | 4.5 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, tool-calling, autonomous operational workflows |
 
 ---
 
@@ -381,94 +382,11 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full backend test suite: 174 passed, 10 skipped.
      - `ruff check backend`: 0 errors.
      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine).
+* **Next Planned Work:** Milestone 4, Chunk 4.1 (Document Ingestion Pipeline — RAG Knowledge Foundation) — Completed.
 
 ---
 
-## 10. Completed Workstream: Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine)
-
-* **Status:** Complete & Push-Ready.
-* **Scope Delivered:**
-  1. **Embedding Space Compatibility Verification (`backend/app/knowledge/retrieval/`):**
-     - Formulated `embedding_space_id = f"{provider}:{model}:d{dimension}:{metric}"` stored in collection metadata.
-     - `KnowledgeRetriever` verifies space identity before executing searches and raises `EmbeddingSpaceMismatchError` on divergence to prevent mathematically invalid cross-model vector distance calculations.
-  2. **Query Sanitization & Normalized Encoding (`backend/app/knowledge/retrieval/query_encoder.py`):**
-     - Enforces query length limits ($1 \le L \le 500$ chars), rejects whitespace-only queries, checks finite numerical values (`NaN`, `Inf` prevention), and verifies unit L2 vector normalization.
-  3. **Server-Side RBAC & Scope Enforcement (`backend/app/knowledge/retrieval/filters.py`):**
-     - Derives authorized access levels directly from user JWT claims:
-       - `Role.ADMIN`: All access classifications (`PUBLIC`, `INTERNAL`, `RESTRICTED`, `CONFIDENTIAL`).
-       - `Role.OPERATIONS_MANAGER`: Operational access (`PUBLIC`, `INTERNAL`, `RESTRICTED`).
-       - `Role.DOCTOR`: Standard staff access (`PUBLIC`, `INTERNAL`).
-     - Rejects unauthorized client-requested access tiers server-side. Enforces department scoping and compound `$and` filters.
-  4. **Repository Post-Validation:**
-     - Cross-references candidate chunks against the persistent MongoDB document repository to guarantee only active, non-quarantined documents are surfaced.
-  5. **Normalized Provenance & Diversity Ranking (`backend/app/knowledge/retrieval/ranking.py`):**
-     - Converts cosine distance $d \in [0, 2]$ to normalized similarity score $s = \max(0.0, \min(1.0, 1.0 - d))$.
-     - Implements diversity capping (`max_chunks_per_doc = 3`), min-similarity filtering, and sentence-bounded excerpt extraction.
-     - Provides complete provenance: rank position, similarity percentage, cosine distance, document title, active version, section heading, and page marker.
-  6. **Retrieval Quality Evaluation Benchmark:**
-     - Evaluated across operational policy documents (ED Surge Protocol, Ventilator SOP, Infection Prevention Guidelines): **MRR = 1.0**, **Precision@1 = 1.0**, **Recall@3 = 1.0**.
-  7. **Interactive Semantic Search Workbench (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`):**
-     - Added dedicated "Semantic Search Engine" tab with natural-language query input, sample prompt shortcuts, Top-K selector, similarity threshold selector, latency/vector-space telemetry pills, and expandable chunk cards with links to the Chunk Inspector and Document Detail drawers.
-  8. **REST Endpoints & Security:**
-     - `POST /api/v1/knowledge/search` (requires `knowledge.read`).
-     - `GET /api/v1/knowledge/search/health` (requires `knowledge.read`).
-     - Privacy guard: user query texts are never logged in plaintext server logs.
-  9. **Verification & Testing:**
-     - 13 dedicated unit, integration, and API tests in `backend/tests/test_knowledge_retrieval.py`.
-     - 28 knowledge subsystem tests passing (13 retrieval + 15 ingestion).
-     - Full regression test suite: 202 passed, 10 skipped, 0 failures.
-     - `ruff check backend`: 0 errors.
-     - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.3 (Retrieval API — RAG Context Retrieval & Assembly Layer) — Completed.
-
----
-
-## 11. Completed Workstream: Milestone 4, Chunk 4.3 (Retrieval API — RAG Context Retrieval & Assembly Layer)
-
-* **Status:** Complete & Push-Ready.
-* **Scope Delivered:**
-  1. **Strict Context Token Budgeting (`backend/app/knowledge/retrieval/token_budget.py`):**
-     - Enforces configured token ceilings (`max_context_tokens`, 200–16,000 tokens).
-     - Accurate offline token counting via `tiktoken` (`cl100k_base`) with conservative word-ratio fallback (`~1.33` tokens/word).
-     - Tracks content tokens and reserves overhead for citation headers and boundary enclosures.
-     - Automatically records an audit trail of skipped candidate chunks (`SkippedChunkInfo`) with reasons (`token_budget_exceeded`).
-  2. **Deterministic Source Citation Mapping (`backend/app/knowledge/retrieval/citation_builder.py`):**
-     - Generates sequential, stable citation identifiers (`S1`, `S2`) and bracketed markers (`[S1]`, `[S2]`).
-     - Constructs traceable source reference strings incorporating document title, active version, section heading, and page number.
-     - Estimates exact token overhead for headers and boundary wrappers.
-  3. **Prompt Injection Defense & Context Ordering (`backend/app/knowledge/retrieval/context_builder.py`):**
-     - Wraps retrieved material inside `<reference_content>` boundary tags, neutralizing injection attempts (`</reference_content>` $\to$ `&lt;/reference_content&gt;`).
-     - Prepends an authoritative operational boundary header that explicitly declares retrieved content as reference data, preventing prompt escaping.
-     - Supports three ordering strategies:
-       - `RELEVANCE`: Highest semantic similarity first.
-       - `DOCUMENT_ORDER`: Grouped by document and sorted sequentially by `chunk_index` to maintain procedural flow.
-       - `GROUPED_BY_DOC`: Grouped by document prioritizing highest peak similarity.
-  4. **Retrieval Orchestration & Sufficiency Classification (`backend/app/knowledge/retrieval/orchestrator.py`):**
-     - Expands initial candidate search ($k_{\text{cand}} = \max(\text{top\_k} \times 3, 15)$) before token budgeting.
-     - Evaluates grounding against calibrated similarity thresholds ($s \ge 0.10$).
-     - Categorizes execution status into explicit operational contracts: `SUCCESS`, `PARTIAL_CONTEXT`, `INSUFFICIENT_CONTEXT`, `NO_RESULTS`, `FAILED`.
-  5. **Interactive RAG Context Workbench (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`):**
-     - Added dedicated "RAG Context Assembler" tab to the Knowledge Base interface.
-     - Real-time token budget utilization meter (content vs. overhead breakdown) and progress bar.
-     - View switchers: Context Blocks, Source Citations table, Prompt-Safe Formatted Context (with one-click copy), and Excluded Chunks audit table.
-     - Controls for Top-K, Token Budget (500–8,000), Context Ordering, and Min Relevance Threshold.
-  6. **REST API Endpoint & Security:**
-     - `POST /api/v1/knowledge/retrieve` (requires `knowledge.read`).
-     - Request validation: query length ($1 \le L \le 500$), budget bounds ($200 \le \text{tokens} \le 16,000$), top_k ($1 \le K \le 50$).
-     - Server-side RBAC scoping (ADMIN, OPERATIONS_MANAGER, DOCTOR).
-     - Inquiry privacy: queries are never logged in plaintext.
-  7. **Verification & Testing:**
-     - 12 dedicated unit, integration, and API tests in `backend/tests/test_knowledge_retrieval_context.py`.
-     - 40 knowledge subsystem tests passing (12 context retrieval + 13 semantic search + 15 ingestion).
-     - Full regression test suite: 214 passed, 10 skipped, 0 failures.
-     - `ruff check backend`: 0 errors.
-     - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.4 (Multi-Agent Orchestration & Decision Intelligence).
-
----
-
-## 9. Completed Workstream: Milestone 4, Chunk 4.1 (Document Ingestion Pipeline — RAG Knowledge Foundation)
+## 13. Completed Workstream: Milestone 4, Chunk 4.1 (Document Ingestion Pipeline — RAG Knowledge Foundation)
 
 * **Status:** Complete & Push-Ready.
 * **Scope Delivered:**
@@ -510,11 +428,11 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
       - 189 tests in full test suite (179 passed, 10 skipped).
       - `ruff check backend`: 0 errors.
       - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine).
+* **Next Planned Work:** Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine) — Completed.
 
 ---
 
-## 10. Completed Workstream: Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine)
+## 14. Completed Workstream: Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine)
 
 * **Status:** Complete & Push-Ready.
 * **Scope Delivered:**
@@ -553,7 +471,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 
 ---
 
-## 11. Completed Workstream: Milestone 4, Chunk 4.3 (Retrieval API — RAG Context Retrieval & Assembly Layer)
+## 15. Completed Workstream: Milestone 4, Chunk 4.3 (Retrieval API — RAG Context Retrieval & Assembly Layer)
 
 * **Status:** Complete & Push-Ready.
 * **Scope Delivered:**
@@ -593,4 +511,42 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full regression test suite: 214 passed, 10 skipped, 0 failures.
      - `ruff check backend`: 0 errors.
      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.4 (Multi-Agent Orchestration & Decision Intelligence).
+* **Next Planned Work:** Milestone 4, Chunk 4.4 (RAG Answer Generation — Grounded Operational QA) — Completed.
+
+---
+
+## 16. Completed Workstream: Milestone 4, Chunk 4.4 (RAG Answer Generation — Grounded Operational Question Answering)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Direct In-Memory Retrieval Invocation (`KnowledgeAnswerService`):**
+     - Invokes `await self.orchestrator.retrieve_context(...)` directly via Python, avoiding HTTP loopbacks and redundant serialization overhead.
+  2. **Strict Healthcare Safety Boundary & Clinical Query Screening:**
+     - Regex-based pre-generation classifier `is_clinical_query` screens questions for diagnostic, prescriptive, and medication dosage inquiries.
+     - Clinical inquiries are immediately rejected with `AnswerType.OUT_OF_SCOPE` and an authoritative non-clinical advisory notice, preserving the non-negotiable boundary from `AGENTS.md`.
+  3. **Adversarial Boundary Tag Enclosure (`PromptBuilder`):**
+     - Assembles context inside `<reference_content>` boundary tags with XML escaping (`</reference_content>` $\to$ `&lt;/reference_content&gt;`) to defend against prompt injection.
+     - Injects strict operational system instructions demanding structured JSON output with citation markers (`[S1]`, `[S2]`) and explicit abstention directives.
+  4. **Deterministic Citation Validation & 1-Shot Retry (`CitationValidator`, `GroundedAnswerGenerator`):**
+     - Audits answer text to verify that every citation marker exists in the retrieved context.
+     - Automatically triggers a bounded 1-shot correction retry if hallucinated markers (e.g. `[S99]`) are returned.
+     - Strips ungrounded markers deterministically if correction retry fails.
+  5. **Pluggable LLM Provider Architecture (`LLMProvider`):**
+     - `MockLLMProvider`: Deterministic offline synthesis for test suites and offline local environments.
+     - `OpenAICompatibleProvider`: Async HTTP provider supporting OpenAI, vLLM, Ollama, and local OpenAI-compatible endpoints with configurable timeouts.
+     - `NullLLMProvider`: Safe no-op fallback when RAG generation is toggled off (`rag_generation_enabled = False`).
+  6. **Interactive RAG Answer Assistant Workspace (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`):**
+     - Added 4th navigation tab "RAG Answer Assistant" with operational sample query shortcuts.
+     - Clickable citation pills `[S1]`, `[S2]` that scroll to and highlight corresponding source chunks.
+     - Split evidence panel ("Cited in Answer" vs "All Retrieved Chunks") and telemetry footer displaying model, provider, latency, and tokens.
+  7. **REST Endpoints & RBAC Security:**
+     - `POST /api/v1/knowledge/answer` (requires `knowledge.read`).
+     - `GET /api/v1/knowledge/answer/health` (requires `knowledge.read`).
+     - Privacy guard: user question text is never logged in plaintext server logs.
+  8. **Verification & Testing:**
+     - 15 dedicated unit, integration, and API tests in `backend/tests/test_knowledge_answer.py`.
+     - 55 knowledge subsystem tests passing (15 answer generation + 12 context retrieval + 13 semantic search + 15 ingestion).
+     - Full regression test suite: 229 passed, 10 skipped, 0 failures.
+     - `ruff check backend`: 0 errors.
+     - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
+* **Next Planned Work:** Milestone 4, Chunk 4.5 (Multi-Agent Orchestration & Decision Intelligence).

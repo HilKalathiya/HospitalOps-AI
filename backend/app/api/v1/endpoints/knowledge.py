@@ -17,6 +17,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 
 from app.api.dependencies import get_knowledge_service, require_permission
 from app.knowledge.embedders.base import EmbeddingSpaceMismatchError
+from app.knowledge.generation import (
+    AnswerHealthResponse,
+    KnowledgeAnswerRequest,
+    KnowledgeAnswerResponse,
+)
 from app.knowledge.retrieval import (
     KnowledgeRetrievalRequest,
     KnowledgeRetrievalResponse,
@@ -318,6 +323,40 @@ async def get_search_health(
     knowledge_service: KnowledgeService = Depends(get_knowledge_service),
 ) -> RetrievalHealthResponse:
     return await knowledge_service.check_retrieval_health()
+
+
+@router.post(
+    "/answer",
+    response_model=KnowledgeAnswerResponse,
+    summary="Generate grounded operational answer using RAG and citation verification",
+    description="Screen query, retrieve authorized reference chunks, assemble prompt, query LLM, validate citations, and return structured grounded response.",
+)
+async def generate_knowledge_answer(
+    request: KnowledgeAnswerRequest,
+    current_user: UserDocument = Depends(require_permission("knowledge.read")),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
+) -> KnowledgeAnswerResponse:
+    try:
+        return await knowledge_service.generate_answer(request, current_user=current_user)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    except EmbeddingSpaceMismatchError as err:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Incompatible embedding space: {err}",
+        ) from err
+
+
+@router.get(
+    "/answer/health",
+    response_model=AnswerHealthResponse,
+    summary="Inspect RAG answer generation subsystem and LLM provider health",
+)
+async def get_answer_health(
+    current_user: UserDocument = Depends(require_permission("knowledge.read")),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
+) -> AnswerHealthResponse:
+    return await knowledge_service.check_answer_health()
 
 
 # ── Statistics & Categories Metadata ──────────────────────────────────────────
