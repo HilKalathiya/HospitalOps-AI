@@ -1,5 +1,5 @@
 """
-HospitalOps AI — Simulation Agent Tools (Milestone 5, Chunk 5.1).
+HospitalOps AI — Simulation Agent Tools (Milestone 5, Chunks 5.1 & 5.2).
 
 Integrates the What-if Simulation Engine as a read-only tool to inspect
 hypothetical scenario runs, admission surges, bed conversions, and equipment bottlenecks.
@@ -11,7 +11,7 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from app.agents.contracts import ProvenanceCategory, ProvenanceItem
+from app.agents.contracts import ProvenanceCategory, ProvenanceItem, ToolCategory
 from app.agents.tools.base import AgentTool, ToolContext, ToolResult
 from app.services.simulation import SimulationService
 
@@ -32,6 +32,30 @@ class GetSimulationResultInput(BaseModel):
     limit: int = Field(default=5, ge=1, le=10, description="Max simulations to list if simulation_id is omitted")
 
 
+class SimulationRunSummary(BaseModel):
+    """Condensed summary of an individual hypothetical simulation scenario."""
+
+    simulation_id: str = Field(description="Unique stable run identifier")
+    scenario_name: str = Field(description="Descriptive scenario name")
+    scenario_type: str = Field(description="Scenario archetype")
+    peak_deficit: float | None = Field(default=None, description="Projected peak bed shortage")
+    shortage_days: int | None = Field(default=None, description="Number of days in shortage")
+    summary: str = Field(default="", description="Executive summary of simulation outcome")
+
+
+class GetSimulationResultOutput(BaseModel):
+    """Standardized output schema for what-if simulation inspection."""
+
+    simulation_id: str | None = Field(default=None, description="Inspected simulation ID if single run queried")
+    scenario_name: str | None = Field(default=None, description="Inspected scenario name if single run queried")
+    scenario_type: str | None = Field(default=None, description="Inspected scenario type if single run queried")
+    simulations_count: int = Field(ge=0, description="Count of simulation runs returned")
+    peak_deficit: float | None = Field(default=None, description="Peak bed deficit if single run queried")
+    shortage_days: int | None = Field(default=None, description="Days in shortage if single run queried")
+    summary: str = Field(default="", description="Textual summary of simulation findings")
+    recent_runs: list[SimulationRunSummary] = Field(default_factory=list, description="List of recent scenario runs")
+
+
 class GetSimulationResultTool(AgentTool):
     """Tool that reads existing what-if simulation scenario runs."""
 
@@ -43,6 +67,10 @@ class GetSimulationResultTool(AgentTool):
         return "get_simulation_result"
 
     @property
+    def display_name(self) -> str:
+        return "What-If Simulation Inspection"
+
+    @property
     def description(self) -> str:
         return (
             "Inspect hypothetical What-if Simulation scenario runs, evaluating the projected impacts of "
@@ -50,12 +78,32 @@ class GetSimulationResultTool(AgentTool):
         )
 
     @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.SIMULATION
+
+    @property
+    def schema_version(self) -> str:
+        return "1.0.0"
+
+    @property
     def input_schema(self) -> type[BaseModel]:
         return GetSimulationResultInput
 
     @property
+    def output_schema(self) -> type[BaseModel]:
+        return GetSimulationResultOutput
+
+    @property
     def required_permission(self) -> str:
         return "simulation.read"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["simulation", "what-if", "monte-carlo", "bed-deficit", "surge-capacity"]
+
+    @property
+    def timeout_seconds(self) -> float:
+        return 20.0
 
     async def execute(self, arguments: BaseModel, context: ToolContext) -> ToolResult:
         args = arguments if isinstance(arguments, GetSimulationResultInput) else GetSimulationResultInput.model_validate(arguments)
@@ -86,14 +134,29 @@ class GetSimulationResultTool(AgentTool):
                     f"Note: This reflects a hypothetical scenario simulation, not current operational hospital state."
                 )
 
+                output_data = GetSimulationResultOutput(
+                    simulation_id=sim.simulation_id,
+                    scenario_name=sim.scenario_name,
+                    scenario_type=scen_type,
+                    simulations_count=1,
+                    peak_deficit=out.peak_bed_deficit,
+                    shortage_days=out.days_in_shortage,
+                    summary=summary_text,
+                    recent_runs=[
+                        SimulationRunSummary(
+                            simulation_id=sim.simulation_id,
+                            scenario_name=sim.scenario_name,
+                            scenario_type=scen_type,
+                            peak_deficit=out.peak_bed_deficit,
+                            shortage_days=out.days_in_shortage,
+                            summary=out.summary if hasattr(out, "summary") else "",
+                        )
+                    ],
+                )
+
                 return ToolResult(
                     success=True,
-                    data={
-                        "simulation_id": sim.simulation_id,
-                        "scenario_name": sim.scenario_name,
-                        "scenario_type": scen_type,
-                        "outcome": out.model_dump(),
-                    },
+                    data=output_data,
                     output_summary=summary_text,
                     provenance_items=[prov],
                 )
@@ -106,15 +169,22 @@ class GetSimulationResultTool(AgentTool):
             )
 
             if not sims:
+                output_empty = GetSimulationResultOutput(
+                    simulations_count=0,
+                    summary="No existing simulation runs found.",
+                    recent_runs=[],
+                )
                 return ToolResult(
                     success=True,
-                    data={"count": 0, "total": 0, "simulations": []},
+                    data=output_empty,
                     output_summary="No existing simulation runs found.",
                     provenance_items=[],
                 )
 
             prov_items: list[ProvenanceItem] = []
+            summaries: list[SimulationRunSummary] = []
             lines = [f"Found {len(sims)} simulation run(s):"]
+
             for s in sims[:args.limit]:
                 stype = s.scenario_type.value if hasattr(s.scenario_type, "value") else str(s.scenario_type)
                 prov_items.append(
@@ -125,15 +195,32 @@ class GetSimulationResultTool(AgentTool):
                         details={"peak_deficit": s.outcome.peak_bed_deficit},
                     )
                 )
+                summaries.append(
+                    SimulationRunSummary(
+                        simulation_id=s.simulation_id,
+                        scenario_name=s.scenario_name,
+                        scenario_type=stype,
+                        peak_deficit=s.outcome.peak_bed_deficit,
+                        shortage_days=s.outcome.days_in_shortage,
+                        summary=s.outcome.summary if hasattr(s.outcome, "summary") else "",
+                    )
+                )
                 lines.append(
                     f"- [{s.simulation_id[:8]}] {s.scenario_name} ({stype}): "
                     f"Peak Deficit={s.outcome.peak_bed_deficit} beds, Shortage={s.outcome.days_in_shortage} days"
                 )
 
+            summary_text = "\n".join(lines)
+            output_data = GetSimulationResultOutput(
+                simulations_count=len(sims),
+                summary=summary_text,
+                recent_runs=summaries,
+            )
+
             return ToolResult(
                 success=True,
-                data={"count": len(sims), "total": total, "simulations": [s.model_dump() for s in sims[:args.limit]]},
-                output_summary="\n".join(lines),
+                data=output_data,
+                output_summary=summary_text,
                 provenance_items=prov_items,
             )
 

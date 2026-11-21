@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 25 build steps shipped. All 245 backend tests pass, and the frontend production build is clean. The next step is multi-agent orchestration and specialized decision agents (Milestone 5, Chunk 5.2).
+**Status:** 26 build steps shipped. All 260 backend tests pass, and the frontend production build is clean. The next step is multi-agent orchestration and specialized decision agents (Milestone 5, Chunk 5.3).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -24,6 +24,7 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **RAG Answer Generation** | Grounded operational question answering with citation validation, 1-shot retry on hallucinated markers, non-clinical safety guardrails (`OUT_OF_SCOPE`), and interactive React workspace (`/knowledge`) |
 | **RAG Knowledge Assistant** | Dedicated full-screen operational assistant (`/knowledge/assistant`) with XSS-safe markdown rendering, bidirectional citation linking, dual-tier evidence inspector, token accounting, and in-memory tab-local session history |
 | **Agentic AI & Operations Analyst** | First bounded autonomous agent (`hospital_operations_analyst`) with 5 read-only tools across Knowledge, Forecasts, Simulations, and Optimizations, clinical scope guardrails, duplicate-call loop prevention, and interactive Agent Workbench (`/agents`) |
+| **Tool Schemas & Contracts** | Standardized, typed machine-readable tool contracts with dual pre/post Pydantic validation, Draft 2020-12 JSON Schema generation, OpenAI function calling export, semver tracking, permission-filtered tool discovery, and interactive UI schema inspector (`AgentToolsModal`) |
 | **Planned** | Multi-agent coordination, specialized cross-functional workflows, and human-in-the-loop operational committee orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.

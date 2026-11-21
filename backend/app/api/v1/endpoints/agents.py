@@ -1,25 +1,30 @@
 """
-HospitalOps AI — Agent Subsystem REST Endpoints (Milestone 5, Chunk 5.1).
+HospitalOps AI — Agent Subsystem REST Endpoints (Milestone 5, Chunks 5.1 & 5.2).
 
 Exposes:
 - POST /api/v1/agents/run : Bounded, evidence-grounded agent run execution
 - GET  /api/v1/agents/health : Subsystem readiness, registered tools, and provider status
+- GET  /api/v1/agents/tools : Discover authorized agent tools, categories, and JSON schemas
+- GET  /api/v1/agents/tools/{tool_id} : Get detailed tool contract and input/output JSON schemas
 - GET  /api/v1/agents : List registered agents
 - GET  /api/v1/agents/{agent_id} : Get specific agent metadata
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.agents.contracts import (
     AgentHealthResponse,
     AgentMetadata,
     AgentRunRequest,
     AgentRunResponse,
+    ToolCategory,
+    ToolDefinition,
 )
 from app.agents.runtime import AgentRuntime
 from app.api.dependencies import get_agent_runtime, require_permission
+from app.core.security import get_permissions_for_role
 from app.models.user import UserDocument
 from app.schemas.common import SuccessResponse
 
@@ -59,6 +64,66 @@ async def get_agent_health(
     """Inspect readiness of the agent framework, registered tools, and active provider."""
     health = await runtime.check_health()
     return SuccessResponse(data=health)
+
+
+@router.get(
+    "/tools",
+    response_model=SuccessResponse[list[ToolDefinition]],
+    status_code=status.HTTP_200_OK,
+    summary="Discover registered agent tools and schemas (Chunk 5.2)",
+)
+async def list_tools(
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.read"))],
+    runtime: Annotated[AgentRuntime, Depends(get_agent_runtime)],
+    category: Annotated[ToolCategory | None, Query(description="Filter by domain category")] = None,
+    tag: Annotated[str | None, Query(description="Filter by capability tag")] = None,
+    include_schemas: Annotated[bool, Query(description="Whether to include input/output JSON schemas")] = True,
+) -> SuccessResponse[list[ToolDefinition]]:
+    """
+    Discover all tools authorized for the authenticated caller.
+    Security: Tools for which the user lacks required RBAC permissions are strictly excluded.
+    """
+    user_perms = get_permissions_for_role(current_user.role)
+    tools = runtime.tool_registry.discover_tools(
+        user_permissions=user_perms,
+        category=category,
+        tag=tag,
+        include_schemas=include_schemas,
+    )
+    return SuccessResponse(data=tools)
+
+
+@router.get(
+    "/tools/{tool_id}",
+    response_model=SuccessResponse[ToolDefinition],
+    status_code=status.HTTP_200_OK,
+    summary="Get tool contract and schemas (Chunk 5.2)",
+)
+async def get_tool_detail(
+    tool_id: Annotated[str, Path(description="Tool identifier")],
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.read"))],
+    runtime: Annotated[AgentRuntime, Depends(get_agent_runtime)],
+) -> SuccessResponse[ToolDefinition]:
+    """
+    Retrieve full contract, metadata, and JSON Schemas for a specific tool.
+    Enforces permission boundary: unprivileged users are denied access with 403 Forbidden.
+    """
+    tool = runtime.tool_registry.get(tool_id)
+    if not tool:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tool '{tool_id}' not found.",
+        )
+
+    user_perms = get_permissions_for_role(current_user.role)
+    if tool.required_permission not in user_perms:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: you lack permission '{tool.required_permission}' required to inspect tool '{tool_id}'.",
+        )
+
+    definition = tool.get_definition(include_schemas=True)
+    return SuccessResponse(data=definition)
 
 
 @router.get(

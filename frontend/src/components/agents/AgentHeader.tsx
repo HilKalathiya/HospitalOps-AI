@@ -5,9 +5,14 @@ import { AgentHealthResponse } from '../../types/agents'
 interface AgentHeaderProps {
   health: AgentHealthResponse | null
   isLoadingHealth: boolean
+  onOpenToolsModal?: () => void
 }
 
-export const AgentHeader: React.FC<AgentHeaderProps> = ({ health, isLoadingHealth }) => {
+export const AgentHeader: React.FC<AgentHeaderProps> = ({
+  health,
+  isLoadingHealth,
+  onOpenToolsModal,
+}) => {
   const isReady = health?.status === 'ready'
   const isDegraded = health?.status === 'degraded'
 
@@ -66,11 +71,19 @@ export const AgentHeader: React.FC<AgentHeaderProps> = ({ health, isLoadingHealt
                 <span>{health?.model_name || 'default'}</span>
               </span>
 
-              {/* Authorized Tools Count */}
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-50 text-slate-700 border border-slate-200">
-                <Wrench className="w-3.5 h-3.5 text-slate-500" />
-                <span>{health?.registered_tools_count ?? 5} read-only tools</span>
-              </span>
+              {/* Authorized Tools Count & Schema Launcher */}
+              <button
+                type="button"
+                onClick={onOpenToolsModal}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 hover:border-teal-300 transition-colors cursor-pointer group"
+                title="Inspect Tool Schemas, Machine-Readable Contracts, and RBAC Boundaries (Chunk 5.2)"
+              >
+                <Wrench className="w-3.5 h-3.5 text-teal-600 group-hover:rotate-12 transition-transform" />
+                <span className="font-semibold">{health?.registered_tools_count ?? 5} Tools</span>
+                <span className="text-[10px] px-1 rounded bg-teal-200/70 text-teal-900 font-mono font-medium">
+                  Schemas
+                </span>
+              </button>
             </>
           )}
         </div>

@@ -8,7 +8,6 @@ EVALUATING_RESULTS -> GENERATING_FINAL_RESPONSE -> COMPLETED.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 import uuid
@@ -23,6 +22,7 @@ from app.agents.contracts import (
     ProvenanceItem,
     StopReason,
     ToolCallRecord,
+    ToolErrorCode,
 )
 from app.agents.planner import AgentPlanner
 from app.agents.policies import (
@@ -230,6 +230,7 @@ class AgentRuntime:
                             duration_ms=0.0,
                             output_summary=f"Tool '{tool_name}' is not in the registered allowlist.",
                             error_message="Unregistered tool requested.",
+                            error_code=ToolErrorCode.UNKNOWN_TOOL,
                         )
                     )
                     execution_history.append(
@@ -255,6 +256,8 @@ class AgentRuntime:
                             duration_ms=0.0,
                             output_summary=denial_reason or "Permission denied.",
                             error_message=denial_reason,
+                            error_code=ToolErrorCode.PERMISSION_DENIED,
+                            schema_version=tool.schema_version,
                         )
                     )
                     execution_history.append(
@@ -280,25 +283,19 @@ class AgentRuntime:
                             duration_ms=0.0,
                             output_summary="Duplicate identical tool call blocked by loop prevention policy.",
                             error_message="Repeated identical tool call.",
+                            schema_version=tool.schema_version,
                         )
                     )
                     stop_reason = StopReason.LIMIT_REACHED
                     break
 
-                # Execute authorized tool
+                # Execute authorized tool through standardized validation pipeline
                 import json
                 call_history.append((tool.name, json.dumps(decision.arguments, sort_keys=True, default=str)))
                 tool_calls_count += 1
 
-                t_start = time.perf_counter()
                 try:
-                    # Validate arguments against schema
-                    validated_args = tool.input_schema.model_validate(decision.arguments)
-                    result = await asyncio.wait_for(
-                        tool.execute(validated_args, tool_context),
-                        timeout=min(25.0, timeout_seconds),
-                    )
-                    t_dur = (time.perf_counter() - t_start) * 1000
+                    result = await tool.execute_with_validation(decision.arguments, tool_context)
 
                     # Accumulate citations and provenance
                     provenance_items.extend(result.provenance_items)
@@ -320,10 +317,12 @@ class AgentRuntime:
                             tool_name=tool.name,
                             reason=decision.reason,
                             arguments=decision.arguments,
-                            status="SUCCESS" if result.success else "FAILED",
-                            duration_ms=round(t_dur, 2),
+                            status=result.status if result.status else ("SUCCESS" if result.success else "FAILED"),
+                            duration_ms=result.duration_ms,
                             output_summary=result.output_summary[:800],
                             error_message=result.error_message,
+                            error_code=result.error.code if result.error else None,
+                            schema_version=result.schema_version,
                             sources_found=len(result.provenance_items),
                             provenance_ids=[p.id for p in result.provenance_items],
                         )
@@ -338,32 +337,8 @@ class AgentRuntime:
                         }
                     )
 
-                except TimeoutError:
-                    t_dur = (time.perf_counter() - t_start) * 1000
-                    logger.warning("Tool execution timed out | tool=%s", tool.name)
-                    tool_trace.append(
-                        ToolCallRecord(
-                            step_index=step_count,
-                            tool_name=tool.name,
-                            reason=decision.reason,
-                            arguments=decision.arguments,
-                            status="FAILED",
-                            duration_ms=round(t_dur, 2),
-                            output_summary="Tool execution timed out.",
-                            error_message="Tool execution timeout.",
-                        )
-                    )
-                    execution_history.append(
-                        {
-                            "tool_name": tool.name,
-                            "arguments": decision.arguments,
-                            "reason": decision.reason,
-                            "output_summary": "Error: Tool execution timed out.",
-                        }
-                    )
                 except Exception as exc:
-                    t_dur = (time.perf_counter() - t_start) * 1000
-                    logger.warning("Tool execution threw error | tool=%s err=%s", tool.name, exc)
+                    logger.warning("Tool execution threw unexpected error | tool=%s err=%s", tool.name, exc)
                     tool_trace.append(
                         ToolCallRecord(
                             step_index=step_count,
@@ -371,9 +346,11 @@ class AgentRuntime:
                             reason=decision.reason,
                             arguments=decision.arguments,
                             status="FAILED",
-                            duration_ms=round(t_dur, 2),
+                            duration_ms=0.0,
                             output_summary=f"Tool error: {exc}",
                             error_message=str(exc),
+                            error_code=ToolErrorCode.EXECUTION_FAILED,
+                            schema_version=tool.schema_version,
                         )
                     )
                     execution_history.append(

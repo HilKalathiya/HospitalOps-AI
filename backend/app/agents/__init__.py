@@ -1,8 +1,8 @@
 """
-HospitalOps AI — Agent Subsystem (Milestone 5, Chunk 5.1).
+HospitalOps AI — Agent Subsystem (Milestone 5, Chunks 5.1 & 5.2).
 
-Provides bounded, evidence-driven operational agents, typed tool registries,
-policy enforcement, and execution runtimes.
+Provides bounded, evidence-driven operational agents, standardized tool contracts,
+machine-readable schemas, policy enforcement, and execution runtimes.
 """
 
 from app.agents.contracts import (
@@ -13,11 +13,16 @@ from app.agents.contracts import (
     AgentRunOptions,
     AgentRunRequest,
     AgentRunResponse,
+    ExecutionType,
     PlannerDecision,
     ProvenanceCategory,
     ProvenanceItem,
     StopReason,
     ToolCallRecord,
+    ToolCategory,
+    ToolDefinition,
+    ToolErrorCode,
+    ToolExecutionError,
 )
 from app.agents.planner import AgentPlanner
 from app.agents.policies import AgentPolicyEnforcer
@@ -38,6 +43,11 @@ __all__ = [
     "AgentMetadata",
     "AgentHealthResponse",
     "PlannerDecision",
+    "ToolCategory",
+    "ExecutionType",
+    "ToolErrorCode",
+    "ToolExecutionError",
+    "ToolDefinition",
     "AgentPlanner",
     "AgentPolicyEnforcer",
     "AgentRegistry",

@@ -71,12 +71,14 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **3.3** | **Resource Optimization Engine (MIP)** | ✅ Complete | SciPy HiGHS MILP, multi-department surge beds & equipment allocation, counterfactual baseline, 159 tests passed (reconciles former M4 C4.1) |
 | | **3.4** | **Recommendation Explanation & Plan Review** | ✅ Complete | Deterministic explanation layer, objective deconstruction, constraint diagnostics, counterfactual baseline comparison, plan review workspace, 166 tests passed |
 | | **3.5** | **Unified Decision Workspace** | ✅ Complete | Unified simulation & optimization cockpit, parameter derivation adapter, 3-way decision matrix, provenance tracking, 174 tests passed |
-| **M4: Agentic AI & RAG** | **4.1** | **Document Ingestion Pipeline — RAG Knowledge Foundation** | ✅ Complete | Multi-format parsers (PDF, DOCX, MD, TXT, HTML), 10-stage pipeline, PHI/MIMIC quarantine boundary, structure-aware chunking, persistent ChromaDB, 15/15 tests passed |
+| **M4: Hospital Knowledge & RAG** | **4.1** | **Document Ingestion Pipeline — RAG Knowledge Foundation** | ✅ Complete | Multi-format parsers (PDF, DOCX, MD, TXT, HTML), 10-stage pipeline, PHI/MIMIC quarantine boundary, structure-aware chunking, persistent ChromaDB, 15/15 tests passed |
 | | **4.2** | **Semantic Vector Search & Knowledge Retrieval Engine** | ✅ Complete | Vector search over ChromaDB, space compatibility validation, server-side RBAC scoping, repository post-validation, provenance ranking, MRR=1.0, 28/28 tests passed (202 total) |
 | | **4.3** | **Retrieval API — RAG Context Retrieval & Assembly Layer** | ✅ Complete | Token-budget-aware context assembly, offline tiktoken cl100k_base counting, prompt boundary guard (<reference_content>), stable citations ([S1], [S2]), ordering strategies, 12/12 tests passed (214 total) |
 | | **4.4** | **RAG Answer Generation — Grounded Operational QA** | ✅ Complete | Grounded QA, citation validation, 1-shot retry, clinical safety guard, mock/live LLM provider, 15/15 tests passed (229 total) |
 | | **4.5** | **RAG UI — Dedicated Hospital Knowledge Assistant Workspace** | ✅ Complete | Dedicated full-screen cockpit (/knowledge/assistant), XSS-free safe markdown, bidirectional citation pills, dual-tier evidence inspector, token diagnostics, in-memory tab-local session history, 0 lint warnings |
-| | 4.6 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, tool-calling, autonomous operational workflows |
+| **M5: Agentic AI** | **5.1** | **First Agent: Hospital Operations Analyst Agent** | ✅ Complete | Autonomous decision intelligence agent (hospital_operations_analyst), 5 read-only domain tools, clinical scope guard, bounded lifecycle, execution trace, 16/16 tests passed (245 total) |
+| | **5.2** | **Tool Schemas & Standardized Tool Contracts** | ✅ Complete | Standardized Pydantic v2 schemas, Draft 2020-12 JSON Schema generation, OpenAI function calling export, semver tracking, permission-filtered tool discovery, interactive UI schema inspector, 15/15 tests passed (260 total) |
+| | 5.3 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, specialized cross-functional workflows, and operational committee orchestration |
 
 ---
 
@@ -652,4 +654,50 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `python -m ruff check backend`: 0 errors.
      - `npm --prefix frontend run lint`: 0 errors, 0 warnings.
      - `npm --prefix frontend run build`: Production build passes cleanly in 5.40s.
-* **Next Planned Work:** Milestone 5, Chunk 5.2 (Multi-Agent Orchestration & Decision Intelligence).
+* **Next Planned Work:** Milestone 5, Chunk 5.2 (Tool Schemas & Standardized Tool Contracts) — Completed.
+
+---
+
+## 19. Completed Workstream: Milestone 5, Chunk 5.2 (Tool Schemas & Standardized Tool Contracts)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Dual Pydantic Contract Architecture (`app.agents.contracts` & `app.agents.tools.base`):**
+     - Overhauled `AgentTool` base class with mandatory `input_schema: type[BaseModel]` and `output_schema: type[BaseModel]`.
+     - Standardized taxonomy: `ToolCategory` (KNOWLEDGE, FORECASTING, SIMULATION, OPTIMIZATION, OPERATIONS, SYSTEM), `ExecutionType` (READ_ONLY, WRITE), and `ToolErrorCode` (UNKNOWN_TOOL, INVALID_INPUT, UNSUPPORTED_SCHEMA_VERSION, PERMISSION_DENIED, TOOL_DISABLED, APPROVAL_REQUIRED, OUTPUT_VALIDATION_FAILED, EXECUTION_TIMEOUT, EXECUTION_FAILED, OUTPUT_LIMIT_EXCEEDED).
+     - Standard semver tracking (`schema_version: str = "1.0.0"`) and semver compatibility checking (`is_compatible_semver`).
+  2. **Deterministic Schema Generation & OpenAI Export:**
+     - Deterministic standard JSON Schema (Draft 2020-12) generated via Pydantic v2 `model_json_schema()`.
+     - OpenAI function calling format export: `{"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}`.
+  3. **Dual-Stage Execution & Boundary Validation (`execute_with_validation`):**
+     - Pre-execution input validation catches invalid or missing parameters, raising `ToolExecutionError(ToolErrorCode.INVALID_INPUT)`.
+     - Post-execution output validation guarantees service responses conform to `output_schema`, raising `ToolExecutionError(ToolErrorCode.OUTPUT_VALIDATION_FAILED)` upon failure.
+     - Centralized error mapping and structured `ToolResult` tracking execution status, schema version, duration, and error codes.
+  4. **Domain Tool Contracts Updated:**
+     - `search_hospital_knowledge`: Input `SearchHospitalKnowledgeInput`, Output `SearchHospitalKnowledgeOutput`.
+     - `answer_from_hospital_knowledge`: Input `AnswerFromHospitalKnowledgeInput`, Output `AnswerFromHospitalKnowledgeOutput`.
+     - `get_existing_forecast`: Input `GetExistingForecastInput`, Output `GetExistingForecastOutput` (with `ForecastPointOutput`).
+     - `get_simulation_result`: Input `GetSimulationResultInput`, Output `GetSimulationResultOutput` (with `SimulationRunSummary`).
+     - `get_optimization_explanation`: Input `GetOptimizationExplanationInput`, Output `GetOptimizationExplanationOutput` (with `OptimizationPlanSummary`).
+  5. **Permission-Aware Registry & Discovery Boundary:**
+     - `ToolRegistry.discover_tools(user_permissions)` strictly filters out unauthorized tools from discovery and inspection.
+     - Restrictive RBAC boundaries prevent unprivileged users from probing tool signatures.
+  6. **REST API Discovery Endpoints:**
+     - `GET /api/v1/agents/tools`: Filter by domain category, tag, or schema inclusion. Unauthorized tools are excluded.
+     - `GET /api/v1/agents/tools/{tool_id}`: Inspect tool details and schemas; returns HTTP 403 Forbidden for unauthorized tools and 404 for unknown tools.
+  7. **Frontend Tool Schemas & Contracts Inspector (`AgentToolsModal`):**
+     - Interactive modal launched from `/agents` header.
+     - Domain category filter pills (All, Knowledge, Forecasting, Simulation, Optimization).
+     - Search by tool ID, label, or tags.
+     - Read-only execution guarantee badge.
+     - Dual-tab Schema Inspector: "Input Schema (Arguments)" vs. "Output Schema (Contract)".
+     - Structured parameter table (Field, Type, Required/Optional, Description) and syntax-highlighted raw JSON Schema box with one-click copy.
+  8. **Architecture Decision Record:**
+     - Created `docs/decisions/ADR-014-standardized-agent-tool-schemas.md`.
+  9. **Verification & Testing:**
+     - 15 new tests in `backend/tests/test_agent_tools.py` covering metadata, schema generation, OpenAI export, input/output validation, registry filtering, semver checks, and REST endpoints.
+     - Full backend regression suite: 260 passed, 10 skipped, 0 failures.
+     - `python -m ruff check backend`: 0 lint errors.
+     - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
+     - `npm --prefix frontend run build`: Clean production build in 4.54s.
+* **Next Planned Work:** Milestone 5, Chunk 5.3 (Multi-Agent Orchestration & Decision Intelligence).

@@ -27,6 +27,54 @@ export type StopReason =
 
 export type ProvenanceCategory = 'KNOWLEDGE' | 'FORECAST' | 'SIMULATION' | 'OPTIMIZATION'
 
+export type ToolCategory =
+  | 'KNOWLEDGE'
+  | 'FORECASTING'
+  | 'SIMULATION'
+  | 'OPTIMIZATION'
+  | 'OPERATIONS'
+  | 'SYSTEM'
+
+export type ExecutionType = 'READ_ONLY' | 'WRITE'
+
+export type ToolErrorCode =
+  | 'UNKNOWN_TOOL'
+  | 'INVALID_INPUT'
+  | 'UNSUPPORTED_SCHEMA_VERSION'
+  | 'PERMISSION_DENIED'
+  | 'TOOL_DISABLED'
+  | 'APPROVAL_REQUIRED'
+  | 'OUTPUT_VALIDATION_FAILED'
+  | 'EXECUTION_TIMEOUT'
+  | 'EXECUTION_FAILED'
+  | 'OUTPUT_LIMIT_EXCEEDED'
+
+export interface JsonSchemaObject {
+  $schema?: string
+  title?: string
+  type?: string
+  description?: string
+  properties?: Record<string, Record<string, unknown>>
+  required?: string[]
+  [key: string]: unknown
+}
+
+export interface ToolDefinition {
+  tool_id: string
+  display_name: string
+  category: ToolCategory
+  execution_type: ExecutionType
+  schema_version: string
+  description: string
+  required_permissions: string[]
+  requires_approval: boolean
+  timeout_seconds: number
+  is_read_only: boolean
+  tags: string[]
+  input_schema_json?: JsonSchemaObject
+  output_schema_json?: JsonSchemaObject
+}
+
 export interface ProvenanceItem {
   category: ProvenanceCategory
   id: string
@@ -43,6 +91,8 @@ export interface ToolCallRecord {
   duration_ms: number
   output_summary: string
   error_message?: string | null
+  error_code?: ToolErrorCode | null
+  schema_version?: string
   sources_found: number
   provenance_ids: string[]
 }

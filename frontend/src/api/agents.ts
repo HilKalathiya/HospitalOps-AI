@@ -13,6 +13,7 @@ import {
   AgentMetadata,
   AgentRunRequest,
   AgentRunResponse,
+  ToolDefinition,
 } from '../types/agents'
 
 interface ApiResponse<T> {
@@ -58,6 +59,37 @@ export const agentApi = {
   async getAgentDetail(agentId: string): Promise<AgentMetadata> {
     const response = await apiClient.get<ApiResponse<AgentMetadata>>(
       `/agents/${agentId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Discover registered tools and their standardized contracts/schemas (Chunk 5.2).
+   */
+  async listTools(params?: {
+    category?: string
+    tag?: string
+    include_schemas?: boolean
+  }): Promise<ToolDefinition[]> {
+    const searchParams = new URLSearchParams()
+    if (params?.category) searchParams.set('category', params.category)
+    if (params?.tag) searchParams.set('tag', params.tag)
+    if (params?.include_schemas !== undefined) {
+      searchParams.set('include_schemas', String(params.include_schemas))
+    }
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    const response = await apiClient.get<ApiResponse<ToolDefinition[]>>(
+      `/agents/tools${query}`
+    )
+    return response.data
+  },
+
+  /**
+   * Retrieve full contract and input/output JSON schemas for a specific tool (Chunk 5.2).
+   */
+  async getToolDetail(toolId: string): Promise<ToolDefinition> {
+    const response = await apiClient.get<ApiResponse<ToolDefinition>>(
+      `/agents/tools/${toolId}`
     )
     return response.data
   },

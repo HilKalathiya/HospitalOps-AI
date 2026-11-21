@@ -13,6 +13,7 @@ import { AgentExecutionTimeline } from '../../components/agents/AgentExecutionTi
 import { AgentAnswerPanel } from '../../components/agents/AgentAnswerPanel'
 import { AgentProvenanceCards } from '../../components/agents/AgentProvenanceCards'
 import { AgentEmptyState } from '../../components/agents/AgentEmptyState'
+import { AgentToolsModal } from '../../components/agents/AgentToolsModal'
 
 export const AgentWorkbench: React.FC = () => {
   const [task, setTask] = useState('')
@@ -21,6 +22,7 @@ export const AgentWorkbench: React.FC = () => {
   const [health, setHealth] = useState<AgentHealthResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingHealth, setIsLoadingHealth] = useState(true)
+  const [isToolsModalOpen, setIsToolsModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -79,7 +81,11 @@ export const AgentWorkbench: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header with Title and Health Diagnostics */}
-      <AgentHeader health={health} isLoadingHealth={isLoadingHealth} />
+      <AgentHeader
+        health={health}
+        isLoadingHealth={isLoadingHealth}
+        onOpenToolsModal={() => setIsToolsModalOpen(true)}
+      />
 
       {/* Task Composer & Suggested Inquiry Quick-Picks */}
       <AgentTaskComposer
@@ -123,6 +129,12 @@ export const AgentWorkbench: React.FC = () => {
       ) : (
         !isLoading && <AgentEmptyState />
       )}
+
+      {/* Tool Schemas & Contracts Inspector Modal (Chunk 5.2) */}
+      <AgentToolsModal
+        isOpen={isToolsModalOpen}
+        onClose={() => setIsToolsModalOpen(false)}
+      />
     </div>
   )
 }
