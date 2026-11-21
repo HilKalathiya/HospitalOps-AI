@@ -211,7 +211,8 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
 | 3.4 | Recommendation Explanation & Plan Review | ✅ Complete |
 | 3.5 | Unified Simulation & Optimization Workspace | ✅ Complete |
-| 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
+| 4.1 | Document Ingestion Pipeline — RAG Knowledge Foundation | ✅ Complete |
+| 4.2 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 ---
 

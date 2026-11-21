@@ -30,6 +30,7 @@ from app.repositories.admissions import AdmissionsRepository
 from app.repositories.audit_logs import AuditLogsRepository
 from app.repositories.beds import BedsRepository
 from app.repositories.departments import DepartmentsRepository
+from app.repositories.knowledge import KnowledgeRepository
 from app.repositories.optimizations import OptimizationsRepository
 from app.repositories.patients import PatientsRepository
 from app.repositories.resources import ResourcesRepository
@@ -39,6 +40,7 @@ from app.services.admissions import AdmissionService
 from app.services.auth import AuthService
 from app.services.beds import BedService
 from app.services.forecast import ForecastService
+from app.services.knowledge import KnowledgeService
 from app.services.optimization import OptimizationService
 from app.services.patients import PatientService
 from app.services.resources import ResourceService
@@ -277,6 +279,19 @@ def get_forecast_service(
         admissions_repo=admissions_repo,
         capacity_repo=capacity_repo,
     )
+
+
+def get_optional_knowledge_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> KnowledgeRepository:
+    return KnowledgeRepository(db)
+
+
+def get_knowledge_service(
+    knowledge_repo: Annotated[KnowledgeRepository, Depends(get_optional_knowledge_repository)],
+    audit_repo: Annotated[AuditLogsRepository | None, Depends(get_optional_audit_log_repository)] = None,
+) -> KnowledgeService:
+    return KnowledgeService(knowledge_repo=knowledge_repo, audit_repo=audit_repo)
 
 
 

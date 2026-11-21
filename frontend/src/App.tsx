@@ -13,6 +13,7 @@ import { ResourcesPage } from './pages/Operations/ResourcesPage'
 import { PatientsPage } from './pages/Operations/PatientsPage'
 import { OptimizationReview } from './pages/Operations/OptimizationReview'
 import { DecisionWorkspace } from './pages/Decision/DecisionWorkspace'
+import { KnowledgeBase } from './pages/Knowledge/KnowledgeBase'
 import { UsersPage } from './pages/Administration/UsersPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
@@ -37,6 +38,8 @@ function App() {
                 <Route path="/optimizations" element={<OptimizationReview />} />
                 <Route path="/evaluation" element={<ModelEvaluation />} />
                 <Route path="/datasets" element={<DatasetCatalog />} />
+                <Route path="/knowledge" element={<KnowledgeBase />} />
+                <Route path="/knowledge-base" element={<Navigate to="/knowledge" replace />} />
                 
                 {/* Operations Routes */}
                 <Route path="/operations/beds" element={<BedsPage />} />

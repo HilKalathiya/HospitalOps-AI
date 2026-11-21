@@ -71,7 +71,8 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **3.3** | **Resource Optimization Engine (MIP)** | ✅ Complete | SciPy HiGHS MILP, multi-department surge beds & equipment allocation, counterfactual baseline, 159 tests passed (reconciles former M4 C4.1) |
 | | **3.4** | **Recommendation Explanation & Plan Review** | ✅ Complete | Deterministic explanation layer, objective deconstruction, constraint diagnostics, counterfactual baseline comparison, plan review workspace, 166 tests passed |
 | | **3.5** | **Unified Decision Workspace** | ✅ Complete | Unified simulation & optimization cockpit, parameter derivation adapter, 3-way decision matrix, provenance tracking, 174 tests passed |
-| **M4: Agentic AI & RAG** | 4.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | Tool calling, vector search, operational decision agents |
+| **M4: Agentic AI & RAG** | **4.1** | **Document Ingestion Pipeline — RAG Knowledge Foundation** | ✅ Complete | Multi-format parsers (PDF, DOCX, MD, TXT, HTML), 10-stage pipeline, PHI/MIMIC quarantine boundary, structure-aware chunking, persistent ChromaDB, 15/15 tests passed |
+| | 4.2 | Agentic AI Orchestration & RAG | ⬜ Planned | Multi-agent tool calling, vector search, operational decision agents |
 
 ---
 
@@ -378,4 +379,50 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full backend test suite: 174 passed, 10 skipped.
      - `ruff check backend`: 0 errors.
      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.1 (Agentic AI Orchestration & RAG).
+* **Next Planned Work:** Milestone 4, Chunk 4.2 (Agentic AI Orchestration & RAG).
+
+---
+
+## 9. Completed Workstream: Milestone 4, Chunk 4.1 (Document Ingestion Pipeline — RAG Knowledge Foundation)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **10-Stage Document Ingestion Pipeline (`backend/app/knowledge/pipeline.py`):**
+     - Sequentially executes `DOCUMENT_INPUT` ➔ `FILE_VALIDATION` ➔ `DOCUMENT_EXTRACTION` ➔ `CONTENT_CLEANING` ➔ `METADATA_EXTRACTION` ➔ `DOCUMENT_CHUNKING` ➔ `PRIVACY_VALIDATION` ➔ `EMBEDDING_GENERATION` ➔ `VECTOR_INDEXING` ➔ `COMPLETED`.
+     - Sub-millisecond stage duration tracking, status recording, and comprehensive error containment with rollback safety.
+  2. **Multi-Format Extraction (`backend/app/knowledge/extractors/`):**
+     - PDF extraction with page-level tracking via `pypdf`, detecting scanned empty PDFs lacking text layers (`requires_ocr = True`).
+     - DOCX extraction via `python-docx` preserving headings (`#`, `##`, `###`) and formatting tables as Markdown tables (`| col1 | col2 |`).
+     - Markdown and plain text extraction with encoding fallbacks (`utf-8`, `latin-1`).
+     - HTML extraction via `BeautifulSoup4` stripping scripts/styles/nav/footers and converting tables to Markdown.
+  3. **Content Cleaning & Clinical Preservation (`backend/app/knowledge/cleaners.py`):**
+     - Unicode NFKC normalization, whitespace cleanup, while strictly preserving medical notations (`SpO2: 98%`, `pH: 7.35-7.45`, `p < 0.05`, `ICU-A`).
+  4. **Healthcare Privacy & PHI Quarantine Boundary (`backend/app/knowledge/privacy.py`):**
+     - Automatic regex and pattern scanning for Protected Health Information (SSNs, MRNs, phone numbers, patient DOBs) and MIMIC-IV keys (`hadm_id`, `subject_id`, `stay_id`).
+     - Documents violating clinical privacy boundaries are quarantined and blocked from vector indexing.
+  5. **Structure-Aware Chunking (`backend/app/knowledge/chunkers.py`):**
+     - Partitions along structural boundaries (headings, paragraphs, atomic tables) with configurable target tokens (default: 512), max tokens (800), and sliding overlap (64).
+     - Generates deterministic chunk IDs (`{doc_id}_v{version}_c{idx}`) with section headings, token counts, and page markers.
+  6. **Vector Persistence & Embeddings (`backend/app/knowledge/vectorstore/`, `embedders/`):**
+     - Persistent on-disk vector store via **ChromaDB** (`hospitalops_knowledge` collection) with exact metadata filtering and version isolation.
+     - Fast deterministic 384-dimensional dense vector embedder (`LocalDeterministicEmbedder`) for offline development/CI, and `SentenceTransformerEmbedder` (`all-MiniLM-L6-v2`).
+  7. **Document Versioning & Deduplication (`backend/app/services/knowledge.py`):**
+     - SHA-256 content hashing detects exact duplicates (`is_duplicate = True`).
+     - Automatic incremental versioning ($v1 \to v2 \dots$) for updated documents with atomic activation and previous version retention.
+     - Document reindexing endpoint with custom chunk parameters.
+  8. **Hospital Knowledge Base Interface (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`):**
+     - Mounted at `/knowledge`, integrated into sidebar navigation (`BookOpen` icon).
+     - Features KPI stat cards (documents, chunks, tokens, storage, privacy guard), search & filters, file upload modal (drag-and-drop), chunk inspector drawer, and 10-stage pipeline telemetry drawer.
+  9. **REST API & RBAC:**
+     - `POST /api/v1/knowledge/documents/upload` (requires `knowledge.manage`).
+     - `GET /api/v1/knowledge/documents` (requires `knowledge.read`).
+     - `GET /api/v1/knowledge/documents/{id}/chunks` (requires `knowledge.read`).
+     - `POST /api/v1/knowledge/documents/{id}/reindex` (requires `knowledge.manage`).
+     - `DELETE /api/v1/knowledge/documents/{id}` (requires `knowledge.manage`).
+     - `GET /api/v1/knowledge/stats` and `/categories` (requires `knowledge.read`).
+  10. **Verification & Testing:**
+      - 15 dedicated unit and API tests in `backend/tests/test_knowledge_ingestion.py` covering all extractors, cleaners, privacy scanners, chunking, embeddings, ChromaDB CRUD, pipeline execution, deduplication/versioning, and RBAC.
+      - 189 tests in full test suite (179 passed, 10 skipped).
+      - `ruff check backend`: 0 errors.
+      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
+* **Next Planned Work:** Milestone 4, Chunk 4.2 (Agentic AI Orchestration & RAG).

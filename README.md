@@ -448,6 +448,39 @@ HospitalOps AI unifies prospective simulation, scenario modeling, and constraine
 
 ---
 
+## Hospital Knowledge & RAG Ingestion Pipeline (Chunk 4.1)
+
+HospitalOps AI establishes a production-quality, modular document ingestion pipeline that transforms approved hospital documentation into structured, versioned, embedded, and indexed knowledge for Retrieval-Augmented Generation (RAG):
+- **10-Stage Pipeline Lifecycle:**
+  - Sequentially executes `DOCUMENT_INPUT` ➔ `FILE_VALIDATION` ➔ `DOCUMENT_EXTRACTION` ➔ `CONTENT_CLEANING` ➔ `METADATA_EXTRACTION` ➔ `DOCUMENT_CHUNKING` ➔ `PRIVACY_VALIDATION` ➔ `EMBEDDING_GENERATION` ➔ `VECTOR_INDEXING` ➔ `COMPLETED` with sub-millisecond stage telemetry tracking.
+- **Multi-Format Document Parsing:**
+  - High-fidelity extraction supporting PDF (`pypdf`), DOCX (`python-docx`), Markdown, Plain Text, and HTML (`BeautifulSoup4`).
+  - Automatically converts Word and HTML tables into markdown tables (`| Col1 | Col2 |`) to retain relational context across chunk boundaries.
+  - Detects scanned PDFs without extractable text layers to flag `requires_ocr`.
+- **Healthcare Privacy & PHI Quarantine Boundary:**
+  - Automatically scans extracted text for Protected Health Information (PHI) and clinical dataset keys (MRNs, SSNs, phone numbers, MIMIC-IV `hadm_id`, `subject_id`, `stay_id`).
+  - Documents violating healthcare privacy boundaries are quarantined and blocked from vector indexing.
+- **Structure-Aware Chunking & Vector Persistence:**
+  - Breaks text along structural boundaries (headings `#`, `##`, `###`, paragraphs, atomic tables) with configurable target token counts (default: 512) and sliding overlap (default: 64).
+  - Emits deterministic chunk identifiers (`{doc_id}_v{version}_c{idx}`) with section headings, token counts, and page markers.
+  - Persistent on-disk vector storage via **ChromaDB** (`hospitalops_knowledge` collection) with exact metadata filtering by document, version, category, and access level.
+- **Deterministic Offline Embedding Architecture:**
+  - Modular `EmbeddingProvider` protocol with default `LocalDeterministicEmbedder` (fast, 100% offline, 384-dimensional L2-normalized dense vector generation) and optional `SentenceTransformerEmbedder` (`all-MiniLM-L6-v2`).
+- **Deduplication & Atomic Document Versioning:**
+  - SHA-256 content hashing detects exact duplicates (`is_duplicate = True`).
+  - Re-uploading an existing document creates and increments versions ($v1 \to v2 \dots$) with atomic activation and rollback safety.
+- **Hospital Knowledge Base UI (`/knowledge`):**
+  - Dedicated React management cockpit (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`) with catalog search/filtering, KPI metric cards, document upload modal (drag-and-drop), chunk inspector drawer, and 10-stage pipeline telemetry drawer.
+- **REST Endpoints & RBAC:**
+  - `POST /api/v1/knowledge/documents/upload` (requires `knowledge.manage`).
+  - `GET /api/v1/knowledge/documents` (requires `knowledge.read`).
+  - `GET /api/v1/knowledge/documents/{id}/chunks` (requires `knowledge.read`).
+  - `POST /api/v1/knowledge/documents/{id}/reindex` (requires `knowledge.manage`).
+  - `DELETE /api/v1/knowledge/documents/{id}` (requires `knowledge.manage`).
+  - `GET /api/v1/knowledge/stats` and `/categories` (requires `knowledge.read`).
+
+---
+
 ## Environment Configuration
 
 Copy `.env.example` to `.env` and configure:

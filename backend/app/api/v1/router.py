@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     beds,
     forecast,
     health,
+    knowledge,
     optimization,
     patients,
     resources,
@@ -85,4 +86,10 @@ v1_router.include_router(
     optimization.router,
     prefix="/decision",
     tags=["decision"],
+)
+
+v1_router.include_router(
+    knowledge.router,
+    prefix="/knowledge",
+    tags=["knowledge"],
 )

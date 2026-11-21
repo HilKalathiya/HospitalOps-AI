@@ -343,6 +343,36 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── knowledge_documents ───────────────────────────────────────────────────
+    # document_id: unique identifier
+    # content_hash: deduplication check
+    # category & access_level: filtering
+    await db["knowledge_documents"].create_indexes(
+        [
+            IndexModel([("document_id", ASCENDING)], unique=True, name="doc_id_unique"),
+            IndexModel([("content_hash", ASCENDING)], name="doc_hash"),
+            IndexModel([("category", ASCENDING)], name="doc_category"),
+            IndexModel([("access_level", ASCENDING)], name="doc_access_level"),
+            IndexModel([("created_at", DESCENDING)], name="doc_created_at"),
+        ]
+    )
+
+    # ── knowledge_document_versions ───────────────────────────────────────────
+    await db["knowledge_document_versions"].create_indexes(
+        [
+            IndexModel([("version_id", ASCENDING)], unique=True, name="ver_id_unique"),
+            IndexModel([("document_id", ASCENDING), ("version", ASCENDING)], unique=True, name="doc_ver_unique"),
+        ]
+    )
+
+    # ── knowledge_ingestion_runs ──────────────────────────────────────────────
+    await db["knowledge_ingestion_runs"].create_indexes(
+        [
+            IndexModel([("ingestion_id", ASCENDING)], unique=True, name="ing_id_unique"),
+            IndexModel([("document_id", ASCENDING)], name="ing_doc_id"),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 

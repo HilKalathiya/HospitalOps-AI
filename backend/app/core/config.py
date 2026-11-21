@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = "sqlite:///backend/ml/mlflow.db"
     mlflow_experiment_name: str = "hospitalops-forecasting"
 
+    # ── Knowledge Ingestion & Vector Store ────────────────────────────────────
+    knowledge_storage_dir: str = "backend/data/knowledge/documents"
+    chromadb_dir: str = "backend/data/knowledge/chroma"
+    embedding_provider: Literal["local_deterministic", "sentence_transformers"] = "local_deterministic"
+    embedding_model_name: str = "all-MiniLM-L6-v2"
+    max_upload_size_bytes: int = 25 * 1024 * 1024  # 25 MB
+
     # ── Computed properties ───────────────────────────────────────────────────
     @property
     def cors_origins_list(self) -> list[str]:
