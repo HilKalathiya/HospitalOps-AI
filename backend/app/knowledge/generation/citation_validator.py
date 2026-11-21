@@ -89,6 +89,7 @@ class CitationValidator:
                             similarity_score=block.similarity_score if block else None,
                             category=block.category if block else None,
                             access_level=block.access_level if block else None,
+                            excerpt=block.content if block else None,
                         )
                     )
 
@@ -133,6 +134,7 @@ class CitationValidator:
                     similarity_score=block.similarity_score if block else None,
                     category=block.category if block else None,
                     access_level=block.access_level if block else None,
+                    excerpt=block.content if block else None,
                 )
             )
         return refs

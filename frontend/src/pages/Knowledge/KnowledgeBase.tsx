@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   BookOpen,
   UploadCloud,
@@ -31,6 +32,7 @@ import {
   AlignLeft,
   Info,
   Bot,
+  ArrowUpRight,
 } from 'lucide-react'
 import {
   knowledgeApi,
@@ -1942,9 +1944,33 @@ export const KnowledgeBase: React.FC = () => {
           </div>
         )}
 
-        {/* ── TAB 4: RAG ANSWER ASSISTANT (Chunk 4.4) ────────────────────── */}
+        {/* ── TAB 4: RAG ANSWER ASSISTANT (Chunk 4.4 / 4.5) ────────────────────── */}
         {activeTab === 'assistant' && (
           <div className="space-y-6">
+            {/* Dedicated Assistant Launchpad Banner (Chunk 4.5) */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#9ba8ff]/15 via-[#9ba8ff]/8 to-transparent border border-[#9ba8ff]/30 flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-[#9ba8ff]" />
+                  <span className="text-sm font-semibold text-[#f0f0f3]">
+                    Dedicated Knowledge Assistant Workspace Available (Chunk 4.5)
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#9ba8ff]/20 text-[#c2cbff] border border-[#9ba8ff]/30">
+                    NEW
+                  </span>
+                </div>
+                <p className="text-xs text-[#dedee1]">
+                  Access the full-screen dual-column workspace with interactive citation inspector, in-memory session history, and rich telemetry.
+                </p>
+              </div>
+              <Link
+                to="/knowledge/assistant"
+                className="px-4 py-2 rounded-lg bg-[#9ba8ff] hover:bg-[#8898ff] text-[#131315] font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm select-none"
+              >
+                <span>Launch Dedicated Workspace</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
             {/* System Status / Health Bar */}
             <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">

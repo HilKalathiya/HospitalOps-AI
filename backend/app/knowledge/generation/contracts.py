@@ -119,6 +119,7 @@ class CitationReference(HospitalOpsBaseModel):
     similarity_score: float | None = None
     category: DocumentCategory | None = None
     access_level: AccessLevel | None = None
+    excerpt: str | None = Field(default=None, description="Excerpt of the chunk content for evidence inspection")
 
     def model_post_init(self, __context: Any) -> None:
         if not self.marker and self.citation_marker:

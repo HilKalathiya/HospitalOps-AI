@@ -75,7 +75,8 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **4.2** | **Semantic Vector Search & Knowledge Retrieval Engine** | ✅ Complete | Vector search over ChromaDB, space compatibility validation, server-side RBAC scoping, repository post-validation, provenance ranking, MRR=1.0, 28/28 tests passed (202 total) |
 | | **4.3** | **Retrieval API — RAG Context Retrieval & Assembly Layer** | ✅ Complete | Token-budget-aware context assembly, offline tiktoken cl100k_base counting, prompt boundary guard (<reference_content>), stable citations ([S1], [S2]), ordering strategies, 12/12 tests passed (214 total) |
 | | **4.4** | **RAG Answer Generation — Grounded Operational QA** | ✅ Complete | Grounded QA, citation validation, 1-shot retry, clinical safety guard, mock/live LLM provider, 15/15 tests passed (229 total) |
-| | 4.5 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, tool-calling, autonomous operational workflows |
+| | **4.5** | **RAG UI — Dedicated Hospital Knowledge Assistant Workspace** | ✅ Complete | Dedicated full-screen cockpit (/knowledge/assistant), XSS-free safe markdown, bidirectional citation pills, dual-tier evidence inspector, token diagnostics, in-memory tab-local session history, 0 lint warnings |
+| | 4.6 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, tool-calling, autonomous operational workflows |
 
 ---
 
@@ -549,4 +550,52 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full regression test suite: 229 passed, 10 skipped, 0 failures.
      - `ruff check backend`: 0 errors.
      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.5 (Multi-Agent Orchestration & Decision Intelligence).
+* **Next Planned Work:** Milestone 4, Chunk 4.5 (RAG UI — Dedicated Hospital Knowledge Assistant Workspace) — Completed.
+
+---
+
+## 17. Completed Workstream: Milestone 4, Chunk 4.5 (RAG UI — Dedicated Hospital Knowledge Assistant Workspace)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Dedicated Workspace Architecture & Routing:**
+     - Registered `/knowledge/assistant` (primary) and `/knowledge-assistant` (alias) in `App.tsx`.
+     - Integrated `Knowledge assistant` into the main navigation `Sidebar.tsx` with a `Bot` icon.
+     - Added direct launcher banner from Tab 4 of `KnowledgeBase.tsx` to launch the dedicated workspace.
+     - Supported URL search query parameter `?q=...` for seamless cross-module deep-linking.
+  2. **Live Readiness & Diagnostic Header (`AssistantHeader`):**
+     - Live subsystem health query to `GET /api/v1/knowledge/answer/health` displaying active LLM provider, underlying model, and indexed knowledge chunks.
+     - Visible non-clinical operational advisory banner: *"Operational Decision Support Only — Not for clinical diagnosis or direct patient management"*.
+     - Session query count badge and toggle button for the in-memory history drawer.
+  3. **Multi-line Question Composer & Operational Suggestions (`QuestionComposer`, `SuggestedQuestions`):**
+     - Auto-resizing textarea with 500-character boundary counter, keyboard triggers (`Enter` to submit, `Shift+Enter` for newline), clear button, and input retention on error.
+     - Curated operational suggested queries across four operational domains: Bed Allocation, Surge Protocols, Equipment Maintenance, and Regulatory Compliance.
+  4. **Collapsible Advanced Search Settings (`AdvancedSearchSettings`):**
+     - Accordion drawer with one-click "Reset to Defaults".
+     - Controls for `Top-K` (1–20), `Token Budget` (500–8,000), `Max Sources` (1–10), `Category Scope`, `Access Level Scope`, `Temperature` (0.0–1.0), and `Require Citations`.
+     - Strict RBAC: no simulated role elevation controls in the UI.
+  5. **Safe Markdown Rendering with Embedded Citations (`SafeMarkdownAnswer`):**
+     - Custom, XSS-free React node parser operating without `dangerouslySetInnerHTML`.
+     - Renders headings, bold text, code blocks, bullet/numbered lists, and tables.
+     - Dynamically compiles bracketed citation markers `[S#]` into interactive `<CitationPill>` elements.
+  6. **Interactive Dual-Tier Citation Evidence Inspector (`CitationEvidencePanel`):**
+     - Dual-tab view: "Cited in Answer" vs. "All Retrieved Candidates".
+     - Smooth scroll and highlight synchronization when clicking `[S#]` citation pills.
+     - Quick filter pill (`[S1] ✕`) to isolate specific sources.
+     - Expandable excerpt toggle displaying exact source text passages populated from `CitationReference.excerpt`.
+  7. **Generation Metadata & Diagnostics Drawer (`GenerationMetadataPanel`):**
+     - Expandable telemetry inspector detailing model identifier, provider type, prompt version, latency breakdown (retrieval vs. LLM generation), token usage (context vs. completion), and citation validation counts.
+  8. **In-Memory Tab-Local Session History Drawer (`SessionHistoryDrawer`):**
+     - Ephemeral session history stored strictly in React component state (holds up to 25 inquiries).
+     - Zero `localStorage` or `sessionStorage` footprint, preventing sensitive facility query leakage on shared hospital terminals.
+     - 1-click restore to reload past questions and answers.
+  9. **Backend Contract Alignment (`contracts.py`, `citation_validator.py`):**
+     - Added `excerpt: str | None = Field(default=None)` to `CitationReference`.
+     - `CitationValidator` automatically populates the excerpt string from retrieved context blocks for both verified citations and candidates.
+  10. **Verification & Testing:**
+      - 15/15 answer generation tests passing in `backend/tests/test_knowledge_answer.py`.
+      - Full backend test suite: 229 passed, 10 skipped, 0 failures.
+      - `ruff check backend`: 0 errors.
+      - `npm run lint` (frontend): 0 warnings, 0 errors.
+      - `npm run build` (frontend): Built cleanly in 4.82s.
+* **Next Planned Work:** Milestone 4, Chunk 4.6 (Multi-Agent Orchestration & Decision Intelligence).

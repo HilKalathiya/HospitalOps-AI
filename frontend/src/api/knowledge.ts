@@ -368,6 +368,8 @@ export interface CitationReference {
   source_reference: string
   similarity_score: number
   excerpt: string
+  category?: DocumentCategory | null
+  access_level?: AccessLevel | null
 }
 
 export interface RetrievalSummary {
@@ -375,6 +377,7 @@ export interface RetrievalSummary {
   retrieval_status: string
   candidate_count: number
   selected_chunks_count: number
+  skipped_count?: number
   context_tokens_used: number
   retrieval_duration_ms: number
 }
@@ -407,6 +410,7 @@ export interface KnowledgeAnswerResponse {
   retrieved_sources: CitationReference[]
   limitations: string[]
   conflicts_detected: string[]
+  follow_up_questions?: string[]
   is_clinical_query: boolean
   clinical_disclaimer?: string | null
   metadata: GenerationMetadata

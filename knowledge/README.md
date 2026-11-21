@@ -1,4 +1,4 @@
-# HospitalOps AI — Hospital Knowledge, Retrieval & RAG Answer Generation (Chunks 4.1, 4.2, 4.3 & 4.4)
+# HospitalOps AI — Hospital Knowledge, Retrieval & RAG Answer Generation (Chunks 4.1, 4.2, 4.3, 4.4 & 4.5)
 
 ## Overview
 
@@ -215,6 +215,68 @@ Evaluated across an operational benchmark corpus:
    - Clickable citation pills `[S1]`, `[S2]` that scroll to and highlight cited source chunks.
    - Split evidence panel distinguishing chunks cited in the answer from other retrieved candidates.
    - Telemetry footer displaying model, provider, generation latency, retrieval time, tokens used, and prompt version.
+
+---
+
+## Dedicated Hospital Knowledge Assistant Workspace (Chunk 4.5)
+
+To provide an operational cockpit tailored for hospital leadership, directors, and triage managers, HospitalOps AI includes a dedicated, full-screen Knowledge Assistant at `/knowledge/assistant` (with `/knowledge-assistant` redirect).
+
+### Key Workspace Capabilities:
+
+1. **Dedicated Navigation & Deep-Linking (`/knowledge/assistant`)**:
+   - Direct sidebar access with `Knowledge assistant` and `Bot` icon.
+   - Integrated launchpad banner in `/knowledge` Tab 4 linking directly to the full cockpit.
+   - Query string deep-linking (`?q=...`) enabling cross-workflow navigation from other modules.
+
+2. **Real-time Pipeline Health Diagnostics (`AssistantHeader`)**:
+   - Queries `GET /api/v1/knowledge/answer/health` to display live operational readiness badges (`Ready` / `Degraded` / `Unavailable`).
+   - Surfaces active LLM provider, underlying model identifier, and total indexed knowledge chunk count.
+   - Displays persistent non-clinical operational advisory banner.
+
+3. **Multi-line Question Composer & Operational Suggestions (`QuestionComposer`, `SuggestedQuestions`)**:
+   - Auto-resizing textarea with 500-character counter.
+   - Keyboard shortcuts: `Enter` to submit, `Shift+Enter` for multi-line inputs.
+   - Preserves draft query upon error or retry.
+   - Categorized operational question quick-pickers:
+     - *Bed Allocation:* "What are the escalation triggers for activating surge beds in the ICU?"
+     - *Surge Protocols:* "What is the procedure for redirecting incoming emergency ambulances during high occupancy?"
+     - *Equipment Maintenance:* "How frequently must backup oxygen concentrators be inspected and recertified?"
+     - *Regulatory Compliance:* "What documentation is required prior to transferring a patient to step-down care?"
+
+4. **Advanced Retrieval Parameter Tuning (`AdvancedSearchSettings`)**:
+   - Collapsible accordion with one-click "Reset to Defaults".
+   - Granular controls for:
+     - `Top-K` chunks (1 to 20)
+     - `Token Budget` (500 to 8,000 tokens)
+     - `Max Sources` to cite (1 to 10)
+     - `Category Scope` (All or specific document categories)
+     - `Access Level Scope` (Public, Internal, Restricted, Confidential)
+     - `Temperature` (0.0 to 1.0)
+     - `Require Citations` toggle
+
+5. **Safe Markdown Rendering with Embedded Citations (`SafeMarkdownAnswer`)**:
+   - Custom, XSS-free React node parser operating without `dangerouslySetInnerHTML`.
+   - Safely compiles markdown elements (headings, bold, lists, code, tables).
+   - Dynamically parses bracketed citation markers `[S#]` into interactive `<CitationPill>` elements.
+
+6. **Interactive Dual-Tier Citation Evidence Inspector (`CitationEvidencePanel`)**:
+   - Dual-tab interface:
+     - **Cited in Answer:** Exact sources cited via `[S#]` markers in the generated response.
+     - **All Retrieved Candidates:** Full context blocks retrieved within the token budget.
+   - Clicking any `[S#]` pill in the answer scrolls to and highlights the corresponding source card.
+   - Filter pill (`[S1] ✕`) to isolate a single citation.
+   - Expandable passage excerpts for instant inspection of exact source sentences.
+
+7. **Generation Diagnostics & Token Accounting (`GenerationMetadataPanel`)**:
+   - Expandable drawer detailing latency breakdown (retrieval vs. LLM generation).
+   - Token accounting: context tokens, completion tokens, and prompt versioning.
+   - Citation metrics: total citations, verified markers, and ungrounded markers stripped.
+
+8. **In-Memory Session History Drawer (`SessionHistoryDrawer`)**:
+   - Browser tab-local session history holding up to 25 queries and responses in React state.
+   - Strictly zero `localStorage` / `sessionStorage` footprint to prevent data leakage on shared clinical workstations.
+   - 1-click restoration of previous inquiries and responses.
 
 ---
 
