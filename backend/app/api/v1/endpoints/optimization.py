@@ -13,7 +13,11 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.api.dependencies import get_optimization_service, require_permission
 from app.core.request_context import get_request_id
-from app.models.optimization import OptimizationRequest, OptimizationResponse
+from app.models.optimization import (
+    OptimizationExplanationResponse,
+    OptimizationRequest,
+    OptimizationResponse,
+)
 from app.models.user import UserDocument
 from app.schemas.common import PaginationMeta, ResponseMeta, SuccessResponse
 from app.services.optimization import OptimizationService
@@ -111,3 +115,25 @@ async def get_optimization_run_by_id(
     """Retrieves an optimization run by run_id."""
     run = await service.get_optimization(run_id)
     return SuccessResponse(data=run)
+
+
+@router.get(
+    "/runs/{run_id}/explanation",
+    response_model=SuccessResponse[OptimizationExplanationResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get recommendation explanation for an optimization run",
+    description=(
+        "Retrieves a transparent, mathematically grounded explanation for why specific surge bed "
+        "and equipment allocations were recommended, which constraints were binding, how the plan "
+        "compares with baseline, and the trade-offs evaluated."
+    ),
+)
+async def get_optimization_run_explanation(
+    run_id: str,
+    current_user: Annotated[UserDocument, Depends(require_permission("optimization.read"))],
+    service: Annotated[OptimizationService, Depends(get_optimization_service)],
+) -> SuccessResponse[OptimizationExplanationResponse]:
+    """Retrieves the recommendation explanation package for an optimization run (Chunk 3.4)."""
+    explanation_resp = await service.get_optimization_explanation(run_id)
+    meta = ResponseMeta(request_id=get_request_id())
+    return SuccessResponse(data=explanation_resp, meta=meta)

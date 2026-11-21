@@ -1,7 +1,11 @@
 import logging
 
 import pandas as pd
-from prophet import Prophet
+
+try:
+    from prophet import Prophet
+except ImportError:
+    Prophet = None
 
 from app.ml.contracts.model import ForecastModel
 
@@ -18,14 +22,17 @@ class ProphetForecastModel(ForecastModel):
         self.model = None
 
         # Suppress Prophet's very noisy stdout logging
-        logging.getLogger("prophet").setLevel(logging.ERROR)
-        logging.getLogger("cmdstanpy").disabled = True
+        if Prophet is not None:
+            logging.getLogger("prophet").setLevel(logging.ERROR)
+            logging.getLogger("cmdstanpy").disabled = True
 
     def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
         """
         Fits the Prophet model.
         Prophet requires a DataFrame with 'ds' and 'y' columns.
         """
+        if Prophet is None:
+            raise ImportError("Prophet is not installed or available.")
         if self.time_column not in X_train.columns:
             raise ValueError(f"Time column '{self.time_column}' is missing from X_train.")
 

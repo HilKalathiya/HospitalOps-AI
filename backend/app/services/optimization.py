@@ -16,6 +16,7 @@ from app.models.audit_log import ActorType, AuditLogCreate
 from app.models.optimization import (
     BaselineComparison,
     DepartmentDemandInput,
+    OptimizationExplanationResponse,
     OptimizationParameters,
     OptimizationRequest,
     OptimizationResponse,
@@ -25,6 +26,7 @@ from app.models.optimization import (
     ResourceRequirementInput,
 )
 from app.models.user import UserDocument
+from app.optimization.explanation import OptimizationExplanationGenerator
 from app.optimization.problem import OptimizationProblemBuilder
 from app.optimization.solver import ScipyMilpSolver
 from app.optimization.validator import SolutionValidator
@@ -327,6 +329,16 @@ class OptimizationService:
         )
 
         run_id = f"OPT-{uuid.uuid4().hex[:8].upper()}"
+
+        # Generate evidence-based explanation package (Chunk 3.4)
+        explanation = OptimizationExplanationGenerator.generate(
+            run_id=run_id,
+            params=params,
+            result=result,
+            problem=problem,
+        )
+        result.explanation = explanation
+
         doc = OptimizationRunDocument(
             run_id=run_id,
             plan_name=request.plan_name,
@@ -377,35 +389,55 @@ class OptimizationService:
 
     async def get_optimization(self, run_id: str) -> OptimizationResponse:
         """Retrieves a historical optimization plan by run_id."""
+        doc: OptimizationRunDocument | None = None
         if run_id in self._session_runs:
             doc = self._session_runs[run_id]
-            return OptimizationResponse(
-                run_id=doc.run_id,
-                plan_name=doc.plan_name,
-                parameters=doc.parameters,
-                result=doc.result,
-                created_by=doc.created_by,
-                created_at=doc.created_at,
-            )
-
-        if self.optimizations_repo:
+        elif self.optimizations_repo:
             try:
                 doc = await self.optimizations_repo.find_by_id(run_id)
-                if doc and hasattr(doc, "run_id") and isinstance(doc.run_id, str):
-                    return OptimizationResponse(
-                        run_id=doc.run_id,
-                        plan_name=doc.plan_name,
-                        parameters=doc.parameters,
-                        result=doc.result,
-                        created_by=doc.created_by,
-                        created_at=doc.created_at,
-                    )
             except Exception as e:
                 logger.debug("Error querying optimizations_repo: %s", e)
 
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Optimization run '{run_id}' not found.",
+        if not doc or not hasattr(doc, "run_id") or not isinstance(doc.run_id, str):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Optimization run '{run_id}' not found.",
+            )
+
+        # Backwards compatibility: generate explanation if missing from older runs
+        if doc.result.explanation is None:
+            doc.result.explanation = OptimizationExplanationGenerator.generate(
+                run_id=doc.run_id,
+                params=doc.parameters,
+                result=doc.result,
+            )
+
+        return OptimizationResponse(
+            run_id=doc.run_id,
+            plan_name=doc.plan_name,
+            parameters=doc.parameters,
+            result=doc.result,
+            created_by=doc.created_by,
+            created_at=doc.created_at,
+        )
+
+    async def get_optimization_explanation(
+        self, run_id: str
+    ) -> OptimizationExplanationResponse:
+        """Retrieves the evidence-based explanation package for an optimization run (Chunk 3.4)."""
+        run = await self.get_optimization(run_id)
+        if run.result.explanation is None:
+            run.result.explanation = OptimizationExplanationGenerator.generate(
+                run_id=run.run_id,
+                params=run.parameters,
+                result=run.result,
+            )
+
+        return OptimizationExplanationResponse(
+            run_id=run.run_id,
+            plan_name=run.plan_name,
+            explanation=run.result.explanation,
+            created_at=run.created_at,
         )
 
     async def list_optimizations(

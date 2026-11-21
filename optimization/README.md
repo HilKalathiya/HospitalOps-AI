@@ -1,8 +1,8 @@
-# Optimization — Resource Allocation Engine (Chunk 3.3)
+# Optimization — Resource Allocation & Plan Review Engine (Chunks 3.3 & 3.4)
 
-> **Status: Implemented & Verified** (Milestone 3, Chunk 3.3 — Resource Optimization Engine)
+> **Status: Implemented & Verified** (Milestone 3, Chunks 3.3 & 3.4 — Resource Optimization & Plan Review Workspace)
 
-HospitalOps AI provides a mathematically grounded Mixed-Integer Linear Programming (MILP) planning engine that optimizes hospital bed capacities and movable critical equipment distributions against projected demand over a multi-period horizon.
+HospitalOps AI provides a mathematically grounded Mixed-Integer Linear Programming (MILP) planning engine that optimizes hospital bed capacities and movable critical equipment distributions against projected demand over a multi-period horizon, paired with an evidence-based recommendation explanation engine and human-in-the-loop review workspace.
 
 ---
 
@@ -51,8 +51,57 @@ Default penalty weights prioritize patient safety:
 
 ---
 
-## 3. Strict Operational Boundary
+## 3. Recommendation Explanation Architecture (Chunk 3.4)
+
+HospitalOps AI provides a dedicated, deterministic explanation layer (`backend/app/optimization/explanation.py`) that translates mathematical outputs into auditable operational narratives for healthcare administrators.
+
+### Core Explanation Capabilities:
+1. **Executive Recommendation Rationale:**
+   - Synthesizes exact reasons why specific departments received surge allocations and movable equipment.
+   - Grounded strictly in demand, baseline capacities, and conservation bounds (no speculative clinical inferences).
+2. **Objective Function Explainability:**
+   - Decomposes total minimized penalty into physical quantities, configured weights, score contributions, and percentage shares:
+     - Unmet Bed Demand Penalty ($w = 100.0$)
+     - Surge Bed Activation Overhead ($w = 5.0$)
+     - Equipment Deficit Penalty ($w = 50.0$)
+     - Equipment Transfer Friction ($w = 1.0$)
+   - Distinguishes operational penalty units from monetary costs.
+3. **Department-Level Explanations:**
+   - Baseline capacity, peak census demand, proposed surge beds, effective capacity, unmet demand, and equipment allocations.
+   - Identifies whether capacity was sufficient or constrained by ward surge limits.
+4. **Equipment Inventory & Pool Conservation:**
+   - Evaluates central equipment pools for `BINDING` (exhausted) vs `SLACK` (reserve remaining) states.
+   - Explains allocation trade-offs across departments based on clinical demand ratios.
+5. **Constraint & Bottleneck Diagnostics:**
+   - Audits every constraint: limit value, actual value, slack ($L - A$), binding flag, and operational consequence.
+6. **Counterfactual Baseline Comparison:**
+   - Side-by-side comparison with unoptimized status quo on identical horizon, cadence, and demand series.
+   - Robust zero-handling prevents false 0% or division-by-zero errors.
+7. **Explicit Trade-Offs & Solver Diagnostics:**
+   - Transparent reporting of surge activation vs shortage trade-offs, transfer churn penalties, and inventory limits.
+   - Explicitly handles `OPTIMAL`, `FEASIBLE`, `TIMEOUT`, and `INFEASIBLE` solver statuses.
+
+---
+
+## 4. Optimization Plan Review Workspace (`/optimizations`)
+
+The frontend review workspace (`frontend/src/pages/Operations/OptimizationReview.tsx`) provides:
+- **Status & Run Provenance:** Solver status badges, MIP gap, execution time, and plan metadata.
+- **Executive Rationale Banner:** Clear plain-language explanation of recommended allocations.
+- **KPI Tiles:** Surge beds activated, patient-days averted, equipment transfers, and solve latency.
+- **Interactive Review Views:**
+  - *Baseline & Objective:* Side-by-side comparative metrics table and objective progress breakdown.
+  - *Department Allocations:* Department capacity cards with individual rationales and equipment counts.
+  - *Equipment & Inventory:* Central pool inventory utilization and ward distributions.
+  - *Constraints & Bottlenecks:* Complete table of binding constraints, limits, and slacks.
+  - *Trade-offs & Assumptions:* Plain-language list of planning assumptions, trade-offs, and limitations.
+- **Run History & JSON Inspector:** View and switch past runs or inspect full JSON payload.
+
+---
+
+## 5. Strict Operational Boundary
 
 > ⚠️ **IMPORTANT SAFETY BOUNDARY:**
-> The Resource Optimization Engine produces **hypothetical recommendations for review**; it does not execute them.
+> The Resource Optimization Engine produces **hypothetical recommendations for administrative review**; it does NOT execute them.
 > It never mutates live bed allocations, patient admissions, equipment inventory, or staffing assignments.
+> Every recommendation is marked as proposed and pending human clinical and administrative sign-off.

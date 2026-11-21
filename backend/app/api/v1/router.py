@@ -74,3 +74,9 @@ v1_router.include_router(
     prefix="/optimization",
     tags=["optimization"],
 )
+
+v1_router.include_router(
+    optimization.router,
+    prefix="/optimizations",
+    tags=["optimization"],
+)

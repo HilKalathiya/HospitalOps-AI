@@ -79,6 +79,9 @@ data/
 *.seed
 *.pid.lock
 
+# ─── Local Dev Wrappers ─────────────────────────────────────────────────────────
+powershell.cmd
+
 # ─── Machine Learning ─────────────────────────────────────────────────────────
 backend/ml/artifacts/
 backend/ml/runs/

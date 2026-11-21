@@ -11,6 +11,7 @@ import { DatasetCatalog } from './pages/Datasets/DatasetCatalog'
 import { BedsPage } from './pages/Operations/BedsPage'
 import { ResourcesPage } from './pages/Operations/ResourcesPage'
 import { PatientsPage } from './pages/Operations/PatientsPage'
+import { OptimizationReview } from './pages/Operations/OptimizationReview'
 import { UsersPage } from './pages/Administration/UsersPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
@@ -30,12 +31,14 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/forecasts" element={<CapacityForecasts />} />
                 <Route path="/simulations" element={<ScenarioComparison />} />
+                <Route path="/optimizations" element={<OptimizationReview />} />
                 <Route path="/evaluation" element={<ModelEvaluation />} />
                 <Route path="/datasets" element={<DatasetCatalog />} />
                 
                 {/* Operations Routes */}
                 <Route path="/operations/beds" element={<BedsPage />} />
                 <Route path="/operations/resources" element={<ResourcesPage />} />
+                <Route path="/operations/optimization" element={<OptimizationReview />} />
                 <Route path="/operations/patients" element={<PatientsPage />} />
                 <Route path="/operations/admissions" element={<PatientsPage />} />
                 

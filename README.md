@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 17 of 19 build steps shipped. 159 backend tests pass, and the frontend production build is clean. The next steps are a review screen for optimizer plans, then agent orchestration with RAG.
+**Status:** 18 of 19 build steps shipped. 166 backend tests pass, and the frontend production build is clean. The next step is agent orchestration with RAG (Milestone 4).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -18,7 +18,8 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **Forecast API and dashboard** | Daily admissions (1–30 days) and weekly ICU occupancy (1–8 weeks), with model provenance and run inspection. Occupancy-rate forecasts are refused unless matching capacity data exists |
 | **What-if simulation** | Admission surges, bed-capacity changes and equipment bottlenecks, compared side by side against a baseline |
 | **Resource optimization** | A MILP solved with HiGHS (`scipy.optimize.milp`) that allocates surge beds and movable equipment across departments over a 30-day horizon in under 50 ms. An independent validator checks every solution, and the plan is compared against doing nothing |
-| **Planned** | A review screen for optimizer plans, and LLM agents with RAG over hospital policies, with human approval before any action |
+| **Optimization review & explanation** | Evidence-based recommendation explanations with multi-criteria objective deconstruction, department and equipment allocation rationales, binding constraint diagnostics, and a plan review workspace with human approval before action |
+| **Planned** | LLM agents with RAG over hospital policies, tool-calling operational workflows, and human-in-the-loop multi-agent orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
 
@@ -44,7 +45,7 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 3.1 | What-if Simulation Engine | ✅ Complete |
 | 3.2 | Scenario Comparison & Simulation UI | ✅ Complete |
 | 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
-| 3.4 | Optimization UI & Plan Review | ⬜ Planned |
+| 3.4 | Optimization UI & Plan Review | ✅ Complete |
 | 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 </details>
@@ -398,6 +399,29 @@ HospitalOps AI provides a mathematically grounded Mixed-Integer Linear Programmi
   - Secured via `optimization.run` and `optimization.read` permissions.
 - **Strict Operational Safety Boundary:**
   - Produces advisory allocation recommendations for human review. Never mutates live operational bed, patient, admission, or equipment records.
+
+---
+
+## Recommendation Explanation & Plan Review (Chunk 3.4)
+
+HospitalOps AI provides an evidence-based recommendation explanation engine and human-in-the-loop review workspace (`/optimizations`):
+- **Deterministic Explanation Layer:**
+  - Dedicated `OptimizationExplanationGenerator` (`backend/app/optimization/explanation.py`) translates solver matrices and validation outputs into transparent, auditable natural-language explanations without relying on remote or hallucinatory LLMs.
+- **Objective Function Deconstruction:**
+  - Directly explains the four-part multi-criteria penalty function: Unmet Bed Demand Penalty, Surge Bed Activation Overhead, Equipment Deficit Penalty, and Equipment Transfer Friction, displaying physical units, weights, score values, and percentage contributions.
+- **Department & Equipment Allocation Rationales:**
+  - Provides department-specific capacity explanations (baseline capacity, peak demand, surge beds allocated, effective capacity, unmet demand, and assigned movable equipment).
+  - Analyzes equipment inventory conservation (`BINDING` when pool is fully exhausted, `SLACK` when reserves remain).
+- **Binding Constraint & Bottleneck Diagnostics:**
+  - Audits surge bed pool limits, individual ward ceilings, and equipment inventory conservation with exact limits, actual values, and slack calculations ($L - A$).
+- **Counterfactual Baseline Comparison:**
+  - Side-by-side evaluation against status quo baseline on identical demand trajectories, calculating net patient-days of shortage averted and percentage reductions with robust zero-handling.
+- **Optimization Plan Review Workspace:**
+  - Production React workspace (`frontend/src/pages/Operations/OptimizationReview.tsx`) with solver status badges, executive rationale banner, KPI summary cards, interactive review views, historical plan browser, and raw JSON inspection modal.
+- **Exposed REST API & Security:**
+  - `GET /api/v1/optimization/runs/{run_id}/explanation`: Retrieve structured explanation package.
+  - Secured via `optimization.read` permission (ADMIN, OPERATIONS_MANAGER, DOCTOR).
+  - All recommendations are strictly advisory decision-support and explicitly labeled as hypothetical proposals awaiting human sign-off.
 
 ---
 

@@ -284,6 +284,166 @@ class BaselineComparison(HospitalOpsBaseModel):
     )
 
 
+# ── Explanation Domain Models (Chunk 3.4) ──────────────────────────────────────
+
+
+class ObjectiveComponentExplanation(HospitalOpsBaseModel):
+    """Details for a single component of the multi-criteria objective."""
+
+    name: str = Field(description="Component name (e.g. Bed Shortage Penalty).")
+    raw_quantity: float = Field(description="Unweighted physical quantity (e.g. patient-days).")
+    unit: str = Field(description="Physical unit (e.g. 'patient-days', 'bed-periods', 'units', 'transfers').")
+    weight: float = Field(description="Configured penalty weight.")
+    weighted_value: float = Field(description="raw_quantity * weight.")
+    pct_of_total_objective: float = Field(
+        description="Percentage contribution to the total objective value."
+    )
+    explanation: str = Field(description="Plain-language interpretation of this penalty.")
+
+
+class ObjectiveExplanation(HospitalOpsBaseModel):
+    """Structured breakdown and interpretation of the optimization objective."""
+
+    total_objective_value: float = Field(
+        description="Total minimized operational penalty score."
+    )
+    components: list[ObjectiveComponentExplanation] = Field(default_factory=list)
+    interpretation: str = Field(
+        description="Summary of which operational trade-offs dominated the solve."
+    )
+
+
+class DepartmentExplanation(HospitalOpsBaseModel):
+    """Department-specific explanation of capacity, allocations, and constraints."""
+
+    department_id: str
+    department_name: str
+    baseline_capacity: int
+    peak_demand: float
+    total_demand: float
+    total_surge_allocated: int
+    peak_effective_capacity: int
+    unmet_demand_patient_days: float
+    unmet_demand_periods_count: int
+    equipment_allocated: dict[str, int] = Field(default_factory=dict)
+    equipment_deficits: dict[str, float] = Field(default_factory=dict)
+    binding_constraints: list[str] = Field(default_factory=list)
+    allocation_rationale: str = Field(
+        description="Why this specific surge bed and equipment allocation was recommended."
+    )
+    bottleneck_summary: str | None = Field(
+        default=None, description="Summary of capacity limitations or shortage causes."
+    )
+
+
+class ResourceExplanation(HospitalOpsBaseModel):
+    """Resource/equipment pool utilization and allocation explanation."""
+
+    resource_type: str
+    name: str
+    available_inventory: int
+    peak_allocated: int
+    total_deficit: float
+    inventory_exhausted_periods: list[int] = Field(default_factory=list)
+    inventory_conservation_status: str = Field(
+        description="'BINDING' if pool was fully utilized, otherwise 'SLACK'."
+    )
+    allocation_by_department: dict[str, int] = Field(default_factory=dict)
+    allocation_rationale: str = Field(
+        description="Why resources were distributed in this pattern across departments."
+    )
+
+
+class ConstraintExplanation(HospitalOpsBaseModel):
+    """Detailed diagnosis of an active or binding operational constraint."""
+
+    constraint_id: str
+    constraint_type: str = Field(
+        description="Category ('SURGE_POOL', 'EQUIPMENT_INVENTORY', 'DEPARTMENT_CAPACITY', etc.)."
+    )
+    description: str
+    period: int | None = None
+    department_id: str | None = None
+    resource_type: str | None = None
+    limit_value: float
+    actual_value: float
+    slack_value: float
+    is_binding: bool
+    is_hard_constraint: bool
+    consequence: str = Field(
+        description="Operational impact of this constraint being binding or slack."
+    )
+
+
+class ShortageExplanation(HospitalOpsBaseModel):
+    """Details on any remaining unfulfilled bed or equipment demand."""
+
+    shortage_type: str = Field(description="'BED' or 'EQUIPMENT'.")
+    department_id: str
+    period: int
+    magnitude: float
+    unit: str
+    cause_analysis: str = Field(
+        description="Evidence-based explanation for why this shortage could not be eliminated."
+    )
+
+
+class BaselineComparisonMetric(HospitalOpsBaseModel):
+    """Individual comparative metric between status quo and optimized plan."""
+
+    metric_name: str
+    unit: str
+    baseline_value: float
+    optimized_value: float
+    absolute_change: float
+    pct_improvement: float | None = None
+    description: str
+
+
+class BaselineComparisonExplanation(HospitalOpsBaseModel):
+    """Rigorous comparison between status quo baseline and proposed plan."""
+
+    metrics: list[BaselineComparisonMetric] = Field(default_factory=list)
+    net_patient_days_averted: float
+    shortage_reduction_pct: float | None = None
+    equipment_deficit_reduction_pct: float | None = None
+    comparability_verified: bool = Field(
+        description="True if both plans share exact same horizon, cadence, and demand series."
+    )
+    summary: str
+
+
+class TradeoffExplanation(HospitalOpsBaseModel):
+    """Explains explicit trade-offs evaluated by the optimizer."""
+
+    tradeoff_area: str
+    description: str
+    impact: str
+
+
+class OptimizationExplanation(HospitalOpsBaseModel):
+    """Comprehensive, evidence-based explainability package for an optimization run (Chunk 3.4)."""
+
+    run_id: str
+    solver_status: OptimizationStatus
+    optimality_information: str
+    is_optimal: bool
+    is_feasible: bool
+    summary: str = Field(description="Executive plain-language summary of the proposed plan.")
+    planning_context: dict[str, Any] = Field(default_factory=dict)
+    objective_explanation: ObjectiveExplanation
+    department_explanations: list[DepartmentExplanation] = Field(default_factory=list)
+    resource_explanations: list[ResourceExplanation] = Field(default_factory=list)
+    binding_constraints: list[ConstraintExplanation] = Field(default_factory=list)
+    remaining_shortages: list[ShortageExplanation] = Field(default_factory=list)
+    baseline_comparison: BaselineComparisonExplanation
+    tradeoffs: list[TradeoffExplanation] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    validation_summary: str
+    generated_at: str
+
+
 class OptimizationResult(HospitalOpsBaseModel):
     """Full results package from a resource optimization solve."""
 
@@ -314,6 +474,10 @@ class OptimizationResult(HospitalOpsBaseModel):
     )
     provenance: dict[str, Any] = Field(
         default_factory=dict, description="Metadata linking inputs to source records/models."
+    )
+    explanation: OptimizationExplanation | None = Field(
+        default=None,
+        description="Evidence-based recommendation explanation package (Chunk 3.4).",
     )
 
 
@@ -346,4 +510,13 @@ class OptimizationResponse(HospitalOpsBaseModel):
     parameters: OptimizationParameters
     result: OptimizationResult
     created_by: str
+    created_at: datetime
+
+
+class OptimizationExplanationResponse(HospitalOpsBaseModel):
+    """Public API response envelope for recommendation explanation (Chunk 3.4)."""
+
+    run_id: str
+    plan_name: str
+    explanation: OptimizationExplanation
     created_at: datetime

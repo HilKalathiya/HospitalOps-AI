@@ -69,7 +69,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | **M3: Decision Intelligence**| **3.1** | **What-if Simulation Engine** | ✅ Complete | Deterministic engine, 7/7 tests passed, 120 total passed |
 | | **3.2** | **Simulation UI & Scenario Comparison** | ✅ Complete | Multi-scenario comparison matrix, SVG trajectory chart, shortage analysis, session persistence & JSON inspect |
 | | **3.3** | **Resource Optimization Engine (MIP)** | ✅ Complete | SciPy HiGHS MILP, multi-department surge beds & equipment allocation, counterfactual baseline, 159 tests passed (reconciles former M4 C4.1) |
-| | 3.4 | Optimization UI & Plan Review | ⬜ Planned | Frontend resource allocation workspace & approval workflow |
+| | **3.4** | **Recommendation Explanation & Plan Review** | ✅ Complete | Deterministic explanation layer, objective deconstruction, constraint diagnostics, counterfactual baseline comparison, plan review workspace, 166 tests passed |
 | **M4: Agentic AI & RAG** | 4.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | Tool calling, vector search, operational decision agents |
 
 ---
@@ -280,4 +280,62 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - 13 comprehensive unit and API tests in `test_optimization_math.py` and `test_api_optimization.py` covering hand-calculable examples, scarce pool competition, equipment deficit tracking, synthetic violation detection, RBAC, and operational isolation.
      - Full backend test suite: 159 passed, 10 skipped.
      - `ruff check backend`: 0 errors.
-* **Next Planned Work:** Milestone 3, Chunk 3.4 (Optimization UI & Allocation Plan Review) or Milestone 4 (Multi-Agent Orchestration & RAG).
+* **Next Planned Work:** Milestone 3, Chunk 3.4 (Recommendation Explanation & Optimization Plan Review) — Completed.
+
+---
+
+## 11. Completed Workstream: Milestone 3, Chunk 3.4 (Recommendation Explanation & Optimization Plan Review)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Deterministic & Evidence-Based Explanation Layer (`backend/app/optimization/explanation.py`):**
+     - Developed `OptimizationExplanationGenerator` to translate raw MILP decision vectors and validation outputs into transparent, auditable natural-language explanations.
+     - Operates strictly deterministically from verified mathematical results; no remote LLMs, zero hallucination risk, no patient or private hospital data sent externally.
+  2. **Multi-Criteria Objective Function Deconstruction:**
+     - Deconstructs the four-component penalty objective: Unmet Bed Demand Penalty, Surge Bed Activation Overhead, Equipment Deficit Penalty, and Equipment Transfer Friction.
+     - Quantifies physical units, weight multipliers, evaluated component scores, and percentage contributions to total objective value.
+     - Clarifies operational penalty incentives (penalty weights discourage shortages/churn rather than representing direct monetary accounting costs).
+  3. **Department & Resource Allocation Rationales:**
+     - Department-level diagnostics reporting baseline bed capacity, projected demand, surge beds allocated, effective capacity, unmet demand, and assigned movable equipment.
+     - Distinguishes observed constraint states from clinical prioritization claims (explains decisions based strictly on configured weights, demand ratios, and pool conservation).
+     - Equipment allocation diagnostics auditing available inventory, required equipment, proposed allocations, and remaining deficits.
+  4. **Constraint & Bottleneck Diagnostics:**
+     - Audits active hard and soft constraints from `SolutionValidator`: surge-bed pool limits ($\sum_d x_{d,t}^{\text{surge}} \le B^{\text{surge}}$), equipment inventory conservation ($\sum_d y_{r,d,t} \le Q_r^{\text{avail}}$), and department-specific capacity ceilings.
+     - Reports exact bound limits ($L$), actual solution values ($A$), and remaining slack ($L - A$).
+     - Distinguishes `BINDING` constraints (zero slack, fully exhausted capacity) from `SLACK` constraints (surplus reserves remain), providing operational consequence narratives.
+  5. **Counterfactual Baseline Comparison:**
+     - Side-by-side comparison against the unoptimized status quo baseline ($x^{\text{surge}}=0$, static inventory) under identical demand trajectories and horizon.
+     - Calculates net patient-days of shortage averted, peak bed deficit reductions, and percentage improvements with robust zero-baseline handling (`0.0%` when baseline demand does not exceed capacity).
+  6. **Solver Diagnostics & Feasibility Handling:**
+     - Transparently reports solver status (`OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `TIME_LIMIT`, `SOLVER_ERROR`).
+     - Infeasible problems return diagnostic bottleneck identification from pre-solve and validator checks without inventing fabricated hypothetical plans.
+  7. **Optimization Plan Review Workspace (`frontend/src/pages/Operations/OptimizationReview.tsx`):**
+     - Production React/TypeScript workspace accessible at `/optimizations` and `/operations/optimization`.
+     - Adheres to the HospitalOps dark design system (`#19191b`, `#202024`, `#9ba8ff`, Lucide icons).
+     - Features:
+       - Status badge (`OPTIMAL`, `FEASIBLE`, etc.) and executive rationale banner.
+       - KPI summary metric cards (Total Objective Score, Surge Beds Allocated, Averted Shortage Days, Active Binding Bottlenecks).
+       - Five tabbed review views:
+         1. *Baseline & Objective:* Objective deconstruction bar chart and baseline comparison matrix.
+         2. *Department Allocations:* Capacity, surge beds, effective capacity, and unmet demand per department.
+         3. *Equipment & Inventory:* Mobilization and allocation tables per resource type.
+         4. *Constraints & Bottlenecks:* Binding state pills (`BINDING` vs `SLACK`), limits, values, and slack tolerances.
+         5. *Trade-offs & Assumptions:* Detailed operational trade-offs, model limitations, and explicit advisory disclaimer.
+       - Interactive "Run Optimizer" modal with custom horizon, surge bed pool, solver timeout, and penalty weight configuration.
+       - Slide-over plan history drawer with status pills and timestamps.
+       - Raw JSON inspection modal for full solver metadata and explanation verification.
+  8. **API & RBAC Security:**
+     - `GET /api/v1/optimization/runs/{run_id}/explanation` returning typed `OptimizationExplanationResponse`.
+     - Secured via `optimization.read` permission (ADMIN, OPERATIONS_MANAGER, DOCTOR).
+     - Unauthenticated requests rejected with 401; unauthorized roles rejected with 403.
+     - Aliased `/optimizations` and `/optimization` router paths for plural/singular backwards compatibility.
+  9. **Strict Healthcare Safety Invariants:**
+     - Operational decision support only; never diagnoses, prescribes, or discharges patients.
+     - Advisory recommendations explicitly marked as hypothetical proposals awaiting human operational/clinical sign-off.
+     - Strictly read-only against live collections (`beds`, `resources`, `patients`, `admissions`).
+  10. **Verification & Testing:**
+      - 20 comprehensive unit, math, and API tests in `test_optimization_math.py`, `test_api_optimization.py`, and `test_optimization_explanation.py` passing in ~57s.
+      - Full backend test suite passing cleanly.
+      - `ruff check backend`: 0 errors.
+      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
+* **Next Planned Work:** Milestone 4, Chunk 4.1 (Multi-Agent Orchestration & RAG).
