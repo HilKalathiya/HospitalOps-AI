@@ -1,13 +1,52 @@
 import React, { useState } from 'react'
-import { CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, Clock, Database, Wrench } from 'lucide-react'
-import { ToolCallRecord } from '../../types/agents'
+import {
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Database,
+  Wrench,
+  Activity,
+  ArrowRight,
+} from 'lucide-react'
+import { ToolCallRecord, StateTransitionRecord } from '../../types/agents'
 
 interface AgentExecutionTimelineProps {
   trace: ToolCallRecord[]
+  stateTransitions?: StateTransitionRecord[]
 }
 
-export const AgentExecutionTimeline: React.FC<AgentExecutionTimelineProps> = ({ trace }) => {
+const getTransitionColor = (state: string): string => {
+  switch (state) {
+    case 'COMPLETED':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-300'
+    case 'REJECTED':
+      return 'bg-amber-50 text-amber-700 border-amber-300'
+    case 'FAILED':
+    case 'CANCELLED':
+      return 'bg-rose-50 text-rose-700 border-rose-300'
+    case 'TIMED_OUT':
+    case 'MAX_STEPS_REACHED':
+    case 'INSUFFICIENT_EVIDENCE':
+      return 'bg-orange-50 text-orange-700 border-orange-300'
+    case 'TOOL_EXECUTION':
+      return 'bg-teal-50 text-teal-700 border-teal-300'
+    case 'UNDERSTANDING':
+    case 'PLANNING':
+      return 'bg-sky-50 text-sky-700 border-sky-300'
+    default:
+      return 'bg-slate-50 text-slate-700 border-slate-300'
+  }
+}
+
+export const AgentExecutionTimeline: React.FC<AgentExecutionTimelineProps> = ({
+  trace,
+  stateTransitions,
+}) => {
   const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({})
+  const [showTransitions, setShowTransitions] = useState(true)
 
   const toggleStep = (stepIndex: number) => {
     setExpandedSteps((prev) => ({
@@ -16,7 +55,7 @@ export const AgentExecutionTimeline: React.FC<AgentExecutionTimelineProps> = ({ 
     }))
   }
 
-  if (!trace || trace.length === 0) {
+  if ((!trace || trace.length === 0) && (!stateTransitions || stateTransitions.length === 0)) {
     return null
   }
 
@@ -26,10 +65,47 @@ export const AgentExecutionTimeline: React.FC<AgentExecutionTimelineProps> = ({ 
         <div className="flex items-center gap-2">
           <Wrench className="w-4 h-4 text-teal-600" />
           <h2 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
-            Execution Timeline & Tool Activity ({trace.length} {trace.length === 1 ? 'step' : 'steps'})
+            Execution Lifecycle & Tool Activity ({trace.length} {trace.length === 1 ? 'step' : 'steps'})
           </h2>
         </div>
+        {stateTransitions && stateTransitions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowTransitions(!showTransitions)}
+            className="text-[11px] text-teal-700 hover:text-teal-900 font-medium flex items-center gap-1"
+          >
+            <Activity className="w-3 h-3" />
+            {showTransitions ? 'Hide Lifecycle States' : `Lifecycle States (${stateTransitions.length})`}
+          </button>
+        )}
       </div>
+
+      {/* State Transitions Breadcrumbs Trail (Chunk 5.3) */}
+      {showTransitions && stateTransitions && stateTransitions.length > 0 && (
+        <div className="p-3.5 bg-slate-50/50 border-b border-slate-200/60">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1">
+            <Activity className="w-3 h-3 text-teal-600" />
+            Lifecycle State Machine Transitions ({stateTransitions.length})
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {stateTransitions.map((t, idx) => (
+              <React.Fragment key={idx}>
+                <span
+                  title={t.reason ? `${t.to_state}: ${t.reason}` : t.to_state}
+                  className={`px-2 py-0.5 rounded border text-[10px] font-mono font-semibold cursor-help transition-all shadow-2xs ${getTransitionColor(
+                    t.to_state
+                  )}`}
+                >
+                  {t.to_state}
+                </span>
+                {idx < stateTransitions.length - 1 && (
+                  <ArrowRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="p-4 space-y-3">
         {trace.map((step) => {

@@ -117,16 +117,21 @@ class GetOptimizationExplanationTool(AgentTool):
                 surge_beds_count = (
                     opt_resp.result.objective_breakdown.total_surge_beds_activated
                     if hasattr(opt_resp.result, "objective_breakdown") and opt_resp.result.objective_breakdown
-                    else 0
+                    else getattr(opt_resp.result, "total_surge_beds_allocated", 0)
                 )
+
+                is_opt = getattr(
+                    res, "is_optimal", str(getattr(res, "solver_status", "")).lower() == "optimal"
+                )
+                stat = getattr(res, "status", getattr(res, "solver_status", "COMPLETED"))
 
                 prov = ProvenanceItem(
                     category=ProvenanceCategory.OPTIMIZATION,
                     id=opt_resp.run_id,
                     label=f"Optimization · {opt_resp.plan_name}",
                     details={
-                        "is_optimal": res.is_optimal,
-                        "solver_status": res.status,
+                        "is_optimal": is_opt,
+                        "solver_status": stat,
                         "horizon": params.horizon,
                         "surge_beds_allocated": surge_beds_count,
                     },
@@ -139,7 +144,7 @@ class GetOptimizationExplanationTool(AgentTool):
 
                 summary_text = (
                     f"Optimization Plan '{opt_resp.plan_name}' (ID: {opt_resp.run_id}):\n"
-                    f"- Status: {res.status} (Optimal: {res.is_optimal})\n"
+                    f"- Status: {stat} (Optimal: {is_opt})\n"
                     f"- Horizon: {params.horizon} days, Surge Beds Activated: {surge_beds_count} of {params.max_surge_beds}\n"
                     f"- Executive Summary: {expl.summary}\n"
                     f"- Binding Bottlenecks ({len(expl.binding_constraints)}): "
@@ -152,8 +157,8 @@ class GetOptimizationExplanationTool(AgentTool):
                 output_data = GetOptimizationExplanationOutput(
                     run_id=opt_resp.run_id,
                     plan_name=opt_resp.plan_name,
-                    solver_status=res.status if isinstance(res.status, str) else str(res.status),
-                    is_optimal=res.is_optimal,
+                    solver_status=stat if isinstance(stat, str) else str(stat),
+                    is_optimal=is_opt,
                     summary=expl.summary,
                     surge_beds_allocated=surge_beds_count,
                     binding_constraints_count=len(expl.binding_constraints),
@@ -163,8 +168,8 @@ class GetOptimizationExplanationTool(AgentTool):
                         OptimizationPlanSummary(
                             run_id=opt_resp.run_id,
                             plan_name=opt_resp.plan_name,
-                            status=res.status if isinstance(res.status, str) else str(res.status),
-                            is_optimal=res.is_optimal,
+                            status=stat if isinstance(stat, str) else str(stat),
+                            is_optimal=is_opt,
                             surge_beds_activated=surge_beds_count,
                             summary=expl.summary,
                         )
@@ -201,15 +206,19 @@ class GetOptimizationExplanationTool(AgentTool):
                 s_beds = (
                     o.result.objective_breakdown.total_surge_beds_activated
                     if hasattr(o.result, "objective_breakdown") and o.result.objective_breakdown
-                    else 0
+                    else getattr(o.result, "total_surge_beds_allocated", 0)
                 )
+                is_opt = getattr(
+                    o.result, "is_optimal", str(getattr(o.result, "solver_status", "")).lower() == "optimal"
+                )
+                stat = getattr(o.result, "status", getattr(o.result, "solver_status", "COMPLETED"))
                 prov_items.append(
                     ProvenanceItem(
                         category=ProvenanceCategory.OPTIMIZATION,
                         id=o.run_id,
                         label=o.plan_name,
                         details={
-                            "is_optimal": o.result.is_optimal,
+                            "is_optimal": is_opt,
                             "surge_beds": s_beds,
                         },
                     )
@@ -218,15 +227,20 @@ class GetOptimizationExplanationTool(AgentTool):
                     OptimizationPlanSummary(
                         run_id=o.run_id,
                         plan_name=o.plan_name,
-                        status=o.result.status if isinstance(o.result.status, str) else str(o.result.status),
-                        is_optimal=o.result.is_optimal,
+                        status=stat if isinstance(stat, str) else str(stat),
+                        is_optimal=is_opt,
                         surge_beds_activated=s_beds,
                         summary="",
                     )
                 )
+                max_surge = (
+                    getattr(o.parameters, "max_surge_beds", 0)
+                    if hasattr(o, "parameters") and o.parameters
+                    else 0
+                )
                 lines.append(
                     f"- [{o.run_id[:8]}] {o.plan_name}: "
-                    f"Status={o.result.status}, Surge Beds={s_beds}/{o.parameters.max_surge_beds}"
+                    f"Status={stat}, Surge Beds={s_beds}/{max_surge}"
                 )
 
             summary_text = "\n".join(lines)

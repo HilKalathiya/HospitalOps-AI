@@ -9,6 +9,7 @@ import {
 } from '../../types/agents'
 import { AgentHeader } from '../../components/agents/AgentHeader'
 import { AgentTaskComposer } from '../../components/agents/AgentTaskComposer'
+import { AgentTaskPlanPanel } from '../../components/agents/AgentTaskPlanPanel'
 import { AgentExecutionTimeline } from '../../components/agents/AgentExecutionTimeline'
 import { AgentAnswerPanel } from '../../components/agents/AgentAnswerPanel'
 import { AgentProvenanceCards } from '../../components/agents/AgentProvenanceCards'
@@ -54,7 +55,7 @@ export const AgentWorkbench: React.FC = () => {
     setError(null)
 
     try {
-      const result = await agentApi.runAgent({
+      const result = await agentApi.executeAgent({
         agent_id: 'hospital_operations_analyst',
         task: task.trim(),
         options,
@@ -112,18 +113,23 @@ export const AgentWorkbench: React.FC = () => {
       {/* Active Results Display */}
       {response ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Final Answer & Subsystem Provenance */}
+          {/* Left Column: Task Plan, Final Answer & Evidence/Provenance */}
           <div className="lg:col-span-7 space-y-6">
+            {response.task_plan && <AgentTaskPlanPanel plan={response.task_plan} />}
             <AgentAnswerPanel response={response} />
             <AgentProvenanceCards
               provenance={response.provenance}
               citations={response.sources}
+              evidence={response.evidence}
             />
           </div>
 
-          {/* Right Column: Execution Timeline Trace */}
+          {/* Right Column: Execution Timeline Trace & State Transitions */}
           <div className="lg:col-span-5 space-y-6">
-            <AgentExecutionTimeline trace={response.tool_trace} />
+            <AgentExecutionTimeline
+              trace={response.tool_trace}
+              stateTransitions={response.state_transitions}
+            />
           </div>
         </div>
       ) : (

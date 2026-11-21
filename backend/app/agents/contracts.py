@@ -13,6 +13,8 @@ from typing import Any
 
 from pydantic import Field
 
+from app.agents.evidence import AgentEvidence
+from app.agents.lifecycle import OrchestrationState, StateTransitionRecord
 from app.knowledge.generation.contracts import CitationReference
 from app.models.base import HospitalOpsBaseModel, utc_now
 
@@ -188,9 +190,12 @@ class AgentRunResponse(HospitalOpsBaseModel):
     agent_name: str = Field(description="Human-readable agent title")
     status: AgentExecutionStatus = Field(description="Final execution status")
     final_answer: str = Field(description="Synthesized operational answer grounded in evidence")
+    task_plan: AgentTaskPlan | None = Field(default=None, description="Initial task plan formulated by agent (Chunk 5.3)")
     sources: list[CitationReference] = Field(default_factory=list, description="Document citations from knowledge base")
     provenance: list[ProvenanceItem] = Field(default_factory=list, description="Categorized subsystem provenance artifacts")
+    evidence: list[AgentEvidence] = Field(default_factory=list, description="Classified operational evidence artifacts (Chunk 5.3)")
     tool_trace: list[ToolCallRecord] = Field(default_factory=list, description="Sequential execution trace")
+    state_transitions: list[StateTransitionRecord] = Field(default_factory=list, description="Lifecycle state audit trail (Chunk 5.3)")
     execution: AgentRunExecutionMetadata = Field(description="Execution metrics and accounting")
     limitations: list[str] = Field(default_factory=list, description="Known operational constraints or caveats")
     requires_human_review: bool = Field(default=True, description="Enforces human oversight requirement")
@@ -223,6 +228,21 @@ class AgentHealthResponse(HospitalOpsBaseModel):
     agent_version: str
 
 
+class AgentTaskPlan(HospitalOpsBaseModel):
+    """Structured operational task plan formulated before tool execution (Chunk 5.3)."""
+
+    objective: str = Field(description="Primary operational goal parsed from the query")
+    task_type: str = Field(
+        default="GENERAL",
+        description="Domain classification (e.g. COMPARATIVE, FORECAST, SIMULATION, OPTIMIZATION, KNOWLEDGE)",
+    )
+    requires_tools: bool = Field(default=True, description="Whether tools are needed to satisfy this inquiry")
+    reasoning_summary: str = Field(default="", description="User-safe summary of the planned approach")
+    required_evidence: list[str] = Field(default_factory=list, description="Specific evidence types needed")
+    candidate_tool_ids: list[str] = Field(default_factory=list, description="IDs of tools that may be consulted")
+    expected_result: str = Field(default="", description="Expected analytical deliverable")
+
+
 class PlannerDecision(HospitalOpsBaseModel):
     """Structured decision output from the planner LLM."""
 
@@ -232,3 +252,22 @@ class PlannerDecision(HospitalOpsBaseModel):
     reason: str = Field(default="", description="Strategic rationale for this step")
     answer: str = Field(default="", description="Synthesized text when decision is FINAL_ANSWER")
     limitations: list[str] = Field(default_factory=list, description="Identified limitations or assumptions")
+
+
+class AgentExecutionTrace(HospitalOpsBaseModel):
+    """Auditable execution trace capturing state transitions and execution history (Chunk 5.3)."""
+
+    execution_id: str
+    agent_id: str
+    user_id: str
+    start_time: datetime = Field(default_factory=utc_now)
+    end_time: datetime | None = None
+    duration_ms: float = 0.0
+    initial_state: OrchestrationState = OrchestrationState.PENDING
+    final_state: OrchestrationState = OrchestrationState.COMPLETED
+    state_transitions: list[StateTransitionRecord] = Field(default_factory=list)
+    task_plan: AgentTaskPlan | None = None
+    tool_calls: list[ToolCallRecord] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    stop_reason: StopReason = StopReason.SUFFICIENT_EVIDENCE
+    status: AgentExecutionStatus = AgentExecutionStatus.COMPLETED

@@ -9,6 +9,7 @@
 
 import { apiClient } from './client'
 import {
+  AgentExecutionTrace,
   AgentHealthResponse,
   AgentMetadata,
   AgentRunRequest,
@@ -23,7 +24,28 @@ interface ApiResponse<T> {
 
 export const agentApi = {
   /**
-   * Execute an operational inquiry with an authorized agent.
+   * Execute an operational inquiry via the Agent Orchestration Engine (Chunk 5.3).
+   */
+  async executeAgent(request: AgentRunRequest): Promise<AgentRunResponse> {
+    const response = await apiClient.post<ApiResponse<AgentRunResponse>>(
+      '/agents/execute',
+      request
+    )
+    return response.data
+  },
+
+  /**
+   * Retrieve an auditable sequential execution trace by run ID (Chunk 5.3).
+   */
+  async getExecutionTrace(executionId: string): Promise<AgentExecutionTrace> {
+    const response = await apiClient.get<ApiResponse<AgentExecutionTrace>>(
+      `/agents/traces/${executionId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Execute an operational inquiry with an authorized agent (Legacy/Direct).
    */
   async runAgent(request: AgentRunRequest): Promise<AgentRunResponse> {
     const response = await apiClient.post<ApiResponse<AgentRunResponse>>(

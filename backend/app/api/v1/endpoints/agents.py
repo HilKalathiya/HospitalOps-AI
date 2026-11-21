@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.agents.contracts import (
+    AgentExecutionTrace,
     AgentHealthResponse,
     AgentMetadata,
     AgentRunRequest,
@@ -22,6 +23,7 @@ from app.agents.contracts import (
     ToolCategory,
     ToolDefinition,
 )
+from app.agents.orchestrator import get_stored_trace
 from app.agents.runtime import AgentRuntime
 from app.api.dependencies import get_agent_runtime, require_permission
 from app.core.security import get_permissions_for_role
@@ -49,6 +51,48 @@ async def run_agent(
     """
     result = await runtime.run(request=request, current_user=current_user)
     return SuccessResponse(data=result)
+
+
+@router.post(
+    "/execute",
+    response_model=SuccessResponse[AgentRunResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Execute Agent Inquiry via Orchestration Engine (Chunk 5.3)",
+)
+async def execute_agent(
+    request: AgentRunRequest,
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.run"))],
+    runtime: Annotated[AgentRuntime, Depends(get_agent_runtime)],
+) -> SuccessResponse[AgentRunResponse]:
+    """
+    Direct endpoint for the Agent Orchestration Engine.
+    Executes a bounded operational inquiry with explicit lifecycle states,
+    structured planning, sequential tool execution, and grounded answer synthesis.
+    """
+    result = await runtime.run(request=request, current_user=current_user)
+    return SuccessResponse(data=result)
+
+
+@router.get(
+    "/traces/{execution_id}",
+    response_model=SuccessResponse[AgentExecutionTrace],
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve Agent Execution Trace (Chunk 5.3)",
+)
+async def get_execution_trace(
+    execution_id: Annotated[str, Path(description="Execution identifier / run ID")],
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.read"))],
+) -> SuccessResponse[AgentExecutionTrace]:
+    """
+    Retrieve the full audit trace and lifecycle state transitions for an agent run.
+    """
+    trace = get_stored_trace(execution_id)
+    if not trace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Execution trace '{execution_id}' not found.",
+        )
+    return SuccessResponse(data=trace)
 
 
 @router.get(

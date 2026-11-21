@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 26 build steps shipped. All 260 backend tests pass, and the frontend production build is clean. The next step is multi-agent orchestration and specialized decision agents (Milestone 5, Chunk 5.3).
+**Status:** 27 build steps shipped. All 277 backend tests pass, and the frontend production build is clean. The next step is multi-agent coordination and specialized decision agents (Milestone 5, Chunk 5.4).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -25,6 +25,7 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **RAG Knowledge Assistant** | Dedicated full-screen operational assistant (`/knowledge/assistant`) with XSS-safe markdown rendering, bidirectional citation linking, dual-tier evidence inspector, token accounting, and in-memory tab-local session history |
 | **Agentic AI & Operations Analyst** | First bounded autonomous agent (`hospital_operations_analyst`) with 5 read-only tools across Knowledge, Forecasts, Simulations, and Optimizations, clinical scope guardrails, duplicate-call loop prevention, and interactive Agent Workbench (`/agents`) |
 | **Tool Schemas & Contracts** | Standardized, typed machine-readable tool contracts with dual pre/post Pydantic validation, Draft 2020-12 JSON Schema generation, OpenAI function calling export, semver tracking, permission-filtered tool discovery, and interactive UI schema inspector (`AgentToolsModal`) |
+| **Agent Orchestration Engine** | Controlled sequential orchestration lifecycle (14 state tracker), structured task planning, safe tool coordinator with loop prevention, evidence collector with domain classification, citation verification, and execution trace API (`/api/v1/agents/traces/{id}`) |
 | **Planned** | Multi-agent coordination, specialized cross-functional workflows, and human-in-the-loop operational committee orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
@@ -59,7 +60,9 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 4.4 | RAG Answer Generation — Grounded Operational QA | ✅ Complete |
 | 4.5 | RAG UI — Dedicated Hospital Knowledge Assistant Workspace | ✅ Complete |
 | 5.1 | First Agent: Hospital Operations Analyst Agent | ✅ Complete |
-| 5.2 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned |
+| 5.2 | Tool Schemas & Standardized Tool Contracts | ✅ Complete |
+| 5.3 | Agent Orchestration Engine | ✅ Complete |
+| 5.4 | Multi-Agent Coordination & Specialized Decision Agents | ⬜ Planned |
 
 </details>
 

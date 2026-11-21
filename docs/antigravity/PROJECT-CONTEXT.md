@@ -78,7 +78,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **4.5** | **RAG UI — Dedicated Hospital Knowledge Assistant Workspace** | ✅ Complete | Dedicated full-screen cockpit (/knowledge/assistant), XSS-free safe markdown, bidirectional citation pills, dual-tier evidence inspector, token diagnostics, in-memory tab-local session history, 0 lint warnings |
 | **M5: Agentic AI** | **5.1** | **First Agent: Hospital Operations Analyst Agent** | ✅ Complete | Autonomous decision intelligence agent (hospital_operations_analyst), 5 read-only domain tools, clinical scope guard, bounded lifecycle, execution trace, 16/16 tests passed (245 total) |
 | | **5.2** | **Tool Schemas & Standardized Tool Contracts** | ✅ Complete | Standardized Pydantic v2 schemas, Draft 2020-12 JSON Schema generation, OpenAI function calling export, semver tracking, permission-filtered tool discovery, interactive UI schema inspector, 15/15 tests passed (260 total) |
-| | 5.3 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, specialized cross-functional workflows, and operational committee orchestration |
+| | **5.3** | **Agent Orchestration Engine** | ✅ Complete | Controlled lifecycle state machine (14 states), structured task planning, safe tool coordinator with loop prevention, evidence collector with domain classification, citation verification, execution trace API, 17/17 tests passed (277 total) |
 
 ---
 
@@ -700,4 +700,47 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `python -m ruff check backend`: 0 lint errors.
      - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
      - `npm --prefix frontend run build`: Clean production build in 4.54s.
-* **Next Planned Work:** Milestone 5, Chunk 5.3 (Multi-Agent Orchestration & Decision Intelligence).
+* **Next Planned Work:** Milestone 5, Chunk 5.3 (Agent Orchestration Engine) — Completed.
+
+---
+
+## 20. Completed Workstream: Milestone 5, Chunk 5.3 (Agent Orchestration Engine)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Lifecycle State Machine:**
+     - Implemented `OrchestrationStateTracker` managing transitions across 14 distinct states (`PENDING`, `UNDERSTANDING`, `PLANNING`, `TOOL_SELECTION`, `TOOL_EXECUTION`, `EVIDENCE_REVIEW`, `RESPONSE_GENERATION`, `COMPLETED`, `REJECTED`, `FAILED`, `CANCELLED`, `TIMED_OUT`, `MAX_STEPS_REACHED`, `INSUFFICIENT_EVIDENCE`).
+     - Terminal state protection: terminal states cannot be exited; illegal transitions are blocked and logged.
+  2. **Structured Task Planning:**
+     - `AgentPlanner.understand_and_plan(...)` produces structured `AgentTaskPlan` capturing objective, task type, strategic formulation, required evidence types, candidate tools, and expected outcomes.
+     - Supports direct no-tool answering for general inquiries, immediate rejection of non-operational/out-of-scope requests, and clinical safety boundary checks.
+  3. **Evidence Collection & Domain Classification:**
+     - `AgentEvidenceCollector` gathers structured `AgentEvidence` with category mapping: `OBSERVED_DATA`, `FORECAST`, `SIMULATION`, `OPTIMIZATION`, `KNOWLEDGE_POLICY`.
+     - Explicit domain qualifiers: `is_projection`, `is_hypothetical`, `is_recommendation`.
+     - Context budgeting clamps output summaries if evidence exceeds `max_chars` budget (default 12,000 characters).
+  4. **Safe Tool Execution Coordination:**
+     - `ToolExecutionCoordinator` verifies caller RBAC permissions against `required_permission` before invocation.
+     - Prevents duplicate tool loops by blocking consecutive identical invocations with identical arguments.
+     - Enforces per-tool execution timeouts and pre/post Pydantic schema validation.
+  5. **Grounded Response Generation & Citation Verification:**
+     - `AgentResponseGenerator` synthesizes evidence-backed answers.
+     - Citation verification strictly verifies `CitationReference` IDs against ingested sources, rejecting hallucinated markers.
+     - Enforces operational disclaimers and domain-specific caveats.
+  6. **Trace Auditing & API Endpoints:**
+     - Preserves immutable execution history via `AgentExecutionTrace` in `_TRACE_STORE`.
+     - `POST /api/v1/agents/execute`: Executes operational inquiries through the bounded orchestration engine.
+     - `GET /api/v1/agents/traces/{execution_id}`: Retrieves complete step-by-step state transitions, tool invocations, and timing telemetry.
+  7. **Frontend Workbench Enhancements:**
+     - `AgentTaskPlanPanel`: Visualizes strategic plan, objective, and candidate tools.
+     - `AgentExecutionTimeline`: Renders an interactive state transition pill trail with hover reasons and step durations.
+     - `AgentProvenanceCards`: Visualizes ingested operational evidence with domain badges (`Projection`, `Hypothetical`, `Advisory Proposal`).
+     - Wired `AgentWorkbench` to `executeAgent(...)` endpoint.
+  8. **Architecture Decision Record:**
+     - Created `docs/decisions/ADR-015-agent-orchestration-engine.md`.
+  9. **Verification & Testing:**
+     - 17 new tests in `backend/tests/test_agent_orchestrator.py` covering state transitions, planning, tool coordination, loop blocking, timeouts, evidence collection, citation verification, and REST endpoints.
+     - Full backend regression suite: 277 passed, 10 skipped, 0 failures.
+     - `python -m ruff check backend`: 0 lint errors.
+     - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
+     - `npm --prefix frontend run build`: Clean production build in 5.86s.
+* **Next Planned Work:** Milestone 5, Chunk 5.4 (Multi-Agent Coordination & Specialized Decision Agents).

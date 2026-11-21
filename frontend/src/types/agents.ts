@@ -27,6 +27,79 @@ export type StopReason =
 
 export type ProvenanceCategory = 'KNOWLEDGE' | 'FORECAST' | 'SIMULATION' | 'OPTIMIZATION'
 
+export type OrchestrationState =
+  | 'PENDING'
+  | 'UNDERSTANDING'
+  | 'PLANNING'
+  | 'TOOL_SELECTION'
+  | 'TOOL_EXECUTION'
+  | 'EVIDENCE_REVIEW'
+  | 'RESPONSE_GENERATION'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'TIMED_OUT'
+  | 'MAX_STEPS_REACHED'
+  | 'INSUFFICIENT_EVIDENCE'
+
+export interface StateTransitionRecord {
+  from_state: OrchestrationState
+  to_state: OrchestrationState
+  timestamp: string
+  reason: string
+  metadata: Record<string, unknown>
+}
+
+export interface AgentTaskPlan {
+  objective: string
+  task_type: string
+  requires_tools: boolean
+  reasoning_summary: string
+  required_evidence: string[]
+  candidate_tool_ids: string[]
+  expected_result: string
+}
+
+export type EvidenceCategory =
+  | 'OBSERVED_DATA'
+  | 'FORECAST'
+  | 'SIMULATION'
+  | 'OPTIMIZATION'
+  | 'KNOWLEDGE_POLICY'
+
+export interface AgentEvidence {
+  evidence_id: string
+  tool_id: string
+  tool_version: string
+  execution_step: number
+  category: EvidenceCategory
+  summary: string
+  data: Record<string, unknown>
+  source_references: string[]
+  is_projection: boolean
+  is_hypothetical: boolean
+  is_recommendation: boolean
+  created_at: string
+}
+
+export interface AgentExecutionTrace {
+  execution_id: string
+  agent_id: string
+  user_id: string
+  start_time: string
+  end_time?: string | null
+  duration_ms: number
+  initial_state: OrchestrationState
+  final_state: OrchestrationState
+  state_transitions: StateTransitionRecord[]
+  task_plan?: AgentTaskPlan | null
+  tool_calls: ToolCallRecord[]
+  evidence_ids: string[]
+  stop_reason: StopReason
+  status: AgentExecutionStatus
+}
+
 export type ToolCategory =
   | 'KNOWLEDGE'
   | 'FORECASTING'
@@ -132,9 +205,12 @@ export interface AgentRunResponse {
   agent_name: string
   status: AgentExecutionStatus
   final_answer: string
+  task_plan?: AgentTaskPlan | null
   sources: CitationReference[]
   provenance: ProvenanceItem[]
+  evidence?: AgentEvidence[]
   tool_trace: ToolCallRecord[]
+  state_transitions?: StateTransitionRecord[]
   execution: AgentRunExecutionMetadata
   limitations: string[]
   requires_human_review: boolean
