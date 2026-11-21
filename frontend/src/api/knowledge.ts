@@ -230,6 +230,101 @@ export interface RetrievalHealthResponse {
   is_ready: boolean
 }
 
+// ── Chunk 4.3: Context Retrieval & Assembly Types ─────────────────────────────
+
+export type ContextOrdering = 'relevance' | 'document_order' | 'grouped_by_doc'
+
+export type RetrievalStatus =
+  | 'SUCCESS'
+  | 'NO_RESULTS'
+  | 'INSUFFICIENT_CONTEXT'
+  | 'PARTIAL_CONTEXT'
+  | 'FAILED'
+
+export interface KnowledgeRetrievalRequest {
+  query: string
+  top_k?: number
+  candidate_k?: number
+  max_context_tokens?: number
+  filters?: SearchFilters
+  context_ordering?: ContextOrdering
+  include_formatted_context?: boolean
+  min_relevance_threshold?: number
+}
+
+export interface SourceCitation {
+  citation_id: string
+  citation_marker: string
+  document_id: string
+  document_title: string
+  document_version: number
+  chunk_id: string
+  section_title?: string | null
+  heading_path: string[]
+  page_number?: number | null
+  source_reference: string
+}
+
+export interface ContextBlock {
+  citation_id: string
+  document_id: string
+  document_title: string
+  document_version: number
+  chunk_id: string
+  chunk_index: number
+  section_title?: string | null
+  heading_path: string[]
+  page_number?: number | null
+  content: string
+  token_count: number
+  category: DocumentCategory
+  department_id?: string | null
+  access_level: AccessLevel
+  rank: number
+  distance: number
+  similarity_score: number
+  is_table: boolean
+}
+
+export interface SkippedChunkInfo {
+  chunk_id: string
+  document_id: string
+  document_title: string
+  rank: number
+  token_count: number
+  similarity_score: number
+  skip_reason: string
+}
+
+export interface RetrievalMetadata {
+  embedding_space: EmbeddingSpaceInfo
+  candidate_count: number
+  retrieved_count: number
+  selected_count: number
+  skipped_count: number
+  token_budget: number
+  assembled_token_count: number
+  overhead_token_count: number
+  token_count_method: string
+  retrieval_duration_ms: number
+  context_ordering: string
+}
+
+export interface KnowledgeRetrievalResponse {
+  retrieval_id: string
+  status: RetrievalStatus
+  status_reason?: string | null
+  query: string
+  created_at: string
+  metadata: RetrievalMetadata
+  context_blocks: ContextBlock[]
+  citations: SourceCitation[]
+  formatted_context?: string | null
+  skipped_chunks: SkippedChunkInfo[]
+  limitations: string[]
+  warnings: string[]
+}
+
 export const knowledgeApi = {
   listDocuments: (params?: {
     category?: string
@@ -310,6 +405,9 @@ export const knowledgeApi = {
 
   search: (req: KnowledgeSearchRequest) =>
     apiClient.post<KnowledgeSearchResponse>('/knowledge/search', req),
+
+  retrieveContext: (req: KnowledgeRetrievalRequest) =>
+    apiClient.post<KnowledgeRetrievalResponse>('/knowledge/retrieve', req),
 
   getSearchHealth: () =>
     apiClient.get<RetrievalHealthResponse>('/knowledge/search/health'),

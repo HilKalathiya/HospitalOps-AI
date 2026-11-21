@@ -24,6 +24,12 @@ import {
   Sliders,
   Sparkles,
   Zap,
+  Copy,
+  Check,
+  BookMarked,
+  ListFilter,
+  AlignLeft,
+  Info,
 } from 'lucide-react'
 import {
   knowledgeApi,
@@ -36,6 +42,9 @@ import {
   AccessLevel,
   KnowledgeSearchResponse,
   KnowledgeSearchResult,
+  ContextOrdering,
+  RetrievalStatus,
+  KnowledgeRetrievalResponse,
 } from '../../api/knowledge'
 import { useAuth } from '../../context/AuthContext'
 import { TopHeader } from '../../components/layout/TopHeader'
@@ -45,7 +54,7 @@ export const KnowledgeBase: React.FC = () => {
   const canManage = user?.role === 'ADMIN'
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'catalog' | 'search'>('catalog')
+  const [activeTab, setActiveTab] = useState<'catalog' | 'search' | 'context'>('catalog')
 
   // Catalog Data states
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
@@ -69,6 +78,19 @@ export const KnowledgeBase: React.FC = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [searchResponse, setSearchResponse] = useState<KnowledgeSearchResponse | null>(null)
   const [expandedChunkId, setExpandedChunkId] = useState<string | null>(null)
+
+  // RAG Context Assembler states (Chunk 4.3)
+  const [contextPrompt, setContextPrompt] = useState<string>('')
+  const [contextTopK, setContextTopK] = useState<number>(5)
+  const [contextTokenBudget, setContextTokenBudget] = useState<number>(2000)
+  const [contextOrdering, setContextOrdering] = useState<ContextOrdering>('relevance')
+  const [contextMinScore, setContextMinScore] = useState<number>(0.1)
+  const [contextCategoryFilter, setContextCategoryFilter] = useState<string>('')
+  const [contextAccessFilter, setContextAccessFilter] = useState<string>('')
+  const [contextViewMode, setContextViewMode] = useState<'blocks' | 'citations' | 'formatted' | 'skipped'>('blocks')
+  const [isRetrievingContext, setIsRetrievingContext] = useState<boolean>(false)
+  const [contextResponse, setContextResponse] = useState<KnowledgeRetrievalResponse | null>(null)
+  const [copiedFormattedContext, setCopiedFormattedContext] = useState<boolean>(false)
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false)
@@ -220,6 +242,87 @@ export const KnowledgeBase: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Knowledge vector retrieval failed')
     } finally {
       setIsSearching(false)
+    }
+  }
+
+  // Handle Context Retrieval (Chunk 4.3)
+  const handleRetrieveContext = async (e?: React.FormEvent, queryOverride?: string) => {
+    if (e) e.preventDefault()
+    const q = (queryOverride !== undefined ? queryOverride : contextPrompt).trim()
+    if (!q) return
+    if (queryOverride !== undefined) {
+      setContextPrompt(queryOverride)
+    }
+
+    setIsRetrievingContext(true)
+    setError(null)
+    try {
+      const res = await knowledgeApi.retrieveContext({
+        query: q,
+        max_context_tokens: contextTokenBudget,
+        top_k: contextTopK,
+        context_ordering: contextOrdering,
+        min_relevance_threshold: contextMinScore > 0 ? contextMinScore : undefined,
+        filters: {
+          category: (contextCategoryFilter as DocumentCategory) || undefined,
+          access_levels: contextAccessFilter ? [contextAccessFilter as AccessLevel] : undefined,
+        },
+        include_formatted_context: true,
+      })
+      setContextResponse(res)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Context retrieval failed')
+    } finally {
+      setIsRetrievingContext(false)
+    }
+  }
+
+  const handleCopyFormattedContext = () => {
+    if (contextResponse?.formatted_context) {
+      navigator.clipboard.writeText(contextResponse.formatted_context)
+      setCopiedFormattedContext(true)
+      setTimeout(() => setCopiedFormattedContext(false), 2000)
+    }
+  }
+
+  const getRetrievalStatusBadge = (status: RetrievalStatus) => {
+    switch (status) {
+      case 'SUCCESS':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            Context Ready (SUCCESS)
+          </span>
+        )
+      case 'PARTIAL_CONTEXT':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            Partial Context (Token Budget Capped)
+          </span>
+        )
+      case 'INSUFFICIENT_CONTEXT':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+            Insufficient Context (Low Relevance)
+          </span>
+        )
+      case 'NO_RESULTS':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-white/5 text-[#a5a5ac] border border-white/10">
+            <AlertTriangle className="w-3.5 h-3.5 text-[#a5a5ac]" />
+            No Authorized Matches
+          </span>
+        )
+      case 'FAILED':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            Retrieval Failed
+          </span>
+        )
     }
   }
 
@@ -469,6 +572,17 @@ export const KnowledgeBase: React.FC = () => {
           >
             <Sparkles className="w-3.5 h-3.5 text-[#9ba8ff]" />
             Semantic Search Engine
+          </button>
+          <button
+            onClick={() => setActiveTab('context')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+              activeTab === 'context'
+                ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-[#9ba8ff]" />
+            RAG Context Assembler
           </button>
         </div>
 
@@ -1018,6 +1132,627 @@ export const KnowledgeBase: React.FC = () => {
                   <span>Deterministic Embeddings</span>
                   <span>·</span>
                   <span>RBAC Access Scoping</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB 3: RAG CONTEXT ASSEMBLER (Chunk 4.3) ────────────────────────── */}
+        {activeTab === 'context' && (
+          <div className="space-y-6">
+            {/* Context Retrieval Query Input */}
+            <div className="p-5 rounded-xl bg-[#19191b] border border-line space-y-4 shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-[#9ba8ff]" />
+                  <h3 className="text-sm font-semibold text-[#f0f0f3]">
+                    RAG Context Retrieval & Token Budget Assembly
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono text-[#8e8e96] uppercase tracking-wider">
+                  Chunk 4.3 Layer
+                </span>
+              </div>
+
+              <form onSubmit={handleRetrieveContext} className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8e8e96]" />
+                  <input
+                    type="text"
+                    value={contextPrompt}
+                    onChange={(e) => setContextPrompt(e.target.value)}
+                    placeholder="Enter hospital operational question or RAG prompt (e.g. ICU bed surge capacity protocols and staffing ratios)..."
+                    className="w-full bg-[#141416] border border-line focus:border-[#9ba8ff] rounded-lg pl-10 pr-10 py-2.5 text-xs text-[#f0f0f3] placeholder-[#6f6f78] focus:outline-none transition-colors"
+                  />
+                  {contextPrompt && (
+                    <button
+                      type="button"
+                      onClick={() => setContextPrompt('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8e8e96] hover:text-[#f0f0f3]"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isRetrievingContext || !contextPrompt.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#9ba8ff] hover:bg-[#8897fa] disabled:opacity-50 text-[#131315] font-semibold text-xs transition-colors shadow-sm"
+                >
+                  <Zap className={`w-3.5 h-3.5 ${isRetrievingContext ? 'animate-spin' : ''}`} />
+                  {isRetrievingContext ? 'Assembling...' : 'Assemble Context'}
+                </button>
+              </form>
+
+              {/* Sample Prompts */}
+              <div className="space-y-1.5">
+                <span className="text-[10.5px] font-medium text-[#8e8e96] block">
+                  Operational Prompt Shortcuts:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {sampleQueries.map((query, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleRetrieveContext(undefined, query)}
+                      className="text-[11px] px-2.5 py-1 rounded-md bg-white/[0.03] hover:bg-[#9ba8ff]/10 hover:text-[#9ba8ff] border border-white/5 hover:border-[#9ba8ff]/30 text-[#dedee1] text-left transition-colors"
+                    >
+                      {query}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Configuration Controls Bar */}
+              <div className="pt-3 border-t border-line flex flex-wrap items-center gap-4 text-xs">
+                {/* Max Token Budget */}
+                <div className="flex items-center gap-2">
+                  <Hash className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-[#8e8e96] text-[11px]">Token Budget:</span>
+                  <select
+                    value={contextTokenBudget}
+                    onChange={(e) => setContextTokenBudget(Number(e.target.value))}
+                    className="bg-[#141416] border border-white/10 rounded px-2.5 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value={500}>500 tokens (Compact)</option>
+                    <option value={1000}>1,000 tokens</option>
+                    <option value={1500}>1,500 tokens</option>
+                    <option value={2000}>2,000 tokens (Standard)</option>
+                    <option value={3000}>3,000 tokens</option>
+                    <option value={4000}>4,000 tokens (Extended)</option>
+                    <option value={6000}>6,000 tokens</option>
+                    <option value={8000}>8,000 tokens (Maximum)</option>
+                  </select>
+                </div>
+
+                {/* Top-K Selector */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Top-K:</span>
+                  <select
+                    value={contextTopK}
+                    onChange={(e) => setContextTopK(Number(e.target.value))}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value={3}>3 chunks</option>
+                    <option value={5}>5 chunks</option>
+                    <option value={8}>8 chunks</option>
+                    <option value={10}>10 chunks</option>
+                    <option value={15}>15 chunks</option>
+                  </select>
+                </div>
+
+                {/* Context Ordering */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Ordering:</span>
+                  <select
+                    value={contextOrdering}
+                    onChange={(e) => setContextOrdering(e.target.value as ContextOrdering)}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value="relevance">Relevance Ranked</option>
+                    <option value="document_order">Document Natural Order</option>
+                    <option value="grouped_by_doc">Grouped by Document</option>
+                  </select>
+                </div>
+
+                {/* Min Similarity Threshold */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Min Score:</span>
+                  <select
+                    value={contextMinScore}
+                    onChange={(e) => setContextMinScore(Number(e.target.value))}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value={0.0}>0.0 (No Minimum)</option>
+                    <option value={0.1}>0.10 (Recommended)</option>
+                    <option value={0.25}>0.25 (Strict)</option>
+                    <option value={0.5}>0.50 (High Confidence)</option>
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Category:</span>
+                  <select
+                    value={contextCategoryFilter}
+                    onChange={(e) => setContextCategoryFilter(e.target.value)}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value="">All Categories</option>
+                    {categoriesMeta?.categories.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Access Level Filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Access:</span>
+                  <select
+                    value={contextAccessFilter}
+                    onChange={(e) => setContextAccessFilter(e.target.value)}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value="">All Permitted</option>
+                    {categoriesMeta?.access_levels.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Telemetry & Token Budget Meter (When contextResponse is present) */}
+            {contextResponse && (
+              <div className="p-4 rounded-xl bg-[#19191b] border border-line space-y-4 shadow-md">
+                {/* Status Row */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {getRetrievalStatusBadge(contextResponse.status)}
+                    <span className="text-xs text-[#8e8e96] font-mono">
+                      Query: &ldquo;{contextResponse.query}&rdquo;
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-mono">
+                    <span className="text-[#a5a5ac] flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-blue-400" />
+                      Latency: <strong className="text-[#f0f0f3]">{contextResponse.metadata.retrieval_duration_ms.toFixed(1)} ms</strong>
+                    </span>
+                    <span className="text-[#a5a5ac] flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-purple-400" />
+                      Chunks: <strong className="text-[#f0f0f3]">{contextResponse.metadata.selected_count}</strong> / {contextResponse.metadata.candidate_count} candidates
+                    </span>
+                    {contextResponse.metadata.skipped_count > 0 && (
+                      <span className="text-amber-400 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Omitted: <strong>{contextResponse.metadata.skipped_count}</strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Reason Banner if present */}
+                {contextResponse.status_reason && (
+                  <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span>{contextResponse.status_reason}</span>
+                  </div>
+                )}
+
+                {/* Token Budget Meter Bar */}
+                {(() => {
+                  const usedTokens =
+                    contextResponse.metadata.assembled_token_count +
+                    contextResponse.metadata.overhead_token_count
+                  const maxTokens = contextResponse.metadata.token_budget
+                  const remainingTokens = Math.max(0, maxTokens - usedTokens)
+                  const pct = Math.min(100, Math.round((usedTokens / Math.max(1, maxTokens)) * 100))
+                  const barColor =
+                    pct >= 95 ? 'bg-amber-400' : pct >= 80 ? 'bg-cyan-400' : 'bg-emerald-400'
+
+                  return (
+                    <div className="p-3 rounded-lg bg-[#141416] border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#8e8e96] font-medium flex items-center gap-1.5">
+                          <Hash className="w-3.5 h-3.5 text-amber-400" />
+                          Token Budget Utilization:
+                        </span>
+                        <span className="font-mono text-[#dedee1]">
+                          <strong className="text-[#f0f0f3]">{usedTokens.toLocaleString()}</strong> / {maxTokens.toLocaleString()} tokens ({pct}%)
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full ${barColor} transition-all duration-300`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between text-[11px] text-[#74747c] font-mono pt-1">
+                        <span>Content: <strong className="text-[#a5a5ac]">{contextResponse.metadata.assembled_token_count.toLocaleString()}</strong> tok</span>
+                        <span>Overhead: <strong className="text-[#a5a5ac]">{contextResponse.metadata.overhead_token_count.toLocaleString()}</strong> tok</span>
+                        <span>Remaining: <strong className="text-emerald-400">{remainingTokens.toLocaleString()}</strong> tok</span>
+                        <span>Ordering: <strong className="text-[#9ba8ff]">{contextResponse.metadata.context_ordering}</strong></span>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Warnings / Limitations */}
+                {(contextResponse.warnings?.length > 0 || contextResponse.limitations?.length > 0) && (
+                  <div className="flex flex-wrap gap-2 text-[11px]">
+                    {contextResponse.warnings?.map((w, idx) => (
+                      <span key={`w-${idx}`} className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {w}
+                      </span>
+                    ))}
+                    {contextResponse.limitations?.map((l, idx) => (
+                      <span key={`l-${idx}`} className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[#8e8e96] flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* View Switcher Tabs (When contextResponse exists) */}
+            {contextResponse && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-line pb-px">
+                  <button
+                    onClick={() => setContextViewMode('blocks')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                      contextViewMode === 'blocks'
+                        ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                        : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    Context Blocks ({contextResponse.context_blocks.length})
+                  </button>
+
+                  <button
+                    onClick={() => setContextViewMode('citations')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                      contextViewMode === 'citations'
+                        ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                        : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+                    }`}
+                  >
+                    <BookMarked className="w-3.5 h-3.5" />
+                    Source Citations ({contextResponse.citations.length})
+                  </button>
+
+                  <button
+                    onClick={() => setContextViewMode('formatted')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                      contextViewMode === 'formatted'
+                        ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                        : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+                    }`}
+                  >
+                    <AlignLeft className="w-3.5 h-3.5" />
+                    Formatted Context (Prompt Ready)
+                  </button>
+
+                  <button
+                    onClick={() => setContextViewMode('skipped')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                      contextViewMode === 'skipped'
+                        ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                        : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+                    }`}
+                  >
+                    <ListFilter className="w-3.5 h-3.5" />
+                    Excluded Chunks ({contextResponse.skipped_chunks.length})
+                  </button>
+                </div>
+
+                {/* VIEW 1: CONTEXT BLOCKS */}
+                {contextViewMode === 'blocks' && (
+                  <div className="space-y-4">
+                    {contextResponse.context_blocks.length === 0 ? (
+                      <div className="p-8 rounded-xl bg-[#19191b] border border-line text-center space-y-2">
+                        <AlertTriangle className="w-6 h-6 text-amber-400 mx-auto" />
+                        <h4 className="text-sm font-semibold text-[#f0f0f3]">No Context Blocks Assembled</h4>
+                        <p className="text-xs text-[#8e8e96] max-w-md mx-auto">
+                          {contextResponse.status_reason || 'No candidate chunks met the similarity threshold and access policies.'}
+                        </p>
+                      </div>
+                    ) : (
+                      contextResponse.context_blocks.map((block) => (
+                        <div
+                          key={block.chunk_id}
+                          className="p-4 rounded-xl bg-[#19191b] border border-line hover:border-[#9ba8ff]/40 transition-colors space-y-3 shadow-md"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              {/* Citation Badge */}
+                              <span className="px-2 py-0.5 rounded-md bg-[#9ba8ff]/20 text-[#9ba8ff] border border-[#9ba8ff]/30 font-mono font-bold text-xs">
+                                [{block.citation_id}]
+                              </span>
+
+                              <span className={`px-2 py-0.5 rounded text-[10.5px] font-mono font-semibold border ${getScoreColor(block.similarity_score)}`}>
+                                {(block.similarity_score * 100).toFixed(1)}% match
+                              </span>
+
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getCategoryColor(block.category)}`}>
+                                {block.category.replace(/_/g, ' ')}
+                              </span>
+
+                              <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10px] text-[#a5a5ac]">
+                                {block.access_level}
+                              </span>
+
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 font-mono text-[10px] text-amber-300">
+                                {block.token_count} tok
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 font-mono text-[10px] text-[#74747c]">
+                              <span>v{block.document_version}</span>
+                              <span>·</span>
+                              <span className="text-[#9ba8ff]">{block.chunk_id}</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4
+                              onClick={() => handleViewDetail(block.document_id)}
+                              className="text-sm font-semibold text-[#f0f0f3] hover:text-[#9ba8ff] cursor-pointer flex items-center gap-1.5"
+                            >
+                              {block.document_title}
+                              <ChevronRight className="w-3.5 h-3.5 text-[#6f6f78]" />
+                            </h4>
+
+                            <div className="flex items-center gap-2 text-[11px] text-[#8e8e96] mt-0.5">
+                              {block.section_title && (
+                                <span className="font-mono text-[#dedee1]">
+                                  Section: {block.section_title}
+                                </span>
+                              )}
+                              {block.page_number && (
+                                <>
+                                  <span>·</span>
+                                  <span className="font-mono">Page {block.page_number}</span>
+                                </>
+                              )}
+                              <span>·</span>
+                              <span className="font-mono">Chunk #{block.chunk_index + 1}</span>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-lg bg-[#141416] border border-white/5 text-xs text-[#dedee1] leading-relaxed">
+                            <pre className="whitespace-pre-wrap font-sans text-xs text-[#c7c7cc]">
+                              {block.content}
+                            </pre>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* VIEW 2: SOURCE CITATIONS */}
+                {contextViewMode === 'citations' && (
+                  <div className="rounded-xl bg-[#19191b] border border-line overflow-hidden shadow-md">
+                    <div className="p-3.5 border-b border-line flex items-center justify-between text-xs">
+                      <span className="font-semibold text-[#f0f0f3] flex items-center gap-2">
+                        <BookMarked className="w-4 h-4 text-[#9ba8ff]" />
+                        Source Provenance & Citation Map
+                      </span>
+                      <span className="text-[11px] text-[#8e8e96] font-mono">
+                        {contextResponse.citations.length} Verified Sources
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-[#141416] border-b border-line text-[10.5px] uppercase font-semibold text-[#8e8e96] tracking-wider font-mono">
+                          <tr>
+                            <th className="py-2.5 px-4">Citation</th>
+                            <th className="py-2.5 px-4">Document Title & Version</th>
+                            <th className="py-2.5 px-4">Section / Page</th>
+                            <th className="py-2.5 px-4">Category</th>
+                            <th className="py-2.5 px-4">Tokens</th>
+                            <th className="py-2.5 px-4">Match Score</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-line font-mono text-[11px]">
+                          {contextResponse.citations.map((c) => {
+                            const block = contextResponse.context_blocks.find(
+                              (b) => b.chunk_id === c.chunk_id
+                            )
+                            return (
+                              <tr key={c.chunk_id} className="hover:bg-white/[0.02] transition-colors">
+                                <td className="py-3 px-4">
+                                  <span className="px-2 py-0.5 rounded-md bg-[#9ba8ff]/20 text-[#9ba8ff] border border-[#9ba8ff]/30 font-bold">
+                                    {c.citation_marker}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 font-sans text-xs font-medium text-[#f0f0f3]">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>{c.document_title}</span>
+                                    <span className="text-[10px] text-[#74747c] font-mono">
+                                      v{c.document_version}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-[#dedee1]">
+                                  {c.section_title || 'General'}{' '}
+                                  {c.page_number ? `(p.${c.page_number})` : ''}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {block ? (
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getCategoryColor(
+                                        block.category
+                                      )}`}
+                                    >
+                                      {block.category}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#6f6f78]">—</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-amber-300">
+                                  {block ? block.token_count : '—'}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {block ? (
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10.5px] font-semibold border ${getScoreColor(
+                                        block.similarity_score
+                                      )}`}
+                                    >
+                                      {(block.similarity_score * 100).toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#6f6f78]">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* VIEW 3: FORMATTED CONTEXT */}
+                {contextViewMode === 'formatted' && (
+                  <div className="rounded-xl bg-[#19191b] border border-line overflow-hidden shadow-md space-y-0">
+                    <div className="p-3.5 border-b border-line flex flex-wrap items-center justify-between gap-3 text-xs bg-[#161618]">
+                      <div className="flex items-center gap-2 text-xs">
+                        <AlignLeft className="w-4 h-4 text-[#9ba8ff]" />
+                        <span className="font-semibold text-[#f0f0f3]">
+                          Prompt-Safe Assembled Context Package
+                        </span>
+                        <span className="text-[10.5px] text-[#8e8e96] font-mono">
+                          (Enclosed with &lt;reference_content&gt; tags)
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={handleCopyFormattedContext}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/[0.05] hover:bg-white/10 text-xs text-[#dedee1] border border-white/10 transition-colors"
+                      >
+                        {copiedFormattedContext ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400">Copied to Clipboard</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-[#9ba8ff]" />
+                            <span>Copy Prompt Context</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-4 bg-[#101012]">
+                      <pre className="text-xs font-mono text-[#dedee1] whitespace-pre-wrap leading-relaxed overflow-x-auto max-h-[600px]">
+                        {contextResponse.formatted_context || '(No formatted context available)'}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
+                {/* VIEW 4: SKIPPED CHUNKS */}
+                {contextViewMode === 'skipped' && (
+                  <div className="rounded-xl bg-[#19191b] border border-line overflow-hidden shadow-md">
+                    <div className="p-3.5 border-b border-line flex items-center justify-between text-xs">
+                      <span className="font-semibold text-[#f0f0f3] flex items-center gap-2">
+                        <ListFilter className="w-4 h-4 text-amber-400" />
+                        Omitted & Filtered Candidate Chunks
+                      </span>
+                      <span className="text-[11px] text-[#8e8e96] font-mono">
+                        {contextResponse.skipped_chunks.length} Chunks Omitted
+                      </span>
+                    </div>
+
+                    {contextResponse.skipped_chunks.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-[#8e8e96] space-y-1">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto" />
+                        <p className="text-[#dedee1] font-medium">All Candidates Included</p>
+                        <p className="text-[11px]">No candidate chunks were omitted due to token budget or threshold limits.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-[#141416] border-b border-line text-[10.5px] uppercase font-semibold text-[#8e8e96] tracking-wider font-mono">
+                            <tr>
+                              <th className="py-2.5 px-4">Chunk ID</th>
+                              <th className="py-2.5 px-4">Document Title</th>
+                              <th className="py-2.5 px-4">Reason Omitted</th>
+                              <th className="py-2.5 px-4">Tokens</th>
+                              <th className="py-2.5 px-4">Score</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-line font-mono text-[11px]">
+                            {contextResponse.skipped_chunks.map((s, idx) => (
+                              <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                                <td className="py-3 px-4 text-[#9ba8ff]">{s.chunk_id}</td>
+                                <td className="py-3 px-4 font-sans text-xs text-[#dedee1]">
+                                  {s.document_title || 'Unknown Document'}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                                    {s.skip_reason.replace(/_/g, ' ')}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-amber-300">
+                                  {s.token_count || '—'}
+                                </td>
+                                <td className="py-3 px-4 text-[#8e8e96]">
+                                  {s.similarity_score !== undefined ? `${(s.similarity_score * 100).toFixed(1)}%` : '—'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty State when no query run yet */}
+            {!contextResponse && !isRetrievingContext && (
+              <div className="p-10 rounded-xl bg-[#19191b] border border-line text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-[#9ba8ff]/10 border border-[#9ba8ff]/20 flex items-center justify-center mx-auto text-[#9ba8ff]">
+                  <Zap className="w-6 h-6" />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h3 className="text-sm font-semibold text-[#f0f0f3]">
+                    Token-Budget-Aware RAG Context Assembly
+                  </h3>
+                  <p className="text-xs text-[#8e8e96] leading-relaxed">
+                    Retrieve relevant hospital operating guidelines, clinical protocols, and equipment procedures. The engine ranks candidates, packs them into a strict token budget with stable citation markers ([S1], [S2]), and encloses content in prompt-safe reference blocks.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-4 text-[11px] text-[#6f6f78] font-mono">
+                  <span>Candidate Expansion</span>
+                  <span>·</span>
+                  <span>Token Budgeting</span>
+                  <span>·</span>
+                  <span>Prompt-Safe Enclosure</span>
+                  <span>·</span>
+                  <span>Deterministic Citations</span>
                 </div>
               </div>
             )}

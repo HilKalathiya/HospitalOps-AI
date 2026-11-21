@@ -1,4 +1,4 @@
-# HospitalOps AI — Hospital Knowledge & RAG Foundation (Chunks 4.1 & 4.2)
+# HospitalOps AI — Hospital Knowledge & RAG Foundation (Chunks 4.1, 4.2 & 4.3)
 
 ## Overview
 
@@ -9,6 +9,7 @@ In strict alignment with the **HospitalOps AI Constitution (`AGENTS.md`)**:
 - It enforces a **Healthcare Data & Privacy Quarantine Boundary** that rejects and quarantines patient records or Protected Health Information (PHI) such as MRNs, SSNs, and MIMIC-IV clinical keys.
 - Deterministic pipelines ensure that knowledge chunks maintain structural provenance, exact section paths, and parent-version integrity.
 - Semantic vector retrieval enforces server-side role-based access classification (RBAC), embedding space compatibility validation, and post-retrieval verification against persistent storage.
+- Context assembly packages retrieved knowledge into strict token budgets with prompt-safe boundary enclosures and deterministic source citations (`[S1]`, `[S2]`).
 
 ---
 
@@ -37,7 +38,15 @@ flowchart TD
         SFB --> ChromaQuery["ChromaDB Vector Search<br/>(Cosine NN query)"]
         ChromaQuery --> PostVal{"MongoDB Post-Validation<br/>(Active version? Not quarantined?)"}
         PostVal -- "Valid" --> Ranker["ResultRanker<br/>(Score mapping, diversity cap, excerpts)"]
-        Ranker --> Output["Ranked KnowledgeSearchResult Items<br/>(Provenance, Scores, Excerpts)"]
+    end
+
+    subgraph Assembly ["Chunk 4.3 — RAG Context Assembly Layer"]
+        Ranker --> CandExp["Candidate Expansion<br/>(candidate_k = max(top_k * 3, 15))"]
+        CandExp --> TBM["TokenBudgetManager<br/>(tiktoken cl100k_base accounting)"]
+        TBM --> CB["ContextBuilder<br/>(Relevance / Doc / Grouped Ordering)"]
+        CB --> SafeTag["Prompt Boundary Guard<br/>(&lt;reference_content&gt; enclosure)"]
+        SafeTag --> CitBuilder["CitationBuilder<br/>(Stable [S1], [S2] Source Citations)"]
+        CitBuilder --> FinalPkg["KnowledgeRetrievalResponse<br/>(SUCCESS / PARTIAL / INSUFFICIENT)"]
     end
 ```
 
@@ -119,6 +128,41 @@ Evaluated across an operational benchmark corpus:
 
 ---
 
+## RAG Context Retrieval & Assembly Layer (Chunk 4.3)
+
+### Core Components (`backend/app/knowledge/retrieval/`):
+
+1. **`TokenBudgetManager`**:
+   - Manages token capacity limits (`max_context_tokens`, 200–16,000 tokens).
+   - Accurately counts tokens offline using `tiktoken` (`cl100k_base`) with ratio-based fallback (`~1.33` tokens/word).
+   - Reserves overhead for citation headers and formatting tags.
+   - Greedily packs candidate chunks and records an explicit audit trail of skipped chunks (`SkippedChunkInfo`) with reasons (`token_budget_exceeded`).
+
+2. **`CitationBuilder`**:
+   - Assigns deterministic, sequential citation identifiers (`S1`, `S2`, ...).
+   - Formats citation markers (`[S1]`, `[S2]`) and traceable source references incorporating document title, active version, section heading, and page number.
+   - Calculates exact citation overhead tokens for budget management.
+
+3. **`ContextBuilder`**:
+   - Encloses reference passages in `<reference_content>` boundary tags with an explicit non-clinical operational notice.
+   - Sanitizes closing tags (`</reference_content>` $\to$ `&lt;/reference_content&gt;`) to neutralize prompt injection attacks.
+   - Supports three distinct ordering strategies:
+     - `RELEVANCE`: Preserves descending semantic similarity ranking.
+     - `DOCUMENT_ORDER`: Groups by document and orders chunks sequentially by `chunk_index` to maintain procedural flow.
+     - `GROUPED_BY_DOC`: Groups chunks by document while prioritizing documents with highest peak similarity.
+
+4. **`RetrievalContextOrchestrator`**:
+   - Expands candidate pool ($k_{\text{cand}} = \max(\text{top\_k} \times 3, 15)$) to ensure rich selection.
+   - Evaluates context grounding against calibrated minimum similarity thresholds ($s \ge 0.10$).
+   - Categorizes execution status into explicit operational contracts:
+     - `SUCCESS`: Relevant authorized chunks assembled within token budget.
+     - `PARTIAL_CONTEXT`: Relevant candidate chunks exceeded token allowance and were omitted.
+     - `INSUFFICIENT_CONTEXT`: Candidate chunks fell below minimum grounding threshold ($s < 0.10$).
+     - `NO_RESULTS`: Zero authorized candidate chunks found.
+     - `FAILED`: Internal decoding or retrieval failure.
+
+---
+
 ## Document Categories & Access Levels
 
 ### Categories:
@@ -143,6 +187,7 @@ Evaluated across an operational benchmark corpus:
 
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
+| `POST` | `/api/v1/knowledge/retrieve` | `knowledge.read` | Token-budget-aware RAG context assembly with citations & prompt-safe boundaries |
 | `POST` | `/api/v1/knowledge/search` | `knowledge.read` | Natural-language semantic vector search with RBAC enforcement |
 | `GET` | `/api/v1/knowledge/search/health` | `knowledge.read` | Retrieval readiness and embedding space diagnostics |
 | `POST` | `/api/v1/knowledge/documents/upload` | `knowledge.manage` | Uploads multipart file and kicks off 10-stage ingestion |

@@ -11,6 +11,7 @@ Typed Pydantic contracts for:
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import Field
@@ -136,3 +137,157 @@ class RetrievalHealthResponse(HospitalOpsBaseModel):
     total_chunks: int
     embedding_space: EmbeddingSpaceInfo
     is_ready: bool
+
+
+# ── Chunk 4.3: RAG Context Retrieval & Assembly Contracts ──────────────────────
+
+
+class ContextOrdering(str, Enum):
+    """Context assembly ordering strategies."""
+
+    RELEVANCE = "relevance"
+    DOCUMENT_ORDER = "document_order"
+    GROUPED_BY_DOC = "grouped_by_doc"
+
+
+class RetrievalStatus(str, Enum):
+    """Context retrieval evaluation and execution status."""
+
+    SUCCESS = "SUCCESS"
+    NO_RESULTS = "NO_RESULTS"
+    INSUFFICIENT_CONTEXT = "INSUFFICIENT_CONTEXT"
+    PARTIAL_CONTEXT = "PARTIAL_CONTEXT"
+    FAILED = "FAILED"
+
+
+class KnowledgeRetrievalRequest(HospitalOpsBaseModel):
+    """Request for semantic retrieval, token-budgeted filtering, and context assembly."""
+
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Natural-language operational question or inquiry",
+    )
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Target maximum number of knowledge chunks in assembled context",
+    )
+    candidate_k: int | None = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Candidate retrieval limit before token budgeting (defaults to max(top_k * 3, 15))",
+    )
+    max_context_tokens: int = Field(
+        default=3000,
+        ge=200,
+        le=16000,
+        description="Maximum token budget for assembled context package",
+    )
+    filters: SearchFilters = Field(
+        default_factory=SearchFilters,
+        description="Metadata filtering criteria (category, department, access level, version)",
+    )
+    context_ordering: ContextOrdering = Field(
+        default=ContextOrdering.RELEVANCE,
+        description="Ordering strategy for context blocks",
+    )
+    include_formatted_context: bool = Field(
+        default=True,
+        description="Whether to generate the prompt-safe formatted context string",
+    )
+    min_relevance_threshold: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Optional minimum calibrated similarity threshold [0.0, 1.0]",
+    )
+
+
+class SourceCitation(HospitalOpsBaseModel):
+    """Traceable citation metadata mapping a context block to its source document."""
+
+    citation_id: str = Field(..., description="Stable short citation identifier (e.g. 'S1')")
+    citation_marker: str = Field(..., description="Bracketed citation marker (e.g. '[S1]')")
+    document_id: str
+    document_title: str
+    document_version: int
+    chunk_id: str
+    section_title: str | None = None
+    heading_path: list[str] = Field(default_factory=list)
+    page_number: int | None = None
+    source_reference: str = Field(..., description="Human-readable citation reference string")
+
+
+class ContextBlock(HospitalOpsBaseModel):
+    """Structured knowledge context block prepared for RAG consumption."""
+
+    citation_id: str
+    document_id: str
+    document_title: str
+    document_version: int
+    chunk_id: str
+    chunk_index: int
+    section_title: str | None = None
+    heading_path: list[str] = Field(default_factory=list)
+    page_number: int | None = None
+    content: str
+    token_count: int
+    category: DocumentCategory
+    department_id: str | None = None
+    access_level: AccessLevel
+    rank: int
+    distance: float
+    similarity_score: float
+    is_table: bool = False
+
+
+class SkippedChunkInfo(HospitalOpsBaseModel):
+    """Details on why a candidate chunk was omitted from final context."""
+
+    chunk_id: str
+    document_id: str
+    document_title: str
+    rank: int
+    token_count: int
+    similarity_score: float
+    skip_reason: str = Field(
+        ...,
+        description="'token_budget_exceeded', 'diversity_limit_exceeded', or 'below_similarity_threshold'",
+    )
+
+
+class RetrievalMetadata(HospitalOpsBaseModel):
+    """Detailed operational telemetry and token budgeting metrics for retrieval execution."""
+
+    embedding_space: EmbeddingSpaceInfo
+    candidate_count: int
+    retrieved_count: int
+    selected_count: int
+    skipped_count: int
+    token_budget: int
+    assembled_token_count: int
+    overhead_token_count: int = 0
+    token_count_method: str
+    retrieval_duration_ms: float
+    context_ordering: str
+
+
+class KnowledgeRetrievalResponse(HospitalOpsBaseModel):
+    """Top-level RAG context package response with source citations and telemetry."""
+
+    retrieval_id: str = Field(..., description="Unique retrieval execution identifier (ret_...)")
+    status: RetrievalStatus
+    status_reason: str | None = None
+    query: str
+    created_at: str
+    metadata: RetrievalMetadata
+    context_blocks: list[ContextBlock] = Field(default_factory=list)
+    citations: list[SourceCitation] = Field(default_factory=list)
+    formatted_context: str | None = None
+    skipped_chunks: list[SkippedChunkInfo] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)

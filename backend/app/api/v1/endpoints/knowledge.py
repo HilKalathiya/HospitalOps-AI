@@ -18,6 +18,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from app.api.dependencies import get_knowledge_service, require_permission
 from app.knowledge.embedders.base import EmbeddingSpaceMismatchError
 from app.knowledge.retrieval import (
+    KnowledgeRetrievalRequest,
+    KnowledgeRetrievalResponse,
     KnowledgeSearchRequest,
     KnowledgeSearchResponse,
     RetrievalHealthResponse,
@@ -275,6 +277,28 @@ async def search_knowledge(
 ) -> KnowledgeSearchResponse:
     try:
         return await knowledge_service.search(request, current_user=current_user)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    except EmbeddingSpaceMismatchError as err:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Incompatible embedding space: {err}",
+        ) from err
+
+
+@router.post(
+    "/retrieve",
+    response_model=KnowledgeRetrievalResponse,
+    summary="Retrieve and assemble token-budgeted RAG context package",
+    description="Orchestrates semantic search, candidate expansion, token budget enforcement, citation generation, and prompt-safe context assembly.",
+)
+async def retrieve_knowledge_context(
+    request: KnowledgeRetrievalRequest,
+    current_user: UserDocument = Depends(require_permission("knowledge.read")),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
+) -> KnowledgeRetrievalResponse:
+    try:
+        return await knowledge_service.retrieve_context(request, current_user=current_user)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
     except EmbeddingSpaceMismatchError as err:

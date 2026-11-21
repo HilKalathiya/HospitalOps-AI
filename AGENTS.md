@@ -213,7 +213,7 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 3.5 | Unified Simulation & Optimization Workspace | ✅ Complete |
 | 4.1 | Document Ingestion Pipeline — RAG Knowledge Foundation | ✅ Complete |
 | 4.2 | Semantic Vector Search & Knowledge Retrieval Engine | ✅ Complete |
-| 4.3 | Conversational RAG & Operational Question-Answering | ⬜ Planned |
+| 4.3 | Retrieval API — RAG Context Retrieval & Assembly Layer | ✅ Complete |
 | 4.4 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned |
 
 ---

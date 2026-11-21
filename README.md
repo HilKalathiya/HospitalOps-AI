@@ -508,6 +508,37 @@ HospitalOps AI provides a secure, reusable semantic retrieval system over indexe
 
 ---
 
+## Retrieval API — RAG Context Retrieval & Assembly Layer (Chunk 4.3)
+
+HospitalOps AI provides a token-budget-aware RAG context assembly layer that bridges semantic vector retrieval with downstream decision intelligence:
+- **Strict Token Budgeting & Capacity Control:**
+  - Dedicated `TokenBudgetManager` (`backend/app/knowledge/retrieval/token_budget.py`) enforces strict context token ceilings (`max_context_tokens`, 200–16,000 tokens).
+  - Greedily packs candidate chunks according to relevance ranking while accounting for citation headers and formatting overhead.
+  - Automatically records an audit trail of omitted chunks (`SkippedChunkInfo`) with exact reasons (`token_budget_exceeded`).
+- **Offline Deterministic Token Accounting:**
+  - Utilizes `tiktoken` with `cl100k_base` vocabulary offline without external network dependencies.
+  - Gracefully falls back to conservative word-to-token ratios (~1.33 tokens/word) in restricted environments.
+- **Prompt Injection Defense & Boundary Isolation:**
+  - `ContextBuilder` wraps all retrieved passages within `<reference_content>` boundary tags, neutralizing injection attempts (`</reference_content>` $\to$ `&lt;/reference_content&gt;`).
+  - Prepends an authoritative operational boundary header that explicitly declares retrieved content as reference data, preventing prompt escaping.
+- **Traceable Source Citation Mapping:**
+  - `CitationBuilder` emits stable, sequential bracketed markers (`[S1]`, `[S2]`) with human-readable references containing document title, active version, section heading, and page number.
+- **Flexible Ordering Strategies:**
+  - `RELEVANCE`: Highest semantic similarity first (optimal for direct Q&A).
+  - `DOCUMENT_ORDER`: Grouped by document and ordered sequentially by `chunk_index` (optimal for procedural continuity).
+  - `GROUPED_BY_DOC`: Grouped by document with highest similarity group first (optimal for multi-document synthesis).
+- **Explicit Sufficiency Classification:**
+  - `RetrievalContextOrchestrator` expands candidate pool ($k_{\text{cand}} = \max(\text{top\_k} \times 3, 15)$) and evaluates relevance against calibrated thresholds ($s \ge 0.10$).
+  - Emits explicit status contracts: `SUCCESS`, `PARTIAL_CONTEXT`, `INSUFFICIENT_CONTEXT`, `NO_RESULTS`, `FAILED`.
+- **Interactive Context Assembler Workbench (`/knowledge`):**
+  - Dedicated "RAG Context Assembler" tab in `KnowledgeBase.tsx` featuring a real-time token budget utilization meter (content vs. overhead breakdown), candidate vs. selected telemetry, view switchers (Context Blocks, Source Citations table, Prompt-Safe Formatted Context with one-click copy, and Excluded Chunks audit table), and parameter controls (Top-K, Token Budget 500–8000, Ordering, Min Score).
+- **REST Endpoints & RBAC:**
+  - `POST /api/v1/knowledge/retrieve` (requires `knowledge.read`).
+  - Strict inquiry privacy: user query strings are never logged in plaintext server logs.
+  - Non-clinical decision-support boundary: strictly context assembly; LLM answer generation and autonomous agents are scoped for Milestone 4, Chunk 4.4.
+
+---
+
 ## Environment Configuration
 
 Copy `.env.example` to `.env` and configure:
@@ -537,7 +568,7 @@ See `.env.example` for the full list including future-chunk placeholders.
 
 See [`docs/architecture/overview.md`](docs/architecture/overview.md) for the full architecture documentation.
 
-See [`docs/decisions/`](docs/decisions/) for Architecture Decision Records (ADR-001 to ADR-007).
+See [`docs/decisions/`](docs/decisions/) for Architecture Decision Records (ADR-001 to ADR-010).
 
 ---
 

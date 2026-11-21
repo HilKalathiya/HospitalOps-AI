@@ -20,9 +20,12 @@ import uuid
 from app.core.config import get_settings
 from app.knowledge.pipeline import KnowledgeIngestionPipeline, PipelineExecutionResult
 from app.knowledge.retrieval import (
+    KnowledgeRetrievalRequest,
+    KnowledgeRetrievalResponse,
     KnowledgeRetriever,
     KnowledgeSearchRequest,
     KnowledgeSearchResponse,
+    RetrievalContextOrchestrator,
     RetrievalHealthResponse,
 )
 from app.knowledge.vectorstore.base import VectorStore
@@ -71,6 +74,7 @@ class KnowledgeService:
             embedding_provider=self.pipeline.embedding_provider,
             knowledge_repo=self.knowledge_repo,
         )
+        self.orchestrator = RetrievalContextOrchestrator(retriever=self.retriever)
         self.settings = get_settings()
 
         os.makedirs(self.settings.knowledge_storage_dir, exist_ok=True)
@@ -528,6 +532,20 @@ class KnowledgeService:
             raise ValueError("KnowledgeSearchRequest is required for search.")
         resolved_user = current_user or user
         return await self.retriever.search(resolved_req, current_user=resolved_user)
+
+    async def retrieve_context(
+        self,
+        request: KnowledgeRetrievalRequest | None = None,
+        current_user: UserDocument | None = None,
+        req: KnowledgeRetrievalRequest | None = None,
+        user: UserDocument | None = None,
+    ) -> KnowledgeRetrievalResponse:
+        """Execute RAG context retrieval, token budgeting, and assembly."""
+        resolved_req = request or req
+        if resolved_req is None:
+            raise ValueError("KnowledgeRetrievalRequest is required for retrieval.")
+        resolved_user = current_user or user
+        return await self.orchestrator.retrieve_context(resolved_req, current_user=resolved_user)
 
     async def check_retrieval_health(self) -> RetrievalHealthResponse:
         """Inspect retrieval readiness and embedding space diagnostics."""
