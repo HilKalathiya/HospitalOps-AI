@@ -70,6 +70,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **3.2** | **Simulation UI & Scenario Comparison** | ✅ Complete | Multi-scenario comparison matrix, SVG trajectory chart, shortage analysis, session persistence & JSON inspect |
 | | **3.3** | **Resource Optimization Engine (MIP)** | ✅ Complete | SciPy HiGHS MILP, multi-department surge beds & equipment allocation, counterfactual baseline, 159 tests passed (reconciles former M4 C4.1) |
 | | **3.4** | **Recommendation Explanation & Plan Review** | ✅ Complete | Deterministic explanation layer, objective deconstruction, constraint diagnostics, counterfactual baseline comparison, plan review workspace, 166 tests passed |
+| | **3.5** | **Unified Decision Workspace** | ✅ Complete | Unified simulation & optimization cockpit, parameter derivation adapter, 3-way decision matrix, provenance tracking, 174 tests passed |
 | **M4: Agentic AI & RAG** | 4.1 | Multi-Agent Orchestration & RAG | ⬜ Planned | Tool calling, vector search, operational decision agents |
 
 ---
@@ -338,4 +339,43 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
       - Full backend test suite passing cleanly.
       - `ruff check backend`: 0 errors.
       - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.1 (Multi-Agent Orchestration & RAG).
+* **Next Planned Work:** Milestone 3, Chunk 3.5 (Unified Simulation & Optimization Workspace) — Completed.
+
+---
+
+## 12. Completed Workstream: Milestone 3, Chunk 3.5 (Unified Simulation & Optimization Workspace)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Unified Decision Cockpit (`frontend/src/pages/Decision/DecisionWorkspace.tsx`):**
+     - Mounted at `/decision` and `/decision-workspace`, integrated into sidebar navigation (`Compass` icon).
+     - Provides an end-to-end 5-stage analytical progression: Operational Baseline Context ➔ Scenario Simulation Selection ➔ HiGHS Optimization Bridge ➔ 3-Way Cross-Workflow Comparison ➔ Deep-Dive Allocation & Explanation Review.
+     - Dark `#111113` / `#161619` craft styling with responsive desktop and mobile support.
+  2. **Simulation-to-Optimization Parameter Derivation Adapter:**
+     - `prepare_optimization_from_simulation(simulation_id)` automatically derives validated optimization parameters directly from completed what-if simulations.
+     - Scales department demands by simulated admission surge percentages (+X%), adjusts available surge pools for bed conversions (+ΔBeds), and configures equipment ratios/inventory deltas for bottleneck scenarios without fabricating synthetic data.
+     - Pre-solve review modal allows adjusting surge buffer limits or custom penalty weights prior to execution.
+  3. **3-Way Cross-Workflow Comparison Matrix (`DecisionComparison`):**
+     - Directly compares Baseline (Status Quo), Unmitigated Simulation, and Optimized Plan on identical time horizons and target units.
+     - Compares Peak Bed Deficit, Shortage Duration, Cumulative Unmet Demand, Surge Beds Deployed, and Equipment Shortages.
+     - Computes net shortage days eliminated, peak bed deficit reductions (with division-by-zero protection), and equipment fulfillment percentages.
+  4. **Decision Provenance & Traceability:**
+     - Links optimization plans to originating simulation runs via `origin_simulation_id` and `origin_scenario_name` across schemas, database documents, and API responses.
+     - Combined slide-over run history drawer and raw JSON inspection modal for both simulation and optimization artifacts.
+  5. **Cross-Page Workflow Integration:**
+     - Scenario Comparison (`/simulations`) features "Optimize in Decision Workspace →" deep-link buttons.
+     - Optimization Review (`/optimizations`) features origin simulation link badges and direct navigation to the unified cockpit.
+  6. **REST API & Security:**
+     - `GET /api/v1/optimization/prepare-from-simulation/{simulation_id}` (requires `optimization.run`).
+     - `GET /api/v1/optimization/compare-decision/{simulation_id}/{run_id}` (requires `optimization.read`).
+     - Aliased under `/api/v1/decision/...`.
+  7. **Strict Operational Safety Boundary:**
+     - Advisory decision-support proposals only; never applies allocations automatically to live beds or physical equipment.
+     - Fully read-only against live collections (`beds`, `resources`, `patients`, `admissions`).
+  8. **Verification & Testing:**
+     - 8 dedicated integration and API tests in `backend/tests/test_decision_workspace.py` covering parameter derivation, 3-way evaluation, zero-baseline safety, and RBAC permissions.
+     - Full Decision Intelligence test suite: 35/35 passed in ~58s.
+     - Full backend test suite: 174 passed, 10 skipped.
+     - `ruff check backend`: 0 errors.
+     - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
+* **Next Planned Work:** Milestone 4, Chunk 4.1 (Agentic AI Orchestration & RAG).

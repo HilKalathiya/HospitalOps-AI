@@ -57,6 +57,8 @@ export interface OptimizationParameters {
   resource_requirements?: ResourceRequirementInput[]
   time_limit_seconds?: number
   forecast_source?: string | null
+  origin_simulation_id?: string | null
+  origin_scenario_name?: string | null
 }
 
 export interface DepartmentPeriodAllocation {

@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { 
   LayoutDashboard, 
   TrendingUp, 
+  Compass,
   GitCompare,
   Cpu,
   Award, 
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onCloseMob
   const workspaceNav = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Capacity forecasts', path: '/forecasts', icon: TrendingUp },
+    { name: 'Decision intelligence', path: '/decision', icon: Compass },
     { name: 'Scenario simulation', path: '/simulations', icon: GitCompare },
     { name: 'Optimization review', path: '/optimizations', icon: Cpu },
     { name: 'Model evaluation', path: '/evaluation', icon: Award },

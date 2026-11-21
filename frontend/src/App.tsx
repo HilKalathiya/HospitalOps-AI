@@ -12,6 +12,7 @@ import { BedsPage } from './pages/Operations/BedsPage'
 import { ResourcesPage } from './pages/Operations/ResourcesPage'
 import { PatientsPage } from './pages/Operations/PatientsPage'
 import { OptimizationReview } from './pages/Operations/OptimizationReview'
+import { DecisionWorkspace } from './pages/Decision/DecisionWorkspace'
 import { UsersPage } from './pages/Administration/UsersPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
@@ -30,6 +31,8 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/forecasts" element={<CapacityForecasts />} />
+                <Route path="/decision" element={<DecisionWorkspace />} />
+                <Route path="/decision-workspace" element={<Navigate to="/decision" replace />} />
                 <Route path="/simulations" element={<ScenarioComparison />} />
                 <Route path="/optimizations" element={<OptimizationReview />} />
                 <Route path="/evaluation" element={<ModelEvaluation />} />

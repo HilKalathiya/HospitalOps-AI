@@ -80,3 +80,9 @@ v1_router.include_router(
     prefix="/optimizations",
     tags=["optimization"],
 )
+
+v1_router.include_router(
+    optimization.router,
+    prefix="/decision",
+    tags=["decision"],
+)

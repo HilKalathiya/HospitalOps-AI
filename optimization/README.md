@@ -99,7 +99,19 @@ The frontend review workspace (`frontend/src/pages/Operations/OptimizationReview
 
 ---
 
-## 5. Strict Operational Boundary
+## 5. Unified Simulation-Optimization Decision Workspace (Chunk 3.5)
+
+The decision workspace (`frontend/src/pages/Decision/DecisionWorkspace.tsx`, `/decision`) connects prospective simulation with MILP optimization:
+- **Simulation-to-Optimization Adapter:** Converts what-if simulations (`ADMISSION_SURGE`, `BED_CAPACITY_CHANGE`, `RESOURCE_BOTTLENECK`) into pre-populated, verified optimization inputs without data fabrication.
+- **3-Way Cross-Workflow Comparison:** Evaluates Status Quo Baseline vs. Unmitigated Simulation vs. HiGHS Optimized Allocation Plan.
+- **Decision Provenance:** Links optimization plans to originating simulation UUIDs (`origin_simulation_id`).
+- **Endpoints:**
+  - `GET /api/v1/optimization/prepare-from-simulation/{simulation_id}`
+  - `GET /api/v1/optimization/compare-decision/{simulation_id}/{run_id}`
+
+---
+
+## 6. Strict Operational Boundary
 
 > ⚠️ **IMPORTANT SAFETY BOUNDARY:**
 > The Resource Optimization Engine produces **hypothetical recommendations for administrative review**; it does NOT execute them.

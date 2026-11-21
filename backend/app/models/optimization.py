@@ -166,6 +166,14 @@ class OptimizationParameters(HospitalOpsBaseModel):
         default=None,
         description="Dataset or model identifier used to supply demand (e.g. hero_dmc_daily).",
     )
+    origin_simulation_id: str | None = Field(
+        default=None,
+        description="Optional simulation run ID linking this optimization scenario (Chunk 3.5).",
+    )
+    origin_scenario_name: str | None = Field(
+        default=None,
+        description="Optional scenario name linking this optimization scenario (Chunk 3.5).",
+    )
 
 
 # ── Decision Outputs & Validation ──────────────────────────────────────────────
@@ -520,3 +528,84 @@ class OptimizationExplanationResponse(HospitalOpsBaseModel):
     plan_name: str
     explanation: OptimizationExplanation
     created_at: datetime
+
+
+# ── Unified Decision Intelligence Models (Chunk 3.5) ──────────────────────────
+
+
+class DecisionMetricComparison(HospitalOpsBaseModel):
+    """Metric value comparison across baseline, unmitigated simulation, and optimized plan."""
+
+    metric_name: str = Field(description="Name of the operational metric (e.g. Peak Bed Deficit).")
+    unit: str = Field(description="Unit of measurement (e.g. beds, days, patients).")
+    baseline_value: float = Field(description="Status-quo reference value.")
+    simulation_value: float = Field(description="Unmitigated scenario outcome.")
+    optimized_value: float = Field(description="Proposed value under the optimized plan.")
+    averted_shortage: float = Field(
+        description="Amount of shortage eliminated by the optimization plan (simulation - optimized)."
+    )
+    improvement_pct: float | None = Field(
+        default=None,
+        description="Percentage reduction in deficit or shortage (safely computed with zero-baseline handling).",
+    )
+    notes: str | None = Field(default=None, description="Operational interpretation notes.")
+
+
+class DecisionComparison(HospitalOpsBaseModel):
+    """
+    Unified 3-way cross-workflow comparison uniting Baseline, Simulation, and Optimization.
+    """
+
+    simulation_id: str = Field(description="Source simulation run ID.")
+    scenario_name: str = Field(description="Source scenario title.")
+    scenario_type: str = Field(description="Scenario archetype (e.g. ADMISSION_SURGE).")
+    optimization_run_id: str = Field(description="Linked optimization run ID.")
+    plan_name: str = Field(description="Optimization plan name.")
+    horizon: int = Field(description="Planning horizon length.")
+    cadence: CadenceType = Field(description="Granularity of the comparison.")
+    metrics: list[DecisionMetricComparison] = Field(
+        default_factory=list, description="Side-by-side metric comparison rows."
+    )
+    surge_beds_activated: int = Field(
+        ge=0, description="Total surge beds deployed in the optimized plan."
+    )
+    max_surge_pool: int = Field(
+        ge=0, description="Total facility surge bed buffer limit available."
+    )
+    equipment_deficit_resolved: float = Field(
+        ge=0.0, description="Reduction in equipment shortfalls achieved by mobilization."
+    )
+    transfer_churn: float = Field(
+        ge=0.0, description="Movable equipment movements across periods."
+    )
+    total_objective_score: float = Field(
+        description="Total multi-criteria objective penalty score."
+    )
+    solver_status: OptimizationStatus = Field(description="HiGHS solver termination status.")
+    is_optimal: bool = Field(description="Whether the solver mathematically proved optimality.")
+    bottlenecks_encountered: list[str] = Field(
+        default_factory=list, description="Binding constraints restricting further improvement."
+    )
+    decision_summary: str = Field(
+        description="Plain-language synthesis of operational trade-offs and impact."
+    )
+    operational_disclaimer: str = Field(
+        default=(
+            "Advisory decision-support proposal. All recommendations are hypothetical and "
+            "require human administrative and clinical review prior to physical execution."
+        ),
+        description="Healthcare safety boundary notice.",
+    )
+
+
+class SimulationToOptimizationPreview(HospitalOpsBaseModel):
+    """
+    Preview of pre-populated optimization inputs derived from a what-if simulation run.
+    """
+
+    simulation_id: str
+    scenario_name: str
+    scenario_type: str
+    suggested_plan_name: str
+    parameters: OptimizationParameters
+    demand_derivation_rationale: str

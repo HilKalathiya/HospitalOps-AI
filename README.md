@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 18 of 19 build steps shipped. 166 backend tests pass, and the frontend production build is clean. The next step is agent orchestration with RAG (Milestone 4).
+**Status:** 19 of 20 build steps shipped. 174 backend tests pass, and the frontend production build is clean. The next step is agent orchestration with RAG (Milestone 4).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -19,6 +19,7 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **What-if simulation** | Admission surges, bed-capacity changes and equipment bottlenecks, compared side by side against a baseline |
 | **Resource optimization** | A MILP solved with HiGHS (`scipy.optimize.milp`) that allocates surge beds and movable equipment across departments over a 30-day horizon in under 50 ms. An independent validator checks every solution, and the plan is compared against doing nothing |
 | **Optimization review & explanation** | Evidence-based recommendation explanations with multi-criteria objective deconstruction, department and equipment allocation rationales, binding constraint diagnostics, and a plan review workspace with human approval before action |
+| **Decision intelligence** | Unified simulation and optimization workspace (`/decision`) featuring a 3-way cross-workflow matrix (Baseline vs. Simulation vs. Optimization), automatic demand/bottleneck parameter derivation, and run provenance tracking |
 | **Planned** | LLM agents with RAG over hospital policies, tool-calling operational workflows, and human-in-the-loop multi-agent orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
@@ -46,6 +47,7 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 3.2 | Scenario Comparison & Simulation UI | ✅ Complete |
 | 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
 | 3.4 | Optimization UI & Plan Review | ✅ Complete |
+| 3.5 | Unified Simulation & Optimization Workspace | ✅ Complete |
 | 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 </details>
@@ -422,6 +424,27 @@ HospitalOps AI provides an evidence-based recommendation explanation engine and 
   - `GET /api/v1/optimization/runs/{run_id}/explanation`: Retrieve structured explanation package.
   - Secured via `optimization.read` permission (ADMIN, OPERATIONS_MANAGER, DOCTOR).
   - All recommendations are strictly advisory decision-support and explicitly labeled as hypothetical proposals awaiting human sign-off.
+
+---
+
+## Unified Decision Intelligence Workspace (Chunk 3.5)
+
+HospitalOps AI unifies prospective simulation, scenario modeling, and constrained optimization into a cohesive decision intelligence cockpit (`/decision`):
+- **Unified 5-Stage Decision Workflow:**
+  - Connects Operational Baseline Context ➔ Scenario Simulation ➔ HiGHS Optimization ➔ 3-Way Cross-Workflow Comparison ➔ Recommendation Review.
+- **Simulation-to-Optimization Parameter Derivation:**
+  - Automated adapter (`prepare_optimization_from_simulation`) translates simulated admission surges, bed conversions, or equipment bottlenecks into verified optimization parameters without data fabrication or manual re-entry.
+- **3-Way Cross-Workflow Comparison Matrix:**
+  - Directly compares Baseline (Status Quo), Unmitigated Simulation, and Optimized Allocation Plan on identical horizons and units.
+  - Computes net shortage days averted, peak bed deficit reductions (with division-by-zero protection), equipment deficit fulfillment, and surge bed buffer efficiency.
+- **Decision Provenance & Traceability:**
+  - Stores `origin_simulation_id` and `origin_scenario_name` in optimization provenance matrices, linking hypothetical simulations directly to their solved plans.
+- **Cross-Page Deep Linking:**
+  - "Optimize in Decision Workspace →" buttons in Scenario Comparison (`/simulations`) and origin simulation badges in Optimization Review (`/optimizations`).
+- **REST Endpoints & Security:**
+  - `GET /api/v1/optimization/prepare-from-simulation/{simulation_id}` (requires `optimization.run`).
+  - `GET /api/v1/optimization/compare-decision/{simulation_id}/{run_id}` (requires `optimization.read`).
+  - Strict read-only operational safety: strictly advisory decision support without automated mutations of beds, equipment, or patient records.
 
 ---
 

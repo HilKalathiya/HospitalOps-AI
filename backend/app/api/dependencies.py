@@ -233,6 +233,9 @@ def get_optimization_service(
     audit_repo: Annotated[
         AuditLogsRepository | None, Depends(get_optional_audit_log_repository)
     ] = None,
+    simulations_repo: Annotated[
+        SimulationsRepository | None, Depends(get_optional_simulations_repository)
+    ] = None,
 ) -> OptimizationService:
     return OptimizationService(
         optimizations_repo,
@@ -240,6 +243,7 @@ def get_optimization_service(
         beds_repo,
         resources_repo,
         audit_repo,
+        simulations_repo,
     )
 
 

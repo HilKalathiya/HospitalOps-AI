@@ -14,9 +14,11 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.dependencies import get_optimization_service, require_permission
 from app.core.request_context import get_request_id
 from app.models.optimization import (
+    DecisionComparison,
     OptimizationExplanationResponse,
     OptimizationRequest,
     OptimizationResponse,
+    SimulationToOptimizationPreview,
 )
 from app.models.user import UserDocument
 from app.schemas.common import PaginationMeta, ResponseMeta, SuccessResponse
@@ -137,3 +139,48 @@ async def get_optimization_run_explanation(
     explanation_resp = await service.get_optimization_explanation(run_id)
     meta = ResponseMeta(request_id=get_request_id())
     return SuccessResponse(data=explanation_resp, meta=meta)
+
+
+@router.get(
+    "/prepare-from-simulation/{simulation_id}",
+    response_model=SuccessResponse[SimulationToOptimizationPreview],
+    status_code=status.HTTP_200_OK,
+    summary="Prepare pre-populated optimization inputs from a what-if simulation run",
+    description=(
+        "Converts a completed what-if simulation into validated optimization parameters, "
+        "matching the horizon, scaling department demands by the simulated surge, "
+        "and aligning equipment requirements without fabricating data (Chunk 3.5)."
+    ),
+)
+async def prepare_optimization_from_simulation_endpoint(
+    simulation_id: str,
+    current_user: Annotated[UserDocument, Depends(require_permission("optimization.run"))],
+    service: Annotated[OptimizationService, Depends(get_optimization_service)],
+) -> SuccessResponse[SimulationToOptimizationPreview]:
+    """Derives validated optimization parameters from an existing simulation run."""
+    preview = await service.prepare_optimization_from_simulation(simulation_id)
+    meta = ResponseMeta(request_id=get_request_id())
+    return SuccessResponse(data=preview, meta=meta)
+
+
+@router.get(
+    "/compare-decision/{simulation_id}/{run_id}",
+    response_model=SuccessResponse[DecisionComparison],
+    status_code=status.HTTP_200_OK,
+    summary="Compare Baseline, Unmitigated Simulation, and Optimized Plan",
+    description=(
+        "Generates a unified 3-way cross-workflow decision comparison matrix between "
+        "the status-quo baseline, the unmitigated simulation scenario, and the HiGHS "
+        "MILP resource allocation proposal (Chunk 3.5)."
+    ),
+)
+async def compare_decision_endpoint(
+    simulation_id: str,
+    run_id: str,
+    current_user: Annotated[UserDocument, Depends(require_permission("optimization.read"))],
+    service: Annotated[OptimizationService, Depends(get_optimization_service)],
+) -> SuccessResponse[DecisionComparison]:
+    """Assembles a cross-workflow decision comparison across Baseline, Simulation, and Optimization."""
+    comparison = await service.compare_simulation_and_optimization(simulation_id, run_id)
+    meta = ResponseMeta(request_id=get_request_id())
+    return SuccessResponse(data=comparison, meta=meta)

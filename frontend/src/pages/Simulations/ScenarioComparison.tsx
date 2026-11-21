@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TopHeader } from '../../components/layout/TopHeader'
 import {
   simulationApi,
@@ -12,6 +13,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   Sliders,
   TrendingUp,
+  Compass,
   Bed,
   Layers,
   AlertTriangle,
@@ -38,6 +40,7 @@ const SCENARIO_COLORS = [
 
 export const ScenarioComparison: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const canRunSimulation = user?.role === 'ADMIN' || user?.role === 'OPERATIONS_MANAGER'
 
   // ── Builder Form State ─────────────────────────────────────────────────────
@@ -900,9 +903,20 @@ export const ScenarioComparison: React.FC = () => {
                       Shortage Analysis: {activeSelected.scenario_name}
                     </h3>
                   </div>
-                  <span className="text-[10px] font-mono text-muted">
-                    Run ID: {activeSelected.simulation_id}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() =>
+                        navigate(`/decision?simulation_id=${activeSelected.simulation_id}`)
+                      }
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-semibold bg-[#9ba8ff] text-[#121216] hover:bg-[#b0bcff] transition-all shadow-sm"
+                    >
+                      <Compass className="w-3.5 h-3.5" />
+                      <span>Optimize in Decision Workspace →</span>
+                    </button>
+                    <span className="text-[10px] font-mono text-muted">
+                      Run ID: {activeSelected.simulation_id}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Contiguous Shortage Spans */}

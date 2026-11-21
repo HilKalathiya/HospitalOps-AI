@@ -210,6 +210,7 @@ For full persistent rules, operational guidelines, and live task tracking across
 | 3.2 | Scenario Comparison & Simulation UI | ✅ Complete |
 | 3.3 | Resource Optimization Engine (MIP) | ✅ Complete |
 | 3.4 | Recommendation Explanation & Plan Review | ✅ Complete |
+| 3.5 | Unified Simulation & Optimization Workspace | ✅ Complete |
 | 4.1 | Agentic AI Orchestration & RAG | ⬜ Planned |
 
 ---

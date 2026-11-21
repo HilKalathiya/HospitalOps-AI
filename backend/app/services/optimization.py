@@ -15,8 +15,12 @@ from fastapi import HTTPException, status
 from app.models.audit_log import ActorType, AuditLogCreate
 from app.models.optimization import (
     BaselineComparison,
+    CadenceType,
+    DecisionComparison,
+    DecisionMetricComparison,
     DepartmentDemandInput,
     OptimizationExplanationResponse,
+    OptimizationObjectiveType,
     OptimizationParameters,
     OptimizationRequest,
     OptimizationResponse,
@@ -24,7 +28,9 @@ from app.models.optimization import (
     OptimizationRunDocument,
     OptimizationStatus,
     ResourceRequirementInput,
+    SimulationToOptimizationPreview,
 )
+from app.models.simulation import ScenarioType
 from app.models.user import UserDocument
 from app.optimization.explanation import OptimizationExplanationGenerator
 from app.optimization.problem import OptimizationProblemBuilder
@@ -35,6 +41,8 @@ from app.repositories.beds import BedsRepository
 from app.repositories.departments import DepartmentsRepository
 from app.repositories.optimizations import OptimizationsRepository
 from app.repositories.resources import ResourcesRepository
+from app.repositories.simulations import SimulationsRepository
+from app.services.simulation import SimulationService
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +59,14 @@ class OptimizationService:
         beds_repo: BedsRepository | None = None,
         resources_repo: ResourcesRepository | None = None,
         audit_repo: AuditLogsRepository | None = None,
+        simulations_repo: SimulationsRepository | None = None,
     ) -> None:
         self.optimizations_repo = optimizations_repo
         self.departments_repo = departments_repo
         self.beds_repo = beds_repo
         self.resources_repo = resources_repo
         self.audit_repo = audit_repo
+        self.simulations_repo = simulations_repo
         self.solver = ScipyMilpSolver()
 
     async def gather_default_baseline(
@@ -306,6 +316,10 @@ class OptimizationService:
             "executed_by": user.email,
             "timestamp": datetime.now(tz=UTC).isoformat(),
         }
+        if params.origin_simulation_id:
+            provenance["origin_simulation_id"] = params.origin_simulation_id
+        if params.origin_scenario_name:
+            provenance["origin_scenario_name"] = params.origin_scenario_name
 
         result = OptimizationResult(
             status=opt_status,
@@ -484,3 +498,268 @@ class OptimizationService:
         total = len(all_runs)
         paginated = all_runs[skip : skip + page_size]
         return paginated, total
+
+    async def prepare_optimization_from_simulation(
+        self, simulation_id: str
+    ) -> SimulationToOptimizationPreview:
+        """
+        Derives validated, pre-populated optimization inputs directly from a what-if simulation run (Chunk 3.5).
+        Maps the simulation horizon, scales department demands by simulated surges, aligns
+        inventory bottlenecks, and records provenance without fabricating data.
+        """
+        sim_doc = None
+        if simulation_id in SimulationService._session_runs:
+            sim_doc = SimulationService._session_runs[simulation_id]
+        elif self.simulations_repo:
+            try:
+                sim_doc = await self.simulations_repo.find_by_id(simulation_id)
+            except Exception as e:
+                logger.debug("Error querying simulations_repo: %s", e)
+
+        if not sim_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Simulation run '{simulation_id}' not found.",
+            )
+
+        horizon = min(30, max(1, sim_doc.parameters.horizon_days))
+        cadence = CadenceType.DAILY
+        default_depts, default_resources = await self.gather_default_baseline(horizon=horizon)
+
+        scenario_type = (
+            sim_doc.scenario_type.value
+            if hasattr(sim_doc.scenario_type, "value")
+            else str(sim_doc.scenario_type)
+        )
+
+        max_surge = 25
+        rationale = ""
+
+        if scenario_type in (ScenarioType.ADMISSION_SURGE, "ADMISSION_SURGE"):
+            surge_pct = sim_doc.parameters.admission_surge_pct
+            multiplier = 1.0 + (surge_pct / 100.0)
+            for dept in default_depts:
+                dept.demand_series = [
+                    round(max(0.0, d * multiplier), 1) for d in dept.demand_series
+                ]
+            rationale = (
+                f"Department demand series scaled by +{surge_pct}% across a {horizon}-day horizon "
+                f"matching simulated prospective admission surge."
+            )
+        elif scenario_type in (ScenarioType.BED_CAPACITY_CHANGE, "BED_CAPACITY_CHANGE"):
+            delta = sim_doc.parameters.capacity_delta_beds
+            max_surge = max(5, 25 + delta)
+            rationale = (
+                f"Baseline department demands maintained while surge bed buffer pool adjusted to {max_surge} beds "
+                f"reflecting simulated capacity alteration ({'+' if delta > 0 else ''}{delta} beds)."
+            )
+        elif scenario_type in (ScenarioType.RESOURCE_BOTTLENECK, "RESOURCE_BOTTLENECK"):
+            r_type = sim_doc.parameters.resource_type or "VENTILATOR"
+            ratio = sim_doc.parameters.resource_ratio_per_bed or 0.8
+            avail_delta = sim_doc.parameters.resource_availability_delta or 0
+            for res in default_resources:
+                if res.resource_type == r_type:
+                    res.available_inventory = max(0, res.available_inventory + avail_delta)
+                    for dept_id in res.ratios_per_department:
+                        res.ratios_per_department[dept_id] = ratio
+            rationale = (
+                f"Configured {r_type} demand ratio to {ratio} units/bed and adjusted available inventory "
+                f"by {avail_delta} units matching the simulated equipment bottleneck."
+            )
+        else:
+            rationale = f"Mapped baseline department demands and resource pool across {horizon}-day planning horizon."
+
+        plan_name = f"Optimized Plan · {sim_doc.scenario_name}"
+
+        params = OptimizationParameters(
+            horizon=horizon,
+            cadence=cadence,
+            max_surge_beds=max_surge,
+            objective_type=OptimizationObjectiveType.BALANCED,
+            department_demands=default_depts,
+            resource_requirements=default_resources,
+            forecast_source=f"simulation:{scenario_type}:{sim_doc.simulation_id}",
+            origin_simulation_id=sim_doc.simulation_id,
+            origin_scenario_name=sim_doc.scenario_name,
+        )
+
+        return SimulationToOptimizationPreview(
+            simulation_id=sim_doc.simulation_id,
+            scenario_name=sim_doc.scenario_name,
+            scenario_type=scenario_type,
+            suggested_plan_name=plan_name,
+            parameters=params,
+            demand_derivation_rationale=rationale,
+        )
+
+    async def compare_simulation_and_optimization(
+        self, simulation_id: str, run_id: str
+    ) -> DecisionComparison:
+        """
+        Assembles a rigorous 3-way cross-workflow comparison between Baseline,
+        Unmitigated Simulation, and Optimized Allocation Plan (Chunk 3.5).
+        """
+        sim_doc = None
+        if simulation_id in SimulationService._session_runs:
+            sim_doc = SimulationService._session_runs[simulation_id]
+        elif self.simulations_repo:
+            try:
+                sim_doc = await self.simulations_repo.find_by_id(simulation_id)
+            except Exception as e:
+                logger.debug("Error querying simulations_repo: %s", e)
+
+        if not sim_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Simulation run '{simulation_id}' not found.",
+            )
+
+        opt_resp = await self.get_optimization(run_id)
+        opt_res = opt_resp.result
+        opt_breakdown = opt_res.objective_breakdown
+
+        sim_out = sim_doc.outcome
+        sim_peak_deficit = float(sim_out.peak_bed_deficit)
+        sim_days_shortage = float(sim_out.days_in_shortage)
+        sim_unmet = float(sim_out.total_unmet_admissions)
+        sim_equip_def = float(sim_out.peak_resource_deficit or 0.0)
+
+        opt_shortage = float(opt_breakdown.total_bed_shortage if opt_breakdown else 0.0)
+        opt_equip_def = float(opt_breakdown.total_equipment_deficit if opt_breakdown else 0.0)
+        opt_surge_used = int(opt_breakdown.total_surge_beds_activated if opt_breakdown else 0)
+        opt_transfer_churn = float(opt_breakdown.total_equipment_transfers if opt_breakdown else 0.0)
+        opt_score = float(opt_breakdown.weighted_objective_value if opt_breakdown else 0.0)
+
+        # Compute peak bed deficit & shortage periods in the optimized plan
+        opt_peak_deficit = 0.0
+        opt_shortage_periods = 0
+        for p in opt_res.allocations:
+            if p.total_bed_shortage > opt_peak_deficit:
+                opt_peak_deficit = round(p.total_bed_shortage, 1)
+            if p.total_bed_shortage > 0.01:
+                opt_shortage_periods += 1
+
+        # Averted metrics with zero-baseline division protection
+        averted_peak = max(0.0, sim_peak_deficit - opt_peak_deficit)
+        peak_pct = (
+            round((averted_peak / sim_peak_deficit) * 100.0, 1)
+            if sim_peak_deficit > 0
+            else 0.0
+        )
+
+        averted_days = max(0.0, sim_days_shortage - float(opt_shortage_periods))
+        days_pct = (
+            round((averted_days / sim_days_shortage) * 100.0, 1)
+            if sim_days_shortage > 0
+            else 0.0
+        )
+
+        averted_unmet = max(0.0, sim_unmet - opt_shortage)
+        unmet_pct = (
+            round((averted_unmet / sim_unmet) * 100.0, 1) if sim_unmet > 0 else 0.0
+        )
+
+        averted_equip = max(0.0, sim_equip_def - opt_equip_def)
+        equip_pct = (
+            round((averted_equip / sim_equip_def) * 100.0, 1) if sim_equip_def > 0 else 0.0
+        )
+
+        metrics = [
+            DecisionMetricComparison(
+                metric_name="Peak Bed Deficit",
+                unit="beds",
+                baseline_value=0.0,
+                simulation_value=sim_peak_deficit,
+                optimized_value=opt_peak_deficit,
+                averted_shortage=round(averted_peak, 1),
+                improvement_pct=peak_pct,
+                notes=(
+                    f"Peak bed shortage reduced from {sim_peak_deficit} to {opt_peak_deficit} beds."
+                    if averted_peak > 0
+                    else "No peak bed deficit observed."
+                ),
+            ),
+            DecisionMetricComparison(
+                metric_name="Shortage Duration",
+                unit="days",
+                baseline_value=0.0,
+                simulation_value=sim_days_shortage,
+                optimized_value=float(opt_shortage_periods),
+                averted_shortage=round(averted_days, 1),
+                improvement_pct=days_pct,
+                notes=(
+                    f"{int(averted_days)} days of hospital bed capacity shortage eliminated."
+                    if averted_days > 0
+                    else "Bed capacity remained sufficient."
+                ),
+            ),
+            DecisionMetricComparison(
+                metric_name="Cumulative Unmet Demand",
+                unit="patient-days",
+                baseline_value=0.0,
+                simulation_value=sim_unmet,
+                optimized_value=round(opt_shortage, 1),
+                averted_shortage=round(averted_unmet, 1),
+                improvement_pct=unmet_pct,
+                notes=f"{round(averted_unmet, 1)} patient-days of unmet admissions averted.",
+            ),
+            DecisionMetricComparison(
+                metric_name="Surge Capacity Deployed",
+                unit="beds",
+                baseline_value=0.0,
+                simulation_value=0.0,
+                optimized_value=float(opt_surge_used),
+                averted_shortage=0.0,
+                improvement_pct=None,
+                notes=f"{opt_surge_used} surge beds activated out of {opt_resp.parameters.max_surge_beds} pool limit.",
+            ),
+            DecisionMetricComparison(
+                metric_name="Equipment Deficit",
+                unit="units",
+                baseline_value=0.0,
+                simulation_value=sim_equip_def,
+                optimized_value=opt_equip_def,
+                averted_shortage=round(averted_equip, 1),
+                improvement_pct=equip_pct,
+                notes=(
+                    f"{round(averted_equip, 1)} equipment deficit units eliminated through dynamic allocation."
+                    if averted_equip > 0
+                    else "Equipment inventories fully satisfied demand."
+                ),
+            ),
+        ]
+
+        scenario_type = (
+            sim_doc.scenario_type.value
+            if hasattr(sim_doc.scenario_type, "value")
+            else str(sim_doc.scenario_type)
+        )
+
+        decision_summary = (
+            f"Under hypothetical scenario '{sim_doc.scenario_name}', unmitigated operations projected "
+            f"a peak deficit of {sim_peak_deficit} beds across {int(sim_days_shortage)} shortage days. "
+            f"The HiGHS MILP optimizer recommends activating {opt_surge_used} surge beds, "
+            f"reducing the peak deficit to {opt_peak_deficit} beds ({peak_pct}% reduction) and "
+            f"eliminating {int(averted_days)} shortage days ({days_pct}% reduction). "
+            f"Total evaluated objective penalty score is {opt_score:.1f}."
+        )
+
+        return DecisionComparison(
+            simulation_id=sim_doc.simulation_id,
+            scenario_name=sim_doc.scenario_name,
+            scenario_type=scenario_type,
+            optimization_run_id=opt_resp.run_id,
+            plan_name=opt_resp.plan_name,
+            horizon=opt_resp.parameters.horizon,
+            cadence=opt_resp.parameters.cadence,
+            metrics=metrics,
+            surge_beds_activated=opt_surge_used,
+            max_surge_pool=opt_resp.parameters.max_surge_beds,
+            equipment_deficit_resolved=round(averted_equip, 1),
+            transfer_churn=round(opt_transfer_churn, 1),
+            total_objective_score=round(opt_score, 2),
+            solver_status=opt_res.status,
+            is_optimal=opt_res.is_optimal,
+            bottlenecks_encountered=opt_res.binding_constraints,
+            decision_summary=decision_summary,
+        )

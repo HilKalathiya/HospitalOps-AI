@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TopHeader } from '../../components/layout/TopHeader'
 import {
   optimizationApi,
@@ -26,6 +27,8 @@ import {
   Box,
   Sparkles,
   Info,
+  GitCompare,
+  Compass,
 } from 'lucide-react'
 
 // Tab definitions
@@ -33,6 +36,7 @@ type ReviewTab = 'overview' | 'departments' | 'resources' | 'constraints' | 'tra
 
 export const OptimizationReview: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const canRunOptimization = user?.role === 'ADMIN' || user?.role === 'OPERATIONS_MANAGER'
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -191,10 +195,32 @@ export const OptimizationReview: React.FC = () => {
                   ? `Run ID: ${selectedRun.run_id} · Cadence: ${selectedRun.parameters.cadence} · Horizon: ${selectedRun.parameters.horizon} periods`
                   : 'Run an optimization solve to evaluate optimal surge bed and equipment allocations.'}
               </p>
+              {selectedRun?.parameters?.origin_simulation_id && (
+                <div className="mt-1 flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/decision?simulation_id=${selectedRun.parameters.origin_simulation_id}&run_id=${selectedRun.run_id}`
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+                  >
+                    <GitCompare className="w-3 h-3" />
+                    <span>Origin: {selectedRun.parameters.origin_simulation_id} (Open in Decision Workspace →)</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => navigate('/decision')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#9ba8ff]/10 hover:bg-[#9ba8ff]/20 text-[#9ba8ff] border border-[#9ba8ff]/20 transition-colors"
+            >
+              <Compass className="w-3.5 h-3.5" />
+              Decision Workspace
+            </button>
             <button
               onClick={() => setShowHistoryDrawer(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-[#c8c8cf] border border-white/[0.08] transition-colors"
