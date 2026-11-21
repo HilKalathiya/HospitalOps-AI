@@ -23,6 +23,21 @@ class LocalDeterministicEmbedder(EmbeddingProvider):
 
     def __init__(self, dimension: int = 384) -> None:
         self._dim = dimension
+        self._provider_name = "local_deterministic"
+        self._model_name = "deterministic-ngram-384"
+        self._model_version = "1.0"
+
+    @property
+    def provider_name(self) -> str:
+        return self._provider_name
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
+    @property
+    def model_version(self) -> str:
+        return self._model_version
 
     @property
     def dimension(self) -> int:
@@ -36,8 +51,10 @@ class LocalDeterministicEmbedder(EmbeddingProvider):
 
     def _embed_single(self, text: str) -> list[float]:
         if not text.strip():
-            # Zero vector with small epsilon
-            return [0.0] * self._dim
+            # Unit vector with default direction
+            vec = [0.0] * self._dim
+            vec[0] = 1.0
+            return vec
 
         vec = [0.0] * self._dim
         tokens = re.findall(r"\b\w+\b", text.lower())

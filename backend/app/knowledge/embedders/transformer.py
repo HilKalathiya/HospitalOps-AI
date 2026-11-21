@@ -20,15 +20,30 @@ class SentenceTransformerEmbedder(EmbeddingProvider):
     """Generates embeddings using sentence-transformers pretrained models."""
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
-        self.model_name = model_name
+        self._model_name = model_name
+        self._provider_name = "sentence_transformers"
+        self._model_version = "1.0"
         self._model: Any = None
         self._dim: int = 384
 
+    @property
+    def provider_name(self) -> str:
+        return self._provider_name
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
+    @property
+    def model_version(self) -> str:
+        return self._model_version
+
     def _get_model(self) -> Any:
         if self._model is None:
-            logger.info("Loading SentenceTransformer model: %s", self.model_name)
+            logger.info("Loading SentenceTransformer model: %s", self._model_name)
             from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.model_name)
+
+            self._model = SentenceTransformer(self._model_name)
             self._dim = int(self._model.get_sentence_embedding_dimension())
         return self._model
 

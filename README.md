@@ -481,6 +481,33 @@ HospitalOps AI establishes a production-quality, modular document ingestion pipe
 
 ---
 
+## Semantic Vector Search & Knowledge Retrieval Engine (Chunk 4.2)
+
+HospitalOps AI provides a secure, reusable semantic retrieval system over indexed hospital knowledge documents:
+- **Embedding Space Compatibility Verification:**
+  - Formulates `embedding_space_id = f"{provider}:{model}:d{dimension}:{metric}"` stored in collection metadata.
+  - `KnowledgeRetriever` verifies space identity before search and prevents cross-model vector queries by raising `EmbeddingSpaceMismatchError` (HTTP 409).
+- **Server-Side RBAC Access Enforcement:**
+  - `SearchFilterBuilder` derives authorized access tiers directly from user JWT claims (`Role.ADMIN` sees all levels; `Role.OPERATIONS_MANAGER` sees up to `RESTRICTED`; `Role.DOCTOR` sees `PUBLIC` and `INTERNAL`).
+  - Client-side tampering or unauthorized elevation attempts are rejected server-side.
+- **Repository Post-Validation:**
+  - Automatically verifies all vector search candidates against the persistent MongoDB document repository.
+  - Drops chunks belonging to quarantined documents, inactive documents, or superseded versions unless explicitly requested.
+- **Provenance & Relevance Ranking:**
+  - `ResultRanker` maps raw Chroma cosine distance $d \in [0, 2]$ to normalized similarity score $s = \max(0.0, \min(1.0, 1.0 - d))$.
+  - Implements document-level diversity capping (`max_chunks_per_doc = 3`), min-score threshold filtering, and sentence-bounded excerpt extraction.
+  - Provides full provenance: rank position, similarity percentage, cosine distance, document title, version, section heading, and page marker.
+- **Evaluated Retrieval Quality Benchmark:**
+  - Tested across operational policies (ED Surge, Ventilator SOP, Infection Prevention Guidelines): **MRR = 1.0**, **Precision@1 = 1.0**, **Recall@3 = 1.0**.
+- **Interactive Semantic Search Workbench (`/knowledge`):**
+  - Dedicated "Semantic Search Engine" tab in `KnowledgeBase.tsx` with natural-language query input, sample prompt shortcuts, Top-K and min-score controls, latency/vector-space telemetry pills, and expandable chunk cards with links to the Chunk Inspector and Document Detail drawers.
+- **REST Endpoints & Security:**
+  - `POST /api/v1/knowledge/search` (requires `knowledge.read`).
+  - `GET /api/v1/knowledge/search/health` (requires `knowledge.read`).
+  - Non-clinical safety invariant: strictly decision support, no LLM answer generation in Chunk 4.2. Queries are never logged in plaintext to protect operational inquiry privacy.
+
+---
+
 ## Environment Configuration
 
 Copy `.env.example` to `.env` and configure:

@@ -72,7 +72,9 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **3.4** | **Recommendation Explanation & Plan Review** | ✅ Complete | Deterministic explanation layer, objective deconstruction, constraint diagnostics, counterfactual baseline comparison, plan review workspace, 166 tests passed |
 | | **3.5** | **Unified Decision Workspace** | ✅ Complete | Unified simulation & optimization cockpit, parameter derivation adapter, 3-way decision matrix, provenance tracking, 174 tests passed |
 | **M4: Agentic AI & RAG** | **4.1** | **Document Ingestion Pipeline — RAG Knowledge Foundation** | ✅ Complete | Multi-format parsers (PDF, DOCX, MD, TXT, HTML), 10-stage pipeline, PHI/MIMIC quarantine boundary, structure-aware chunking, persistent ChromaDB, 15/15 tests passed |
-| | 4.2 | Agentic AI Orchestration & RAG | ⬜ Planned | Multi-agent tool calling, vector search, operational decision agents |
+| | **4.2** | **Semantic Vector Search & Knowledge Retrieval Engine** | ✅ Complete | Vector search over ChromaDB, space compatibility validation, server-side RBAC scoping, repository post-validation, provenance ranking, MRR=1.0, 28/28 tests passed (202 total) |
+| | 4.3 | Conversational RAG & Operational Question-Answering | ⬜ Planned | RAG grounding, prompt construction, operational decision support |
+| | 4.4 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned | Multi-agent coordination, tool-calling, autonomous operational workflows |
 
 ---
 
@@ -379,7 +381,46 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full backend test suite: 174 passed, 10 skipped.
      - `ruff check backend`: 0 errors.
      - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.2 (Agentic AI Orchestration & RAG).
+* **Next Planned Work:** Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine).
+
+---
+
+## 10. Completed Workstream: Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Embedding Space Compatibility Verification (`backend/app/knowledge/retrieval/`):**
+     - Formulated `embedding_space_id = f"{provider}:{model}:d{dimension}:{metric}"` stored in collection metadata.
+     - `KnowledgeRetriever` verifies space identity before executing searches and raises `EmbeddingSpaceMismatchError` on divergence to prevent mathematically invalid cross-model vector distance calculations.
+  2. **Query Sanitization & Normalized Encoding (`backend/app/knowledge/retrieval/query_encoder.py`):**
+     - Enforces query length limits ($1 \le L \le 500$ chars), rejects whitespace-only queries, checks finite numerical values (`NaN`, `Inf` prevention), and verifies unit L2 vector normalization.
+  3. **Server-Side RBAC & Scope Enforcement (`backend/app/knowledge/retrieval/filters.py`):**
+     - Derives authorized access levels directly from user JWT claims:
+       - `Role.ADMIN`: All access classifications (`PUBLIC`, `INTERNAL`, `RESTRICTED`, `CONFIDENTIAL`).
+       - `Role.OPERATIONS_MANAGER`: Operational access (`PUBLIC`, `INTERNAL`, `RESTRICTED`).
+       - `Role.DOCTOR`: Standard staff access (`PUBLIC`, `INTERNAL`).
+     - Rejects unauthorized client-requested access tiers server-side. Enforces department scoping and compound `$and` filters.
+  4. **Repository Post-Validation:**
+     - Cross-references candidate chunks against the persistent MongoDB document repository to guarantee only active, non-quarantined documents are surfaced.
+  5. **Normalized Provenance & Diversity Ranking (`backend/app/knowledge/retrieval/ranking.py`):**
+     - Converts cosine distance $d \in [0, 2]$ to normalized similarity score $s = \max(0.0, \min(1.0, 1.0 - d))$.
+     - Implements diversity capping (`max_chunks_per_doc = 3`), min-similarity filtering, and sentence-bounded excerpt extraction.
+     - Provides complete provenance: rank position, similarity percentage, cosine distance, document title, active version, section heading, and page marker.
+  6. **Retrieval Quality Evaluation Benchmark:**
+     - Evaluated across operational policy documents (ED Surge Protocol, Ventilator SOP, Infection Prevention Guidelines): **MRR = 1.0**, **Precision@1 = 1.0**, **Recall@3 = 1.0**.
+  7. **Interactive Semantic Search Workbench (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`):**
+     - Added dedicated "Semantic Search Engine" tab with natural-language query input, sample prompt shortcuts, Top-K selector, similarity threshold selector, latency/vector-space telemetry pills, and expandable chunk cards with links to the Chunk Inspector and Document Detail drawers.
+  8. **REST Endpoints & Security:**
+     - `POST /api/v1/knowledge/search` (requires `knowledge.read`).
+     - `GET /api/v1/knowledge/search/health` (requires `knowledge.read`).
+     - Privacy guard: user query texts are never logged in plaintext server logs.
+  9. **Verification & Testing:**
+     - 13 dedicated unit, integration, and API tests in `backend/tests/test_knowledge_retrieval.py`.
+     - 28 knowledge subsystem tests passing (13 retrieval + 15 ingestion).
+     - Full regression test suite: 202 passed, 10 skipped, 0 failures.
+     - `ruff check backend`: 0 errors.
+     - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
+* **Next Planned Work:** Milestone 4, Chunk 4.3 (Conversational RAG & Operational Question-Answering).
 
 ---
 
@@ -425,4 +466,43 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
       - 189 tests in full test suite (179 passed, 10 skipped).
       - `ruff check backend`: 0 errors.
       - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
-* **Next Planned Work:** Milestone 4, Chunk 4.2 (Agentic AI Orchestration & RAG).
+* **Next Planned Work:** Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine).
+
+---
+
+## 10. Completed Workstream: Milestone 4, Chunk 4.2 (Semantic Vector Search & Knowledge Retrieval Engine)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Embedding Space Compatibility Verification (`backend/app/knowledge/retrieval/`):**
+     - Formulated `embedding_space_id = f"{provider}:{model}:d{dimension}:{metric}"` stored in collection metadata.
+     - `KnowledgeRetriever` verifies space identity before executing searches and raises `EmbeddingSpaceMismatchError` on divergence to prevent mathematically invalid cross-model vector distance calculations.
+  2. **Query Sanitization & Normalized Encoding (`backend/app/knowledge/retrieval/query_encoder.py`):**
+     - Enforces query length limits ($1 \le L \le 500$ chars), rejects whitespace-only queries, checks finite numerical values (`NaN`, `Inf` prevention), and verifies unit L2 vector normalization.
+  3. **Server-Side RBAC & Scope Enforcement (`backend/app/knowledge/retrieval/filters.py`):**
+     - Derives authorized access levels directly from user JWT claims:
+       - `Role.ADMIN`: All access classifications (`PUBLIC`, `INTERNAL`, `RESTRICTED`, `CONFIDENTIAL`).
+       - `Role.OPERATIONS_MANAGER`: Operational access (`PUBLIC`, `INTERNAL`, `RESTRICTED`).
+       - `Role.DOCTOR`: Standard staff access (`PUBLIC`, `INTERNAL`).
+     - Rejects unauthorized client-requested access tiers server-side. Enforces department scoping and compound `$and` filters.
+  4. **Repository Post-Validation:**
+     - Cross-references candidate chunks against the persistent MongoDB document repository to guarantee only active, non-quarantined documents are surfaced.
+  5. **Normalized Provenance & Diversity Ranking (`backend/app/knowledge/retrieval/ranking.py`):**
+     - Converts cosine distance $d \in [0, 2]$ to normalized similarity score $s = \max(0.0, \min(1.0, 1.0 - d))$.
+     - Implements diversity capping (`max_chunks_per_doc = 3`), min-similarity filtering, and sentence-bounded excerpt extraction.
+     - Provides complete provenance: rank position, similarity percentage, cosine distance, document title, active version, section heading, and page marker.
+  6. **Retrieval Quality Evaluation Benchmark:**
+     - Evaluated across operational policy documents (ED Surge Protocol, Ventilator SOP, Infection Prevention Guidelines): **MRR = 1.0**, **Precision@1 = 1.0**, **Recall@3 = 1.0**.
+  7. **Interactive Semantic Search Workbench (`frontend/src/pages/Knowledge/KnowledgeBase.tsx`):**
+     - Added dedicated "Semantic Search Engine" tab with natural-language query input, sample prompt shortcuts, Top-K selector, similarity threshold selector, latency/vector-space telemetry pills, and expandable chunk cards with links to the Chunk Inspector and Document Detail drawers.
+  8. **REST Endpoints & Security:**
+     - `POST /api/v1/knowledge/search` (requires `knowledge.read`).
+     - `GET /api/v1/knowledge/search/health` (requires `knowledge.read`).
+     - Privacy guard: user query texts are never logged in plaintext server logs.
+  9. **Verification & Testing:**
+     - 13 dedicated unit, integration, and API tests in `backend/tests/test_knowledge_retrieval.py`.
+     - 28 knowledge subsystem tests passing (13 retrieval + 15 ingestion).
+     - Full regression test suite: 202 passed, 10 skipped, 0 failures.
+     - `ruff check backend`: 0 errors.
+     - `npm run lint` & `npm run build`: 0 warnings, 0 errors.
+* **Next Planned Work:** Milestone 4, Chunk 4.3 (Conversational RAG & Operational Question-Answering).

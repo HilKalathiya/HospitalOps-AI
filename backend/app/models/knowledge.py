@@ -97,6 +97,8 @@ class KnowledgeChunkMetadata(HospitalOpsBaseModel):
     char_count: int
     content_hash: str
     is_table: bool = False
+    department_id: str | None = None
+    embedding_space_id: str | None = None
 
 
 class KnowledgeChunk(HospitalOpsBaseModel):

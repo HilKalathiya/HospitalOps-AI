@@ -16,6 +16,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 
 from app.api.dependencies import get_knowledge_service, require_permission
+from app.knowledge.embedders.base import EmbeddingSpaceMismatchError
+from app.knowledge.retrieval import (
+    KnowledgeSearchRequest,
+    KnowledgeSearchResponse,
+    RetrievalHealthResponse,
+)
 from app.models.knowledge import (
     AccessLevel,
     DocumentCategory,
@@ -251,6 +257,43 @@ async def get_ingestion_run(
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Ingestion run {ingestion_id} not found.")
     return run
+
+
+# ── Semantic Vector Search & Health ───────────────────────────────────────────
+
+
+@router.post(
+    "/search",
+    response_model=KnowledgeSearchResponse,
+    summary="Semantic vector retrieval over hospital knowledge base",
+    description="Encodes query, enforces role-based access classification, searches ChromaDB, and returns ranked provenance.",
+)
+async def search_knowledge(
+    request: KnowledgeSearchRequest,
+    current_user: UserDocument = Depends(require_permission("knowledge.read")),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
+) -> KnowledgeSearchResponse:
+    try:
+        return await knowledge_service.search(request, current_user=current_user)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    except EmbeddingSpaceMismatchError as err:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Incompatible embedding space: {err}",
+        ) from err
+
+
+@router.get(
+    "/search/health",
+    response_model=RetrievalHealthResponse,
+    summary="Retrieve semantic search engine readiness and embedding space diagnostics",
+)
+async def get_search_health(
+    current_user: UserDocument = Depends(require_permission("knowledge.read")),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
+) -> RetrievalHealthResponse:
+    return await knowledge_service.check_retrieval_health()
 
 
 # ── Statistics & Categories Metadata ──────────────────────────────────────────

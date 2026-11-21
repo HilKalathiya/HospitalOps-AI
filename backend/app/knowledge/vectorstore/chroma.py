@@ -2,7 +2,8 @@
 HospitalOps AI — Persistent ChromaDB Vector Store.
 
 Stores and queries knowledge chunks using an on-disk ChromaDB persistent client.
-Supports exact metadata filtering by document_id, version, category, and access_level.
+Supports exact metadata filtering by document_id, version, category, access_level,
+and department_id, with cosine distance nearest-neighbor vector retrieval.
 """
 
 from __future__ import annotations
@@ -25,26 +26,67 @@ from app.models.knowledge import (
 
 logger = logging.getLogger(__name__)
 
-COLLECTION_NAME = "hospitalops_knowledge"
+DEFAULT_COLLECTION_NAME = "hospitalops_knowledge"
 
 
 class ChromaVectorStore(VectorStore):
     """Persistent ChromaDB vector store implementation."""
 
-    def __init__(self, persist_directory: str | None = None) -> None:
+    def __init__(
+        self,
+        persist_directory: str | None = None,
+        collection_name: str | None = None,
+        embedding_space_id: str | None = None,
+    ) -> None:
         settings = get_settings()
         self.persist_directory = persist_directory or settings.chromadb_dir
+        self._custom_collection_name = collection_name or DEFAULT_COLLECTION_NAME
+        self._embedding_space_id = embedding_space_id
         os.makedirs(self.persist_directory, exist_ok=True)
 
         self._client = chromadb.PersistentClient(
             path=self.persist_directory,
             settings=ChromaSettings(anonymized_telemetry=False, is_persistent=True),
         )
+
+        # Build collection metadata
+        col_meta: dict[str, Any] = {"hnsw:space": "cosine"}
+        if self._embedding_space_id:
+            col_meta["embedding_space_id"] = self._embedding_space_id
+
         self._collection = self._client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
+            name=self._custom_collection_name,
+            metadata=col_meta,
         )
-        logger.info("ChromaVectorStore initialized at %s", self.persist_directory)
+
+        # If collection already existed, retrieve its stored embedding_space_id
+        if not self._embedding_space_id and self._collection.metadata:
+            self._embedding_space_id = self._collection.metadata.get("embedding_space_id")
+
+        logger.info(
+            "ChromaVectorStore initialized | dir=%s col=%s space=%s",
+            self.persist_directory,
+            self._custom_collection_name,
+            self._embedding_space_id,
+        )
+
+    @property
+    def collection_name(self) -> str:
+        return self._collection.name
+
+    @property
+    def embedding_space_id(self) -> str | None:
+        if self._collection.metadata and "embedding_space_id" in self._collection.metadata:
+            return self._collection.metadata.get("embedding_space_id")
+        return self._embedding_space_id
+
+    @property
+    def is_connected(self) -> bool:
+        try:
+            self._client.heartbeat()
+            return True
+        except Exception:
+            return False
 
     def add_chunks(self, chunks: list[KnowledgeChunk]) -> int:
         if not chunks:
@@ -65,7 +107,7 @@ class ChromaVectorStore(VectorStore):
             embeddings.append(c.embedding)
 
             # Chroma metadata requires str, int, float, or bool
-            flat_meta = {
+            flat_meta: dict[str, Any] = {
                 "document_id": str(c.metadata.document_id),
                 "version": int(c.metadata.version),
                 "chunk_index": int(c.metadata.chunk_index),
@@ -78,6 +120,8 @@ class ChromaVectorStore(VectorStore):
                 "char_count": int(c.metadata.char_count),
                 "content_hash": str(c.metadata.content_hash),
                 "is_table": bool(c.metadata.is_table),
+                "department_id": str(c.metadata.department_id or ""),
+                "embedding_space_id": str(c.metadata.embedding_space_id or self._embedding_space_id or ""),
             }
             metadatas.append(flat_meta)
 
@@ -152,13 +196,17 @@ class ChromaVectorStore(VectorStore):
                     char_count=int(meta.get("char_count", len(text))),
                     content_hash=meta.get("content_hash", ""),
                     is_table=bool(meta.get("is_table", False)),
+                    department_id=meta.get("department_id") or None,
+                    embedding_space_id=meta.get("embedding_space_id") or None,
                 )
-                chunks.append(KnowledgeChunk(
-                    chunk_id=cid,
-                    text=text,
-                    metadata=chunk_meta,
-                    embedding=None,
-                ))
+                chunks.append(
+                    KnowledgeChunk(
+                        chunk_id=cid,
+                        text=text,
+                        metadata=chunk_meta,
+                        embedding=None,
+                    )
+                )
 
             # Sort by chunk_index
             chunks.sort(key=lambda c: c.metadata.chunk_index)
@@ -177,12 +225,88 @@ class ChromaVectorStore(VectorStore):
             logger.error("Error counting chunks in Chroma: %s", err)
             return 0
 
+    def search(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        filters: dict[str, Any] | None = None,
+    ) -> list[tuple[KnowledgeChunk, float]]:
+        """
+        Execute nearest-neighbor vector search in ChromaDB.
+
+        Returns list of (KnowledgeChunk, distance) tuples sorted in ascending distance order.
+        """
+        total = self.count()
+        if total == 0:
+            return []
+
+        n_results = min(max(1, top_k), total)
+
+        try:
+            query_kwargs: dict[str, Any] = {
+                "query_embeddings": [query_embedding],
+                "n_results": n_results,
+                "include": ["documents", "metadatas", "distances"],
+            }
+            if filters:
+                query_kwargs["where"] = filters
+
+            results = self._collection.query(**query_kwargs)
+        except Exception as err:
+            logger.error("Chroma vector search query failed: %s", err)
+            return []
+
+        hits: list[tuple[KnowledgeChunk, float]] = []
+        if not results or not results["ids"] or not results["ids"][0]:
+            return hits
+
+        ids = results["ids"][0]
+        documents = results["documents"][0] if results.get("documents") else []
+        metadatas = results["metadatas"][0] if results.get("metadatas") else []
+        distances = results["distances"][0] if results.get("distances") else []
+
+        for i, cid in enumerate(ids):
+            text = documents[i] if i < len(documents) else ""
+            meta = metadatas[i] if i < len(metadatas) else {}
+            dist = float(distances[i]) if i < len(distances) else 0.0
+
+            chunk_meta = KnowledgeChunkMetadata(
+                document_id=meta.get("document_id", ""),
+                version=int(meta.get("version", 1)),
+                chunk_index=int(meta.get("chunk_index", i)),
+                category=DocumentCategory(meta.get("category", DocumentCategory.GENERAL_REFERENCE.value)),
+                access_level=AccessLevel(meta.get("access_level", AccessLevel.INTERNAL.value)),
+                title=meta.get("title", ""),
+                section_title=meta.get("section_title") or None,
+                page_number=int(meta.get("page_number")) if meta.get("page_number", 0) > 0 else None,
+                token_count=int(meta.get("token_count", 0)),
+                char_count=int(meta.get("char_count", len(text))),
+                content_hash=meta.get("content_hash", ""),
+                is_table=bool(meta.get("is_table", False)),
+                department_id=meta.get("department_id") or None,
+                embedding_space_id=meta.get("embedding_space_id") or None,
+            )
+
+            chunk = KnowledgeChunk(
+                chunk_id=cid,
+                text=text,
+                metadata=chunk_meta,
+                embedding=None,
+            )
+            hits.append((chunk, dist))
+
+        return hits
+
     def reset(self) -> None:
         try:
-            self._client.delete_collection(COLLECTION_NAME)
+            self._client.delete_collection(self._custom_collection_name)
         except Exception:
             pass
+        col_meta: dict[str, Any] = {"hnsw:space": "cosine"}
+        if self._embedding_space_id:
+            col_meta["embedding_space_id"] = self._embedding_space_id
+
         self._collection = self._client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
+            name=self._custom_collection_name,
+            metadata=col_meta,
         )

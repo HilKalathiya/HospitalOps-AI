@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   X,
   FileCode,
   Hash,
@@ -20,6 +22,8 @@ import {
   Cpu,
   Eye,
   Sliders,
+  Sparkles,
+  Zap,
 } from 'lucide-react'
 import {
   knowledgeApi,
@@ -30,6 +34,8 @@ import {
   CategoriesMeta,
   DocumentCategory,
   AccessLevel,
+  KnowledgeSearchResponse,
+  KnowledgeSearchResult,
 } from '../../api/knowledge'
 import { useAuth } from '../../context/AuthContext'
 import { TopHeader } from '../../components/layout/TopHeader'
@@ -38,7 +44,10 @@ export const KnowledgeBase: React.FC = () => {
   const { user } = useAuth()
   const canManage = user?.role === 'ADMIN'
 
-  // Data states
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'catalog' | 'search'>('catalog')
+
+  // Catalog Data states
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
   const [stats, setStats] = useState<KnowledgeStats | null>(null)
   const [categoriesMeta, setCategoriesMeta] = useState<CategoriesMeta | null>(null)
@@ -46,10 +55,20 @@ export const KnowledgeBase: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  // Filters
+  // Catalog Filters
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [selectedAccessLevel, setSelectedAccessLevel] = useState<string>('')
+
+  // Semantic Search states
+  const [searchPrompt, setSearchPrompt] = useState<string>('')
+  const [topK, setTopK] = useState<number>(5)
+  const [minScore, setMinScore] = useState<number>(0.0)
+  const [searchCategoryFilter, setSearchCategoryFilter] = useState<string>('')
+  const [searchAccessFilter, setSearchAccessFilter] = useState<string>('')
+  const [isSearching, setIsSearching] = useState<boolean>(false)
+  const [searchResponse, setSearchResponse] = useState<KnowledgeSearchResponse | null>(null)
+  const [expandedChunkId, setExpandedChunkId] = useState<string | null>(null)
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false)
@@ -80,7 +99,15 @@ export const KnowledgeBase: React.FC = () => {
   const [reindexOverlapTokens, setReindexOverlapTokens] = useState<number>(64)
   const [isReindexing, setIsReindexing] = useState<boolean>(false)
 
-  // Load initial data
+  // Sample queries for quick testing
+  const sampleQueries = [
+    'ICU bed escalation surge protocol and staffing ratios',
+    'Emergency department overflow diversion procedures',
+    'Mechanical ventilator allocation and maintenance SOP',
+    'Infection control guidelines for respiratory isolation',
+  ]
+
+  // Load initial catalog data
   const fetchData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
@@ -167,6 +194,35 @@ export const KnowledgeBase: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // Execute Semantic Search
+  const handleExecuteSearch = async (queryOverride?: string) => {
+    const q = (queryOverride !== undefined ? queryOverride : searchPrompt).trim()
+    if (!q) return
+
+    if (queryOverride !== undefined) {
+      setSearchPrompt(queryOverride)
+    }
+
+    setIsSearching(true)
+    setError(null)
+    try {
+      const res = await knowledgeApi.search({
+        query: q,
+        top_k: topK,
+        min_score: minScore > 0 ? minScore : undefined,
+        filters: {
+          category: (searchCategoryFilter as DocumentCategory) || undefined,
+          access_levels: searchAccessFilter ? [searchAccessFilter as AccessLevel] : undefined,
+        },
+      })
+      setSearchResponse(res)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Knowledge vector retrieval failed')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
   // Open Chunks Inspector
   const handleInspectChunks = async (doc: DocumentSummary, ver?: number) => {
     setSelectedDocForChunks(doc)
@@ -179,6 +235,34 @@ export const KnowledgeBase: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to retrieve document chunks')
     } finally {
       setIsLoadingChunks(false)
+    }
+  }
+
+  const handleInspectResultChunks = (res: KnowledgeSearchResult) => {
+    const existing = documents.find((d) => d.document_id === res.document_id)
+    const ver = res.version ?? res.document_version
+    if (existing) {
+      handleInspectChunks(existing, ver)
+    } else {
+      const fallbackDoc: DocumentSummary = {
+        document_id: res.document_id,
+        title: res.document_title,
+        category: res.category,
+        access_level: res.access_level,
+        tags: [],
+        active_version: ver,
+        file_type: 'md',
+        file_size_bytes: 0,
+        source_filename: res.document_title,
+        status: 'COMPLETED',
+        total_chunks: 1,
+        total_tokens: 0,
+        is_quarantined: false,
+        created_by: 'system',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      handleInspectChunks(fallbackDoc, ver)
     }
   }
 
@@ -286,6 +370,12 @@ export const KnowledgeBase: React.FC = () => {
     }
   }
 
+  const getScoreColor = (score: number) => {
+    if (score >= 0.75) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+    if (score >= 0.5) return 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+    return 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#131315] text-[#f0f0f3] overflow-hidden select-none">
       <TopHeader
@@ -327,10 +417,10 @@ export const KnowledgeBase: React.FC = () => {
           <div>
             <h1 className="text-lg font-semibold text-[#f0f0f3] tracking-tight flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-[#9ba8ff]" />
-              Approved Hospital Knowledge Catalog
+              Hospital Operational Knowledge System
             </h1>
             <p className="text-xs text-[#8e8e96] mt-0.5">
-              Structured operational policies, clinical guidelines, and equipment documentation indexed in ChromaDB for future RAG retrieval.
+              Approved clinical protocols, operational SOPs, and capacity guidelines indexed in ChromaDB for semantic retrieval.
             </p>
           </div>
 
@@ -356,225 +446,583 @@ export const KnowledgeBase: React.FC = () => {
           </div>
         </div>
 
-        {/* Metric Cards */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
-              <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-blue-400" />
-                Total Documents
-              </span>
-              <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
-                {stats.total_documents}
-              </span>
-            </div>
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-line pb-px">
+          <button
+            onClick={() => setActiveTab('catalog')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+              activeTab === 'catalog'
+                ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Document Catalog
+          </button>
+          <button
+            onClick={() => setActiveTab('search')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+              activeTab === 'search'
+                ? 'border-[#9ba8ff] text-[#f0f0f3]'
+                : 'border-transparent text-[#8e8e96] hover:text-[#dedee1]'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#9ba8ff]" />
+            Semantic Search Engine
+          </button>
+        </div>
 
-            <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
-              <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-purple-400" />
-                Indexed Chunks
-              </span>
-              <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
-                {stats.total_chunks}
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
-              <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-amber-400" />
-                Total Tokens
-              </span>
-              <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
-                {stats.total_tokens.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
-              <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5 text-emerald-400" />
-                Storage Footprint
-              </span>
-              <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
-                {formatBytes(stats.storage_bytes)}
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
-              <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-good" />
-                Privacy Guard
-              </span>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xl font-bold text-good font-mono">0 Leaks</span>
-                {stats.quarantined_documents > 0 && (
-                  <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-mono">
-                    {stats.quarantined_documents} quarantined
+        {/* ── TAB 1: DOCUMENT CATALOG ────────────────────────────────────────── */}
+        {activeTab === 'catalog' && (
+          <div className="space-y-6">
+            {/* Metric Cards */}
+            {stats && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
+                  <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-blue-400" />
+                    Total Documents
                   </span>
-                )}
+                  <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
+                    {stats.total_documents}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
+                  <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-purple-400" />
+                    Indexed Chunks
+                  </span>
+                  <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
+                    {stats.total_chunks}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
+                  <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
+                    <Hash className="w-3.5 h-3.5 text-amber-400" />
+                    Total Tokens
+                  </span>
+                  <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
+                    {stats.total_tokens.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
+                  <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-emerald-400" />
+                    Storage Footprint
+                  </span>
+                  <span className="text-xl font-bold text-[#f0f0f3] mt-2 font-mono">
+                    {formatBytes(stats.storage_bytes)}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[#19191b] border border-line flex flex-col justify-between">
+                  <span className="text-[11px] font-medium text-[#8e8e96] uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-good" />
+                    Privacy Guard
+                  </span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xl font-bold text-good font-mono">0 Leaks</span>
+                    {stats.quarantined_documents > 0 && (
+                      <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-mono">
+                        {stats.quarantined_documents} quarantined
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Filter Bar */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3 p-2.5 rounded-lg bg-[#161618] border border-line">
+              <div className="relative w-full md:w-80">
+                <Search className="w-3.5 h-3.5 text-[#6f6f78] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by title, filename, or tags..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-[#1c1c1f] border border-white/5 rounded-md pl-9 pr-3 py-1.5 text-xs text-[#f0f0f3] placeholder-[#6f6f78] focus:outline-none focus:border-[#9ba8ff]/50"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-[#1c1c1f] border border-white/5 rounded-md px-2.5 py-1.5 text-xs text-[#dedee1] focus:outline-none focus:border-[#9ba8ff]/50"
+                >
+                  <option value="">All Categories</option>
+                  {categoriesMeta?.categories.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedAccessLevel}
+                  onChange={(e) => setSelectedAccessLevel(e.target.value)}
+                  className="bg-[#1c1c1f] border border-white/5 rounded-md px-2.5 py-1.5 text-xs text-[#dedee1] focus:outline-none focus:border-[#9ba8ff]/50"
+                >
+                  <option value="">All Access Levels</option>
+                  {categoriesMeta?.access_levels.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Documents Table */}
+            <div className="rounded-lg bg-[#19191b] border border-line overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#141416] border-b border-line text-[#8e8e96] font-medium uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="px-4 py-3">Document Title & File</th>
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3">Access</th>
+                      <th className="px-4 py-3">Version</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Chunks / Tokens</th>
+                      <th className="px-4 py-3">Updated</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {documents.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-[#8e8e96]">
+                          {isLoading ? 'Loading knowledge documents...' : 'No knowledge documents found matching criteria.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      documents.map((doc) => (
+                        <tr key={doc.document_id} className="hover:bg-white/[0.02] transition-colors group">
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col min-w-0 max-w-xs">
+                              <span
+                                onClick={() => handleViewDetail(doc.document_id)}
+                                className="font-medium text-[#f0f0f3] hover:text-[#9ba8ff] cursor-pointer truncate"
+                              >
+                                {doc.title}
+                              </span>
+                              <span className="text-[10.5px] text-[#74747c] font-mono truncate">
+                                {doc.source_filename} ({formatBytes(doc.file_size_bytes)})
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium border ${getCategoryColor(doc.category)}`}>
+                              {doc.category.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span className="text-[10.5px] text-[#dedee1] font-mono">
+                              {doc.access_level}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10.5px] text-[#c7c7cc]">
+                              v{doc.active_version}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3">
+                            {getStatusBadge(doc.status, doc.is_quarantined)}
+                          </td>
+
+                          <td className="px-4 py-3 font-mono text-[11px] text-[#a5a5ac]">
+                            <span>{doc.total_chunks} chunks</span>
+                            <span className="text-[#63636b] ml-1">({doc.total_tokens.toLocaleString()} tok)</span>
+                          </td>
+
+                          <td className="px-4 py-3 text-[10.5px] text-[#8e8e96] font-mono">
+                            {new Date(doc.updated_at).toLocaleDateString()}
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleInspectChunks(doc)}
+                                title="Inspect Chunks"
+                                className="p-1 rounded text-[#a5a5ac] hover:text-[#9ba8ff] hover:bg-white/5 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => handleViewDetail(doc.document_id)}
+                                title="Telemetry & History"
+                                className="p-1 rounded text-[#a5a5ac] hover:text-[#dedee1] hover:bg-white/5 transition-colors"
+                              >
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+
+                              {canManage && (
+                                <>
+                                  <button
+                                    onClick={() => setReindexDocId(doc.document_id)}
+                                    title="Reindex Chunks"
+                                    className="p-1 rounded text-[#a5a5ac] hover:text-amber-400 hover:bg-white/5 transition-colors"
+                                  >
+                                    <Sliders className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteDocument(doc.document_id, doc.title)}
+                                    title="Delete Document"
+                                    className="p-1 rounded text-[#a5a5ac] hover:text-red-400 hover:bg-white/5 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
 
-        {/* Filter Bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3 p-2.5 rounded-lg bg-[#161618] border border-line">
-          <div className="relative w-full md:w-80">
-            <Search className="w-3.5 h-3.5 text-[#6f6f78] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by title, filename, or tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#1c1c1f] border border-white/5 rounded-md pl-9 pr-3 py-1.5 text-xs text-[#f0f0f3] placeholder-[#6f6f78] focus:outline-none focus:border-[#9ba8ff]/50"
-            />
-          </div>
+        {/* ── TAB 2: SEMANTIC VECTOR SEARCH ──────────────────────────────────── */}
+        {activeTab === 'search' && (
+          <div className="space-y-6">
+            {/* Search Input Box */}
+            <div className="p-4 rounded-xl bg-[#19191b] border border-line space-y-3 shadow-lg">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleExecuteSearch()
+                }}
+                className="flex items-center gap-2"
+              >
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-[#9ba8ff] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchPrompt}
+                    onChange={(e) => setSearchPrompt(e.target.value)}
+                    placeholder="Ask a question or enter operational concepts (e.g., ICU surge protocol, ventilator maintenance)..."
+                    className="w-full bg-[#141416] border border-white/10 rounded-lg pl-10 pr-10 py-2.5 text-xs text-[#f0f0f3] placeholder-[#6f6f78] focus:outline-none focus:border-[#9ba8ff]/60 transition-colors"
+                  />
+                  {searchPrompt && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchPrompt('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e8e96] hover:text-[#f0f0f3]"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-[#1c1c1f] border border-white/5 rounded-md px-2.5 py-1.5 text-xs text-[#dedee1] focus:outline-none focus:border-[#9ba8ff]/50"
-            >
-              <option value="">All Categories</option>
-              {categoriesMeta?.categories.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+                <button
+                  type="submit"
+                  disabled={isSearching || !searchPrompt.trim()}
+                  className="px-5 py-2.5 rounded-lg bg-[#9ba8ff] hover:bg-[#8897fa] text-[#131315] font-semibold text-xs flex items-center gap-2 disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  {isSearching ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Search Knowledge
+                    </>
+                  )}
+                </button>
+              </form>
 
-            <select
-              value={selectedAccessLevel}
-              onChange={(e) => setSelectedAccessLevel(e.target.value)}
-              className="bg-[#1c1c1f] border border-white/5 rounded-md px-2.5 py-1.5 text-xs text-[#dedee1] focus:outline-none focus:border-[#9ba8ff]/50"
-            >
-              <option value="">All Access Levels</option>
-              {categoriesMeta?.access_levels.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+              {/* Sample Queries */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                <span className="text-[#8e8e96] flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  Sample queries:
+                </span>
+                {sampleQueries.map((sq, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleExecuteSearch(sq)}
+                    className="px-2.5 py-1 rounded-md bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-[#c7c7cc] hover:text-[#f0f0f3] transition-colors"
+                  >
+                    {sq}
+                  </button>
+                ))}
+              </div>
 
-        {/* Documents Table */}
-        <div className="rounded-lg bg-[#19191b] border border-line overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#141416] border-b border-line text-[#8e8e96] font-medium uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="px-4 py-3">Document Title & File</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Access</th>
-                  <th className="px-4 py-3">Version</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Chunks / Tokens</th>
-                  <th className="px-4 py-3">Updated</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {documents.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[#8e8e96]">
-                      {isLoading ? 'Loading knowledge documents...' : 'No knowledge documents found matching criteria.'}
-                    </td>
-                  </tr>
-                ) : (
-                  documents.map((doc) => (
-                    <tr key={doc.document_id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col min-w-0 max-w-xs">
-                          <span
-                            onClick={() => handleViewDetail(doc.document_id)}
-                            className="font-medium text-[#f0f0f3] hover:text-[#9ba8ff] cursor-pointer truncate"
-                          >
-                            {doc.title}
+              {/* Advanced Retrieval Controls */}
+              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-line text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Top-K:</span>
+                  <select
+                    value={topK}
+                    onChange={(e) => setTopK(parseInt(e.target.value))}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value={3}>3 chunks</option>
+                    <option value={5}>5 chunks</option>
+                    <option value={10}>10 chunks</option>
+                    <option value={20}>20 chunks</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Min Similarity:</span>
+                  <select
+                    value={minScore}
+                    onChange={(e) => setMinScore(parseFloat(e.target.value))}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value={0.0}>Any match (0%+)</option>
+                    <option value={0.4}>Moderate (40%+)</option>
+                    <option value={0.6}>Substantial (60%+)</option>
+                    <option value={0.75}>High match (75%+)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Category:</span>
+                  <select
+                    value={searchCategoryFilter}
+                    onChange={(e) => setSearchCategoryFilter(e.target.value)}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value="">All Categories</option>
+                    {categoriesMeta?.categories.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#8e8e96] text-[11px]">Access Level:</span>
+                  <select
+                    value={searchAccessFilter}
+                    onChange={(e) => setSearchAccessFilter(e.target.value)}
+                    className="bg-[#141416] border border-white/10 rounded px-2 py-1 text-[11px] text-[#dedee1] focus:outline-none"
+                  >
+                    <option value="">All Permitted</option>
+                    {categoriesMeta?.access_levels.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Telemetry Bar */}
+            {searchResponse && (
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-[#161618] border border-line text-xs font-mono">
+                <div className="flex items-center gap-4 text-[11px]">
+                  <span className="text-[#a5a5ac] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                    Latency: <strong className="text-[#f0f0f3]">{searchResponse.search_duration_ms.toFixed(1)} ms</strong>
+                  </span>
+                  <span className="text-[#a5a5ac] flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-purple-400" />
+                    Matches: <strong className="text-[#f0f0f3]">{searchResponse.result_count}</strong>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 text-[10px] text-[#74747c]">
+                  <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>
+                    Vector Space: <strong className="text-[#dedee1]">{searchResponse.embedding_space.provider_name ?? searchResponse.embedding_space.provider}</strong> / {searchResponse.embedding_space.model_name ?? searchResponse.embedding_space.model} (d={searchResponse.embedding_space.dimension}, {searchResponse.embedding_space.metric})
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Search Results Display */}
+            {isSearching ? (
+              <div className="p-12 text-center text-xs text-[#8e8e96] flex flex-col items-center gap-3">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#9ba8ff]" />
+                <span>Encoding query vector and scanning ChromaDB index...</span>
+              </div>
+            ) : searchResponse && searchResponse.results.length === 0 ? (
+              <div className="p-12 rounded-xl bg-[#19191b] border border-line text-center space-y-2">
+                <AlertTriangle className="w-6 h-6 text-amber-400 mx-auto" />
+                <h3 className="text-sm font-semibold text-[#f0f0f3]">No Matching Knowledge Chunks</h3>
+                <p className="text-xs text-[#8e8e96] max-w-md mx-auto">
+                  No document chunks matched your query with the current filters and similarity threshold. Try reducing the minimum similarity score or searching with broader operational keywords.
+                </p>
+              </div>
+            ) : searchResponse && searchResponse.results.length > 0 ? (
+              <div className="space-y-4">
+                <div className="text-xs text-[#8e8e96] font-medium flex items-center justify-between">
+                  <span>Retrieved Knowledge Provenance & Ranked Chunks</span>
+                  <span className="text-[10px] font-mono text-[#6f6f78]">Ranked by Cosine Similarity</span>
+                </div>
+
+                {searchResponse.results.map((result) => {
+                  const isExpanded = expandedChunkId === result.chunk_id
+                  return (
+                    <div
+                      key={result.chunk_id}
+                      className="p-4 rounded-xl bg-[#19191b] border border-line hover:border-[#9ba8ff]/40 transition-colors space-y-3 shadow-md"
+                    >
+                      {/* Result Top Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-md bg-white/5 border border-white/10 flex items-center justify-center font-mono font-bold text-[11px] text-[#dedee1]">
+                            #{result.ranking_position}
                           </span>
-                          <span className="text-[10.5px] text-[#74747c] font-mono truncate">
-                            {doc.source_filename} ({formatBytes(doc.file_size_bytes)})
+
+                          <span className={`px-2 py-0.5 rounded text-[10.5px] font-mono font-semibold border ${getScoreColor(result.similarity_score)}`}>
+                            {(result.similarity_score * 100).toFixed(1)}% match
+                          </span>
+
+                          <span className="text-[10px] text-[#6f6f78] font-mono">
+                            d={result.distance.toFixed(3)}
+                          </span>
+
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getCategoryColor(result.category)}`}>
+                            {result.category.replace(/_/g, ' ')}
+                          </span>
+
+                          <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10px] text-[#a5a5ac]">
+                            {result.access_level}
                           </span>
                         </div>
-                      </td>
 
-                      <td className="px-4 py-3">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium border ${getCategoryColor(doc.category)}`}>
-                          {doc.category.replace(/_/g, ' ')}
-                        </span>
-                      </td>
+                        <div className="flex items-center gap-1.5 font-mono text-[10px] text-[#74747c]">
+                          <span>v{result.version ?? result.document_version}</span>
+                          <span>·</span>
+                          <span className="text-[#9ba8ff]">{result.chunk_id}</span>
+                        </div>
+                      </div>
 
-                      <td className="px-4 py-3">
-                        <span className="text-[10.5px] text-[#dedee1] font-mono">
-                          {doc.access_level}
-                        </span>
-                      </td>
+                      {/* Document Title & Section */}
+                      <div>
+                        <h4
+                          onClick={() => handleViewDetail(result.document_id)}
+                          className="text-sm font-semibold text-[#f0f0f3] hover:text-[#9ba8ff] cursor-pointer flex items-center gap-1.5"
+                        >
+                          {result.document_title}
+                          <ChevronRight className="w-3.5 h-3.5 text-[#6f6f78]" />
+                        </h4>
 
-                      <td className="px-4 py-3">
-                        <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10.5px] text-[#c7c7cc]">
-                          v{doc.active_version}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {getStatusBadge(doc.status, doc.is_quarantined)}
-                      </td>
-
-                      <td className="px-4 py-3 font-mono text-[11px] text-[#a5a5ac]">
-                        <span>{doc.total_chunks} chunks</span>
-                        <span className="text-[#63636b] ml-1">({doc.total_tokens.toLocaleString()} tok)</span>
-                      </td>
-
-                      <td className="px-4 py-3 text-[10.5px] text-[#8e8e96] font-mono">
-                        {new Date(doc.updated_at).toLocaleDateString()}
-                      </td>
-
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleInspectChunks(doc)}
-                            title="Inspect Chunks"
-                            className="p-1 rounded text-[#a5a5ac] hover:text-[#9ba8ff] hover:bg-white/5 transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => handleViewDetail(doc.document_id)}
-                            title="Telemetry & History"
-                            className="p-1 rounded text-[#a5a5ac] hover:text-[#dedee1] hover:bg-white/5 transition-colors"
-                          >
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-
-                          {canManage && (
+                        <div className="flex items-center gap-2 text-[11px] text-[#8e8e96] mt-0.5">
+                          {result.section_title && (
+                            <span className="font-mono text-[#dedee1]">
+                              Section: {result.section_title}
+                            </span>
+                          )}
+                          {result.page_number && (
                             <>
-                              <button
-                                onClick={() => setReindexDocId(doc.document_id)}
-                                title="Reindex Chunks"
-                                className="p-1 rounded text-[#a5a5ac] hover:text-amber-400 hover:bg-white/5 transition-colors"
-                              >
-                                <Sliders className="w-3.5 h-3.5" />
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteDocument(doc.document_id, doc.title)}
-                                title="Delete Document"
-                                className="p-1 rounded text-[#a5a5ac] hover:text-red-400 hover:bg-white/5 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <span>·</span>
+                              <span className="font-mono">Page {result.page_number}</span>
                             </>
                           )}
+                          <span>·</span>
+                          <span className="font-mono">Chunk #{result.chunk_index + 1}</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </div>
+
+                      {/* Excerpt Body */}
+                      <div className="p-3 rounded-lg bg-[#141416] border border-white/5 text-xs text-[#dedee1] leading-relaxed">
+                        <p className="italic text-[#c7c7cc]">
+                          &ldquo;{result.content_excerpt ?? result.excerpt}&rdquo;
+                        </p>
+                      </div>
+
+                      {/* Full Text View Accordion */}
+                      {isExpanded && (
+                        <div className="mt-2 space-y-1.5">
+                          <span className="text-[10px] uppercase font-semibold text-[#8e8e96] tracking-wider block">
+                            Full Chunk Text
+                          </span>
+                          <pre className="p-3.5 rounded-lg bg-[#101012] border border-white/10 text-xs text-[#f0f0f3] font-mono whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                            {result.full_text}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Result Action Footer */}
+                      <div className="flex items-center justify-between pt-2 border-t border-line text-xs">
+                        <button
+                          onClick={() => setExpandedChunkId(isExpanded ? null : result.chunk_id)}
+                          className="flex items-center gap-1 text-[11px] text-[#8e8e96] hover:text-[#f0f0f3] transition-colors"
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="w-3.5 h-3.5" />
+                              Collapse Full Text
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-3.5 h-3.5" />
+                              Expand Full Text
+                            </>
+                          )}
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleInspectResultChunks(result)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-[11px] text-[#dedee1] transition-colors"
+                          >
+                            <Eye className="w-3 h-3 text-[#9ba8ff]" />
+                            Inspect Document Chunks
+                          </button>
+
+                          <button
+                            onClick={() => handleViewDetail(result.document_id)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-[11px] text-[#dedee1] transition-colors"
+                          >
+                            <ChevronRight className="w-3 h-3 text-[#dedee1]" />
+                            Document Detail
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* Initial State when no search executed */
+              <div className="p-10 rounded-xl bg-[#19191b] border border-line text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-[#9ba8ff]/10 border border-[#9ba8ff]/20 flex items-center justify-center mx-auto text-[#9ba8ff]">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h3 className="text-sm font-semibold text-[#f0f0f3]">
+                    Semantic Vector Search & Provenance
+                  </h3>
+                  <p className="text-xs text-[#8e8e96] leading-relaxed">
+                    Retrieve relevant hospital operating guidelines, clinical protocols, and equipment procedures indexed in ChromaDB. Enter a natural language query or pick a sample prompt above.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-4 text-[11px] text-[#6f6f78] font-mono">
+                  <span>ChromaDB Vector Store</span>
+                  <span>·</span>
+                  <span>Deterministic Embeddings</span>
+                  <span>·</span>
+                  <span>RBAC Access Scoping</span>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* ── Upload Modal ──────────────────────────────────────────────────────── */}

@@ -19,6 +19,12 @@ import uuid
 
 from app.core.config import get_settings
 from app.knowledge.pipeline import KnowledgeIngestionPipeline, PipelineExecutionResult
+from app.knowledge.retrieval import (
+    KnowledgeRetriever,
+    KnowledgeSearchRequest,
+    KnowledgeSearchResponse,
+    RetrievalHealthResponse,
+)
 from app.knowledge.vectorstore.base import VectorStore
 from app.knowledge.vectorstore.chroma import ChromaVectorStore
 from app.models.base import utc_now
@@ -38,6 +44,7 @@ from app.models.knowledge import (
     KnowledgeStatsResponse,
     SupportedFileType,
 )
+from app.models.user import UserDocument
 from app.repositories.audit_logs import AuditLogsRepository
 from app.repositories.knowledge import KnowledgeRepository
 
@@ -53,11 +60,17 @@ class KnowledgeService:
         audit_repo: AuditLogsRepository | None = None,
         vector_store: VectorStore | None = None,
         pipeline: KnowledgeIngestionPipeline | None = None,
+        retriever: KnowledgeRetriever | None = None,
     ) -> None:
         self.knowledge_repo = knowledge_repo
         self.audit_repo = audit_repo
         self.vector_store = vector_store or ChromaVectorStore()
         self.pipeline = pipeline or KnowledgeIngestionPipeline(vector_store=self.vector_store)
+        self.retriever = retriever or KnowledgeRetriever(
+            vector_store=self.vector_store,
+            embedding_provider=self.pipeline.embedding_provider,
+            knowledge_repo=self.knowledge_repo,
+        )
         self.settings = get_settings()
 
         os.makedirs(self.settings.knowledge_storage_dir, exist_ok=True)
@@ -501,3 +514,21 @@ class KnowledgeService:
             documents_by_access_level=by_acc,
             storage_bytes=total_bytes,
         )
+
+    async def search(
+        self,
+        request: KnowledgeSearchRequest | None = None,
+        current_user: UserDocument | None = None,
+        req: KnowledgeSearchRequest | None = None,
+        user: UserDocument | None = None,
+    ) -> KnowledgeSearchResponse:
+        """Execute semantic search with RBAC scope enforcement and provenance ranking."""
+        resolved_req = request or req
+        if resolved_req is None:
+            raise ValueError("KnowledgeSearchRequest is required for search.")
+        resolved_user = current_user or user
+        return await self.retriever.search(resolved_req, current_user=resolved_user)
+
+    async def check_retrieval_health(self) -> RetrievalHealthResponse:
+        """Inspect retrieval readiness and embedding space diagnostics."""
+        return await self.retriever.check_health()

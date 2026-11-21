@@ -13,7 +13,22 @@ from app.models.knowledge import KnowledgeChunk
 
 
 class VectorStore(ABC):
-    """Abstract interface for knowledge vector persistence."""
+    """Abstract interface for knowledge vector persistence and semantic retrieval."""
+
+    @property
+    @abstractmethod
+    def collection_name(self) -> str:
+        """Name of the vector collection."""
+
+    @property
+    @abstractmethod
+    def embedding_space_id(self) -> str | None:
+        """Identifier of the embedding space bound to this collection, if known."""
+
+    @property
+    @abstractmethod
+    def is_connected(self) -> bool:
+        """True if the underlying vector store is operational and reachable."""
 
     @abstractmethod
     def add_chunks(self, chunks: list[KnowledgeChunk]) -> int:
@@ -42,6 +57,20 @@ class VectorStore(ABC):
     @abstractmethod
     def count(self, filter_criteria: dict[str, Any] | None = None) -> int:
         """Return total indexed chunks matching optional criteria."""
+
+    @abstractmethod
+    def search(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        filters: dict[str, Any] | None = None,
+    ) -> list[tuple[KnowledgeChunk, float]]:
+        """
+        Execute nearest-neighbor vector search.
+
+        Returns:
+            List of (KnowledgeChunk, distance) tuples sorted in ascending distance order.
+        """
 
     @abstractmethod
     def reset(self) -> None:

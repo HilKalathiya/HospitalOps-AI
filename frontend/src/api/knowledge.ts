@@ -160,6 +160,76 @@ export interface CategoriesMeta {
   supported_file_types: string[]
 }
 
+export interface SearchFilters {
+  category?: DocumentCategory | null
+  access_levels?: AccessLevel[] | null
+  access_level?: AccessLevel | null
+  department_id?: string | null
+  document_id?: string | null
+  version?: number | null
+  min_similarity?: number | null
+  max_distance?: number | null
+}
+
+export interface KnowledgeSearchRequest {
+  query: string
+  top_k?: number
+  min_score?: number
+  filters?: SearchFilters
+}
+
+export interface EmbeddingSpaceInfo {
+  provider: string
+  model: string
+  version: string
+  dimension: number
+  metric: string
+  space_id: string
+  provider_name?: string
+  model_name?: string
+}
+
+export interface KnowledgeSearchResult {
+  chunk_id: string
+  document_id: string
+  document_title: string
+  document_version: number
+  chunk_index: number
+  content_excerpt: string
+  full_text: string
+  section_title?: string | null
+  page_number?: number | null
+  category: DocumentCategory
+  department_id?: string | null
+  access_level: AccessLevel
+  distance: number
+  similarity_score: number
+  ranking_position: number
+  is_table: boolean
+  excerpt?: string
+  version?: number
+  token_count?: number
+}
+
+export interface KnowledgeSearchResponse {
+  query_id: string
+  query: string
+  result_count: number
+  embedding_space: EmbeddingSpaceInfo
+  search_duration_ms: number
+  filters_applied: Record<string, unknown>
+  results: KnowledgeSearchResult[]
+}
+
+export interface RetrievalHealthResponse {
+  status: string
+  chroma_connected: boolean
+  collection_name: string
+  total_chunks: number
+  embedding_space: EmbeddingSpaceInfo
+  is_ready: boolean
+}
+
 export const knowledgeApi = {
   listDocuments: (params?: {
     category?: string
@@ -237,4 +307,10 @@ export const knowledgeApi = {
 
   getIngestionRun: (ingestionId: string) =>
     apiClient.get<IngestionRun>(`/knowledge/ingestion-runs/${ingestionId}`),
+
+  search: (req: KnowledgeSearchRequest) =>
+    apiClient.post<KnowledgeSearchResponse>('/knowledge/search', req),
+
+  getSearchHealth: () =>
+    apiClient.get<RetrievalHealthResponse>('/knowledge/search/health'),
 }

@@ -9,6 +9,11 @@ from app.knowledge.embedders.factory import get_embedding_provider
 from app.knowledge.extractors.factory import get_extractor
 from app.knowledge.pipeline import KnowledgeIngestionPipeline, PipelineExecutionResult
 from app.knowledge.privacy import scan_privacy_and_access
+from app.knowledge.retrieval import (
+    KnowledgeRetriever,
+    KnowledgeSearchRequest,
+    KnowledgeSearchResponse,
+)
 from app.knowledge.vectorstore.base import VectorStore
 from app.knowledge.vectorstore.chroma import ChromaVectorStore
 
@@ -23,4 +28,7 @@ __all__ = [
     "ChromaVectorStore",
     "KnowledgeIngestionPipeline",
     "PipelineExecutionResult",
+    "KnowledgeRetriever",
+    "KnowledgeSearchRequest",
+    "KnowledgeSearchResponse",
 ]
