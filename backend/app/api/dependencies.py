@@ -294,6 +294,40 @@ def get_knowledge_service(
     return KnowledgeService(knowledge_repo=knowledge_repo, audit_repo=audit_repo)
 
 
+def get_agent_runtime(
+    knowledge_service: Annotated[KnowledgeService, Depends(get_knowledge_service)],
+    forecast_service: Annotated[ForecastService, Depends(get_forecast_service)],
+    simulation_service: Annotated[SimulationService, Depends(get_simulation_service)],
+    optimization_service: Annotated[OptimizationService, Depends(get_optimization_service)],
+):
+    from app.agents import AgentRegistry, AgentRuntime, ToolRegistry
+    from app.agents.tools import (
+        AnswerFromHospitalKnowledgeTool,
+        GetExistingForecastTool,
+        GetOptimizationExplanationTool,
+        GetSimulationResultTool,
+        SearchHospitalKnowledgeTool,
+    )
+    from app.core.config import get_settings
+    from app.knowledge.generation.service import create_default_llm_provider
+
+    tool_registry = ToolRegistry()
+    tool_registry.register(SearchHospitalKnowledgeTool(knowledge_service))
+    tool_registry.register(AnswerFromHospitalKnowledgeTool(knowledge_service))
+    tool_registry.register(GetExistingForecastTool(forecast_service))
+    tool_registry.register(GetSimulationResultTool(simulation_service))
+    tool_registry.register(GetOptimizationExplanationTool(optimization_service))
+
+    agent_registry = AgentRegistry(tool_registry)
+    provider = create_default_llm_provider(get_settings())
+
+    return AgentRuntime(
+        tool_registry=tool_registry,
+        agent_registry=agent_registry,
+        provider=provider,
+    )
+
+
 
 # ── Authentication ────────────────────────────────────────────────────────────
 

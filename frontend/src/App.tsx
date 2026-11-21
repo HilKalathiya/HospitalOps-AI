@@ -15,6 +15,7 @@ import { OptimizationReview } from './pages/Operations/OptimizationReview'
 import { DecisionWorkspace } from './pages/Decision/DecisionWorkspace'
 import { KnowledgeBase } from './pages/Knowledge/KnowledgeBase'
 import { KnowledgeAssistant } from './pages/Knowledge/KnowledgeAssistant'
+import { AgentWorkbench } from './pages/Agents/AgentWorkbench'
 import { UsersPage } from './pages/Administration/UsersPage'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
@@ -43,6 +44,8 @@ function App() {
                 <Route path="/knowledge/assistant" element={<KnowledgeAssistant />} />
                 <Route path="/knowledge-assistant" element={<Navigate to="/knowledge/assistant" replace />} />
                 <Route path="/knowledge-base" element={<Navigate to="/knowledge" replace />} />
+                <Route path="/agents" element={<AgentWorkbench />} />
+                <Route path="/agent" element={<Navigate to="/agents" replace />} />
                 
                 {/* Operations Routes */}
                 <Route path="/operations/beds" element={<BedsPage />} />

@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 24 build steps shipped. All 229 backend tests pass, and the frontend production build is clean. The next step is multi-agent orchestration and operational decision workflows (Milestone 4, Chunk 4.6).
+**Status:** 25 build steps shipped. All 245 backend tests pass, and the frontend production build is clean. The next step is multi-agent orchestration and specialized decision agents (Milestone 5, Chunk 5.2).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -23,7 +23,8 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **RAG Knowledge & Retrieval** | 10-stage document ingestion pipeline (PDF, DOCX, MD, TXT, HTML) with PHI quarantine, structure-aware chunking, persistent ChromaDB vector storage, semantic search with RBAC, and token-budget context assembly (`[S1]`, `[S2]`) |
 | **RAG Answer Generation** | Grounded operational question answering with citation validation, 1-shot retry on hallucinated markers, non-clinical safety guardrails (`OUT_OF_SCOPE`), and interactive React workspace (`/knowledge`) |
 | **RAG Knowledge Assistant** | Dedicated full-screen operational assistant (`/knowledge/assistant`) with XSS-safe markdown rendering, bidirectional citation linking, dual-tier evidence inspector, token accounting, and in-memory tab-local session history |
-| **Planned** | LLM agents with tool-calling operational workflows and human-in-the-loop multi-agent orchestration |
+| **Agentic AI & Operations Analyst** | First bounded autonomous agent (`hospital_operations_analyst`) with 5 read-only tools across Knowledge, Forecasts, Simulations, and Optimizations, clinical scope guardrails, duplicate-call loop prevention, and interactive Agent Workbench (`/agents`) |
+| **Planned** | Multi-agent coordination, specialized cross-functional workflows, and human-in-the-loop operational committee orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
 
@@ -56,7 +57,8 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 4.3 | Retrieval API — RAG Context Retrieval & Assembly Layer | ✅ Complete |
 | 4.4 | RAG Answer Generation — Grounded Operational QA | ✅ Complete |
 | 4.5 | RAG UI — Dedicated Hospital Knowledge Assistant Workspace | ✅ Complete |
-| 4.6 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned |
+| 5.1 | First Agent: Hospital Operations Analyst Agent | ✅ Complete |
+| 5.2 | Multi-Agent Orchestration & Decision Intelligence | ⬜ Planned |
 
 </details>
 

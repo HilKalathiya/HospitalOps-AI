@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admissions,
+    agents,
     auth,
     beds,
     forecast,
@@ -92,4 +93,10 @@ v1_router.include_router(
     knowledge.router,
     prefix="/knowledge",
     tags=["knowledge"],
+)
+
+v1_router.include_router(
+    agents.router,
+    prefix="/agents",
+    tags=["agents"],
 )

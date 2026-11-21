@@ -598,4 +598,58 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
       - `ruff check backend`: 0 errors.
       - `npm run lint` (frontend): 0 warnings, 0 errors.
       - `npm run build` (frontend): Built cleanly in 4.82s.
-* **Next Planned Work:** Milestone 4, Chunk 4.6 (Multi-Agent Orchestration & Decision Intelligence).
+* **Next Planned Work:** Milestone 5, Chunk 5.1 (First Agent: Hospital Operations Analyst Agent) — Completed.
+
+---
+
+## 18. Completed Workstream: Milestone 5, Chunk 5.1 (First Agent: Hospital Operations Analyst Agent)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Agent ID, Role, and Responsibility:**
+     - Agent ID: `hospital_operations_analyst`.
+     - Agent Name: Hospital Operations Analyst Agent.
+     - Role: Operational Decision Intelligence Assistant.
+     - Responsibility: Investigate hospital capacity questions, policies, surge simulations, and resource optimization plans across multiple operational subsystems and synthesize evidence-grounded answers.
+  2. **Bounded Execution Lifecycle & State Machine (`AgentRuntime`):**
+     - Enforces an explicit finite state progression:
+       $\text{RECEIVED} \to \text{VALIDATING} \to \text{SCOPE\_CHECK} \to \text{PLANNING} \to \text{EXECUTING\_TOOLS} \to \text{EVALUATING\_RESULTS} \to \text{GENERATING\_FINAL\_RESPONSE} \to \text{COMPLETED}$.
+     - Clamped execution bounds: default `max_steps=5` (max 10), `max_tool_calls=5` (max 10), `timeout_seconds=30` (max 60).
+     - Deterministic typed `StopReason` termination codes: `SUFFICIENT_EVIDENCE`, `FINAL_ANSWER_READY`, `OUT_OF_SCOPE`, `NO_RELEVANT_TOOLS`, `MAX_STEPS_REACHED`, `MAX_TOOL_CALLS_REACHED`, `TIMEOUT`, `PROVIDER_UNAVAILABLE`, `TOOL_FAILURE`.
+  3. **Typed Tool Registry with 5 Read-Only Subsystem Tools (`backend/app/agents/tools/`):**
+     - `search_hospital_knowledge`: Reuses semantic vector search (`KnowledgeService.search`) for policy excerpts and administrative SOPs.
+     - `answer_from_hospital_knowledge`: Reuses grounded in-memory RAG question answering (`KnowledgeService.generate_answer`).
+     - `get_existing_forecast`: Accesses verified Hero DMC daily admissions or NHSN HRD weekly ICU occupancy projections (`ForecastService`).
+     - `get_simulation_result`: Inspects what-if Monte Carlo simulation outcomes, shortage days, and bed/resource deficits (`SimulationService`).
+     - `get_optimization_explanation`: Explains MILP solver plans, surge allocations, binding constraints, and trade-offs (`OptimizationService`).
+     - Strict Read-Only Guarantee: Zero tool mutations to live bed, patient, admission, or equipment records.
+  4. **Policy & Safety Enforcement Layer (`AgentPolicyEnforcer`):**
+     - **Clinical Scope Guard:** Pre-generation keyword and intent classifier immediately rejects diagnostic and prescribing queries (`OUT_OF_SCOPE`) before any tool execution, strictly preserving `AGENTS.md` boundaries.
+     - **Server-Side RBAC Enforcement:** Each tool enforces required user permissions (`knowledge.read`, `predictions.read`, `simulation.read`, `optimization.read`). Unprivileged callers are rejected with explicit denial reasons.
+     - **Duplicate Call & Loop Prevention:** Identical tool calls with identical arguments are detected and blocked.
+     - **Output Clamping & Tag Encapsulation:** Raw tool outputs are clamped to 3,500 characters and enclosed in safe `<tool_output>` tags.
+  5. **Pluggable Agent Planner (`AgentPlanner`):**
+     - Uses `LLMProvider` abstraction (`MockLLMProvider` for deterministic testing/offline and `OpenAICompatibleProvider` for live production model execution).
+     - Multi-step structured JSON decision output: `{"action": "CALL_TOOL", ...}` or `{"action": "FINAL_ANSWER", ...}`.
+  6. **REST API Endpoints (`/api/v1/agents`):**
+     - `POST /api/v1/agents/run` (requires `agents.run`).
+     - `GET /api/v1/agents/health` (requires `agents.read`).
+     - `GET /api/v1/agents` (requires `agents.read`).
+     - `GET /api/v1/agents/{agent_id}` (requires `agents.read`).
+     - Updated role permissions in `security.py`: `agents.read` and `agents.run` granted to `ADMIN`, `OPERATIONS_MANAGER`, and `DOCTOR`.
+  7. **Frontend Agent Workbench (`/agents`):**
+     - `AgentHeader`: Telemetry badge from `GET /api/v1/agents/health`, active model indicator, registered tools count, and healthcare advisory disclaimer.
+     - `AgentTaskComposer`: Multi-line task textarea with auto-resize, 1,000-character counter, suggested task quick-picks, collapsible execution controls (`max_steps`, `max_tool_calls`, `timeout_seconds`).
+     - `AgentExecutionTimeline`: Visual step-by-step trace viewer with duration badges, status indicators, and expandable arguments/output accordions.
+     - `AgentAnswerPanel`: Synthesized response rendered via XSS-safe markdown with interactive citation pills, limitations list, and human review alert.
+     - `AgentProvenanceCards`: Categorized source cards grouped by Knowledge Documents, Demand Forecasts, What-if Simulations, and Optimization Plans.
+     - `AgentEmptyState`: 4-pillar overview cockpit shown on initial launch.
+  8. **Architecture Decision Record:**
+     - Created `docs/decisions/ADR-013-first-hospital-operations-analyst-agent.md`.
+  9. **Verification & Testing:**
+     - 16 dedicated unit, integration, and security tests in `backend/tests/test_agents.py`.
+     - Full backend regression suite: 245 passed, 10 skipped, 0 failures.
+     - `python -m ruff check backend`: 0 errors.
+     - `npm --prefix frontend run lint`: 0 errors, 0 warnings.
+     - `npm --prefix frontend run build`: Production build passes cleanly in 5.40s.
+* **Next Planned Work:** Milestone 5, Chunk 5.2 (Multi-Agent Orchestration & Decision Intelligence).
