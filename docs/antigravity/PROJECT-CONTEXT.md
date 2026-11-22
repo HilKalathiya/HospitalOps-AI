@@ -82,7 +82,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.4** | **Agent State Management & Conversation Continuity** | ✅ Complete | Persistent session scoping (agent_sessions), chronological message turns (agent_messages), bounded context reconstruction with token budgeting, multi-turn conversational continuity, 10/10 tests passed (287 total) |
 | | **5.5** | **Agent Memory & Cross-Session Intelligence** | ✅ Complete | User-approved persistent operational memory (agent_memories), deterministic healthcare safety & anti-injection validation, candidate extraction, approval/supersession lifecycle, dedicated preferences workspace, 24/24 tests passed (311 total) |
 | | **5.6.1** | **Multi-Agent Architecture & Contracts** | ✅ Complete | Supervisor-and-specialist architecture, Pydantic contracts for delegation/results/traces, strict depth=1 and 4-specialist bounds, extra="forbid", 26/26 tests passed (337 total) |
-| | **5.6.2** | **Specialist Agent Implementations** | ⬜ Planned | 4 domain specialists (Forecasting, Simulation, Optimization, Knowledge) & static registry |
+| | **5.6.2** | **Specialist Agent Implementations** | ✅ Complete | 4 domain specialists (Forecasting, Simulation, Optimization, Knowledge), BaseSpecialist with RBAC & clinical guard, deterministic SpecialistRegistry, 22/22 tests passed (359 total) |
 | | **5.6.3** | **Multi-Agent Coordinator & Aggregator** | ⬜ Planned | Concurrency throttling, timeouts, partial failure handling, cross-domain conflict detection |
 | | **5.6.4** | **Multi-Agent API & UI Workspace** | ⬜ Planned | REST endpoints, trace inspection, React transparency panel & specialist result cards |
 | | **5.6.5** | **Multi-Agent End-to-End Verification** | ⬜ Planned | Comprehensive regression, integration testing, and audit validation |
@@ -890,4 +890,51 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Validated specialist coverage, request bounds, depth=1 enforcement, max 4 specialists, duplicate rejection, timeout alignment, dependency checks, failure handling, timestamp sequences, arbitrary confidence score rejection, partial failure tolerance, trace auditing, and roundtrip JSON serialization.
      - All 26 contract tests passed.
      - `python -m ruff check backend`: 0 lint errors.
-* **Next Planned Work:** Milestone 5, Chunk 5.6.2 (Specialist Agent Implementations & Registry).
+* **Next Planned Work:** Milestone 5, Chunk 5.6.2 (Specialist Agent Implementations & Registry) — Completed.
+
+---
+
+## 24. Completed Workstream: Milestone 5, Chunk 5.6.2 (Specialist Agent Implementations & Registry)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Abstract Base Specialist Runtime (`backend/app/agents/multi_agent/specialists/base.py`):**
+     - Implemented `BaseSpecialist(ABC)` enforcing:
+       - Target specialist identity validation against `request.target_specialist_id`.
+       - Enabled state validation (`specialist.enabled`).
+       - Server-side RBAC revalidation using `context.permissions` against `required_permissions` (`predictions.read`, `simulation.read`, `optimization.read`, `knowledge.read`).
+       - Healthcare safety boundary: `AgentPolicyEnforcer.check_clinical_scope` immediately rejects clinical diagnosis/prescribing inquiries with `MultiAgentErrorCode.POLICY_VIOLATION`.
+       - Timeout containment: `asyncio.wait_for` enforcing `request.timeout_seconds` (clamped to 45.0s) and converting `TimeoutError` into `SpecialistExecutionStatus.TIMED_OUT`.
+       - Unhandled exception containment: prevents stack trace or credential leaks by returning structured `SpecialistExecutionStatus.FAILED`.
+       - Post-execution clamping: truncates `summary` to `request.max_output_chars` and clamps `evidence` to `request.max_evidence_items`.
+  2. **Forecasting Specialist (`backend/app/agents/multi_agent/specialists/forecasting.py`):**
+     - Reuses `GetExistingForecastTool` (`predictions.read`).
+     - Parses daily admissions (Hero DMC) vs weekly ICU bed capacity (NHSN HRD) inquiries and horizons.
+     - Preserves genuine prediction intervals (e.g. 95% CI) and explicitly notes when models provide point estimates only; never fabricates intervals or future values.
+     - Sets `EvidenceCategory.FORECAST` and `is_projection=True`.
+  3. **Simulation Specialist (`backend/app/agents/multi_agent/specialists/simulation.py`):**
+     - Reuses `GetSimulationResultTool` (`simulation.read`).
+     - Inspects what-if scenarios (admission surges, bed capacity changes, equipment bottlenecks).
+     - Explicitly classifies findings as `EvidenceCategory.SIMULATION` with `is_hypothetical=True`.
+     - Enforces read-only operational boundary: rejects live database mutation attempts with `POLICY_VIOLATION`.
+  4. **Optimization Specialist (`backend/app/agents/multi_agent/specialists/optimization.py`):**
+     - Reuses `GetOptimizationExplanationTool` (`optimization.read`).
+     - Interprets MILP solver solutions, objective deconstruction, surge bed allocations, and binding capacity bottlenecks.
+     - Explicitly classifies findings as `EvidenceCategory.OPTIMIZATION` with `is_recommendation=True`.
+     - Rejects automatic application or execution of plans with `POLICY_VIOLATION`.
+  5. **Knowledge Specialist (`backend/app/agents/multi_agent/specialists/knowledge.py`):**
+     - Reuses `SearchHospitalKnowledgeTool` (`knowledge.read`).
+     - Retrieves institutional SOPs, surge guidelines, and operational policies.
+     - Formats authoritative bracketed citations (`[S1]`, `[S2]`) with chunk provenance.
+     - Rejects patient-level PHI inquiries (SSN, MRN) and clinical queries.
+  6. **Deterministic Specialist Registry (`backend/app/agents/multi_agent/registry.py`):**
+     - Implemented `SpecialistRegistry` managing the 4 canonical specialists.
+     - Rejects unknown or non-enum specialist IDs and prevents duplicate registrations.
+     - Guarantees strict canonical deterministic iteration order: `[FORECASTING, SIMULATION, OPTIMIZATION, KNOWLEDGE]`.
+     - Provides `get_specialist`, `list_specialists`, `get_definition`, `is_enabled`, `set_enabled`, and `is_fully_registered`.
+  7. **Verification & Testing (`backend/tests/test_agent_specialists.py`):**
+     - 22 unit tests covering BaseSpecialist (RBAC, clinical filter, timeout, exception containment, output clamping), Forecasting (daily/weekly cadence, point estimates, confidence intervals), Simulation (scenario inspection, read-only mutation block), Optimization (MILP explanation, binding bottlenecks, no auto-apply), Knowledge (semantic search, citations, PHI rejection), and Registry (order, duplicate rejection, enable/disable).
+     - 130/130 agent tests passed across all 7 agent suites.
+     - Full backend regression suite: 359 passed, 10 skipped, 0 failures (148.72s).
+     - `python -m ruff check backend`: 0 lint errors.
+* **Next Planned Work:** Milestone 5, Chunk 5.6.3 (Multi-Agent Coordinator Runtime, Concurrency Throttling, and Aggregator Implementation).

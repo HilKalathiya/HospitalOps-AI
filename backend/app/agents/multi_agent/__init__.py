@@ -1,8 +1,8 @@
 """
 HospitalOps AI — Multi-Agent Subsystem Package (Milestone 5, Chunk 5.6).
 
-Provides typed contracts, specialist definitions, coordinator architecture,
-and aggregation primitives for multi-agent decision intelligence.
+Provides typed contracts, specialist definitions, domain specialists,
+and deterministic registry primitives for multi-agent decision intelligence.
 """
 
 from app.agents.multi_agent.contracts import (
@@ -21,6 +21,14 @@ from app.agents.multi_agent.contracts import (
     SpecialistId,
     SpecialistResult,
 )
+from app.agents.multi_agent.registry import SpecialistRegistry
+from app.agents.multi_agent.specialists import (
+    BaseSpecialist,
+    ForecastingSpecialist,
+    KnowledgeSpecialist,
+    OptimizationSpecialist,
+    SimulationSpecialist,
+)
 
 __all__ = [
     "STANDARD_SPECIALISTS",
@@ -37,4 +45,10 @@ __all__ = [
     "SpecialistExecutionStatus",
     "SpecialistId",
     "SpecialistResult",
+    "SpecialistRegistry",
+    "BaseSpecialist",
+    "ForecastingSpecialist",
+    "SimulationSpecialist",
+    "OptimizationSpecialist",
+    "KnowledgeSpecialist",
 ]
