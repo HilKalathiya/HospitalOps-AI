@@ -15,12 +15,8 @@ from app.ml.contracts.selection import ModelEvaluationEntry
 class PredictionPoint(BaseModel):
     """A single forecasted time-series point with optional interval bounds."""
 
-    timestamp: str = Field(
-        description="Forecast timestamp as ISO date string (e.g. '2025-01-01')."
-    )
-    value: float = Field(
-        description="Point prediction value in physical target units."
-    )
+    timestamp: str = Field(description="Forecast timestamp as ISO date string (e.g. '2025-01-01').")
+    value: float = Field(description="Point prediction value in physical target units.")
     lower_bound: float | None = Field(
         default=None,
         description="Lower prediction/confidence bound when supported by model (e.g. LSTM MC dropout).",
@@ -47,7 +43,9 @@ class ForecastMetadata(BaseModel):
     forecast_origin: str | None = Field(
         default=None, description="Last-observed date / cut-off timestamp."
     )
-    model_type: str = Field(description="Selected or requested model family (baseline, arima, prophet, lstm).")
+    model_type: str = Field(
+        description="Selected or requested model family (baseline, arima, prophet, lstm)."
+    )
     config_name: str = Field(description="Specific model configuration name.")
     run_id: str | None = Field(default=None, description="Experiment run identifier.")
     mlflow_run_id: str | None = Field(default=None, description="MLflow tracking run ID if logged.")

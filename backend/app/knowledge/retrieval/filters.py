@@ -94,7 +94,9 @@ class SearchFilterBuilder:
             effective_levels = allowed_levels
 
         # Format access_level filter for Chroma
-        level_values = [lvl.value if hasattr(lvl, "value") else str(lvl) for lvl in effective_levels]
+        level_values = [
+            lvl.value if hasattr(lvl, "value") else str(lvl) for lvl in effective_levels
+        ]
         if len(level_values) == 1:
             conditions.append({"access_level": {"$eq": level_values[0]}})
         else:
@@ -103,7 +105,11 @@ class SearchFilterBuilder:
 
         # 3. Document Category filter
         if filters.category:
-            cat_val = filters.category.value if hasattr(filters.category, "value") else str(filters.category)
+            cat_val = (
+                filters.category.value
+                if hasattr(filters.category, "value")
+                else str(filters.category)
+            )
             conditions.append({"category": {"$eq": cat_val}})
             applied_filters["category"] = cat_val
 
@@ -122,10 +128,12 @@ class SearchFilterBuilder:
         if user and user.department_id and user.role not in [Role.ADMIN, Role.OPERATIONS_MANAGER]:
             # User can view global documents (empty department) or their own department
             conditions.append(
-                {"$or": [
-                    {"department_id": {"$eq": ""}},
-                    {"department_id": {"$eq": user.department_id}},
-                ]}
+                {
+                    "$or": [
+                        {"department_id": {"$eq": ""}},
+                        {"department_id": {"$eq": user.department_id}},
+                    ]
+                }
             )
             applied_filters["department_scope"] = user.department_id
         elif filters.department_id:

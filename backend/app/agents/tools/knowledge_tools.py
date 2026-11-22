@@ -30,9 +30,13 @@ logger = logging.getLogger(__name__)
 class SearchHospitalKnowledgeInput(BaseModel):
     """Input parameters for searching hospital knowledge documents."""
 
-    query: str = Field(min_length=2, max_length=500, description="Natural-language operational inquiry")
+    query: str = Field(
+        min_length=2, max_length=500, description="Natural-language operational inquiry"
+    )
     top_k: int = Field(default=5, ge=1, le=15, description="Number of matching passages to return")
-    category: str | None = Field(default=None, description="Optional category filter (e.g. 'CAPACITY_PLANNING', 'SOP')")
+    category: str | None = Field(
+        default=None, description="Optional category filter (e.g. 'CAPACITY_PLANNING', 'SOP')"
+    )
 
 
 class KnowledgeSearchHit(BaseModel):
@@ -56,7 +60,9 @@ class SearchHospitalKnowledgeOutput(BaseModel):
     query: str = Field(description="Search inquiry query")
     count: int = Field(ge=0, description="Count of passages retrieved")
     result_count: int = Field(ge=0, description="Total matching candidate count")
-    results: list[KnowledgeSearchHit] = Field(default_factory=list, description="Top matching excerpts")
+    results: list[KnowledgeSearchHit] = Field(
+        default_factory=list, description="Top matching excerpts"
+    )
 
 
 class SearchHospitalKnowledgeTool(AgentTool):
@@ -109,7 +115,11 @@ class SearchHospitalKnowledgeTool(AgentTool):
         return 20.0
 
     async def execute(self, arguments: BaseModel, context: ToolContext) -> ToolResult:
-        args = arguments if isinstance(arguments, SearchHospitalKnowledgeInput) else SearchHospitalKnowledgeInput.model_validate(arguments)
+        args = (
+            arguments
+            if isinstance(arguments, SearchHospitalKnowledgeInput)
+            else SearchHospitalKnowledgeInput.model_validate(arguments)
+        )
 
         cat = None
         if args.category:
@@ -143,7 +153,9 @@ class SearchHospitalKnowledgeTool(AgentTool):
             source_id = f"S{idx}"
             title = getattr(res, "document_title", getattr(res, "title", "Document"))
             version = getattr(res, "document_version", getattr(res, "version", 1))
-            text_content = getattr(res, "full_text", getattr(res, "content", getattr(res, "content_excerpt", "")))
+            text_content = getattr(
+                res, "full_text", getattr(res, "content", getattr(res, "content_excerpt", ""))
+            )
             section = getattr(res, "section_title", None)
 
             citations.append(
@@ -157,7 +169,9 @@ class SearchHospitalKnowledgeTool(AgentTool):
                     source_reference=f"{title} (v{version})",
                     similarity_score=res.similarity_score,
                     category=res.category if isinstance(res.category, DocumentCategory) else None,
-                    access_level=res.access_level if isinstance(res.access_level, AccessLevel) else None,
+                    access_level=res.access_level
+                    if isinstance(res.access_level, AccessLevel)
+                    else None,
                     excerpt=text_content[:300] if text_content else None,
                 )
             )
@@ -183,8 +197,12 @@ class SearchHospitalKnowledgeTool(AgentTool):
                     section_title=section,
                     content_excerpt=text_content[:300] if text_content else "",
                     similarity_score=res.similarity_score,
-                    category=res.category.value if hasattr(res.category, "value") else str(res.category or ""),
-                    access_level=res.access_level.value if hasattr(res.access_level, "value") else str(res.access_level or ""),
+                    category=res.category.value
+                    if hasattr(res.category, "value")
+                    else str(res.category or ""),
+                    access_level=res.access_level.value
+                    if hasattr(res.access_level, "value")
+                    else str(res.access_level or ""),
                 )
             )
             summaries.append(f"[{source_id}] {title}: {text_content[:200]}...")
@@ -216,9 +234,13 @@ class SearchHospitalKnowledgeTool(AgentTool):
 class AnswerFromHospitalKnowledgeInput(BaseModel):
     """Input parameters for generating an evidence-grounded operational answer."""
 
-    question: str = Field(min_length=3, max_length=500, description="Specific operational question to answer")
+    question: str = Field(
+        min_length=3, max_length=500, description="Specific operational question to answer"
+    )
     top_k: int = Field(default=5, ge=1, le=10, description="Context retrieval chunk count")
-    token_budget: int = Field(default=2000, ge=500, le=4000, description="Token budget for context assembly")
+    token_budget: int = Field(
+        default=2000, ge=500, le=4000, description="Token budget for context assembly"
+    )
     category: str | None = Field(default=None, description="Optional category scope")
 
 
@@ -229,7 +251,9 @@ class AnswerFromHospitalKnowledgeOutput(BaseModel):
     answer: str = Field(description="Synthesized evidence-grounded answer")
     status: str = Field(description="Answer status: ANSWERED, REJECTED, etc.")
     confidence: str = Field(default="HIGH", description="Assessed confidence level")
-    limitations: list[str] = Field(default_factory=list, description="Noted limitations or policy scope caveats")
+    limitations: list[str] = Field(
+        default_factory=list, description="Noted limitations or policy scope caveats"
+    )
     citations_count: int = Field(default=0, ge=0, description="Number of verified source citations")
 
 
@@ -283,7 +307,11 @@ class AnswerFromHospitalKnowledgeTool(AgentTool):
         return 30.0
 
     async def execute(self, arguments: BaseModel, context: ToolContext) -> ToolResult:
-        args = arguments if isinstance(arguments, AnswerFromHospitalKnowledgeInput) else AnswerFromHospitalKnowledgeInput.model_validate(arguments)
+        args = (
+            arguments
+            if isinstance(arguments, AnswerFromHospitalKnowledgeInput)
+            else AnswerFromHospitalKnowledgeInput.model_validate(arguments)
+        )
 
         cat = None
         if args.category:

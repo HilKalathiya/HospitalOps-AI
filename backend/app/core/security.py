@@ -138,7 +138,6 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
         "simulation.read",
         "optimization.read",
     ],
-
 }
 
 

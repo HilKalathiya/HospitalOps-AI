@@ -117,31 +117,62 @@ class StructureAwareChunker:
             if is_table_block and block_tokens > self.max_tokens:
                 # Flush previous
                 if current_chunk_blocks:
-                    chunks.append(self._create_chunk(
-                        document_id, version, chunk_index, title, category, access_level,
-                        current_section_title, "\n\n".join(current_chunk_blocks),
-                        current_is_table, pages_text
-                    ))
+                    chunks.append(
+                        self._create_chunk(
+                            document_id,
+                            version,
+                            chunk_index,
+                            title,
+                            category,
+                            access_level,
+                            current_section_title,
+                            "\n\n".join(current_chunk_blocks),
+                            current_is_table,
+                            pages_text,
+                        )
+                    )
                     chunk_index += 1
                     current_chunk_blocks = []
                     current_chunk_tokens = 0
 
                 # Add oversized table as its own chunk
-                chunks.append(self._create_chunk(
-                    document_id, version, chunk_index, title, category, access_level,
-                    current_section_title, block, True, pages_text
-                ))
+                chunks.append(
+                    self._create_chunk(
+                        document_id,
+                        version,
+                        chunk_index,
+                        title,
+                        category,
+                        access_level,
+                        current_section_title,
+                        block,
+                        True,
+                        pages_text,
+                    )
+                )
                 chunk_index += 1
                 continue
 
             # If adding this block exceeds target_tokens and we already have sufficient content
-            if (current_chunk_tokens + block_tokens > self.target_tokens) and (current_chunk_tokens >= self.min_tokens):
+            if (current_chunk_tokens + block_tokens > self.target_tokens) and (
+                current_chunk_tokens >= self.min_tokens
+            ):
                 # Flush current chunk
                 chunk_text = "\n\n".join(current_chunk_blocks)
-                chunks.append(self._create_chunk(
-                    document_id, version, chunk_index, title, category, access_level,
-                    current_section_title, chunk_text, current_is_table, pages_text
-                ))
+                chunks.append(
+                    self._create_chunk(
+                        document_id,
+                        version,
+                        chunk_index,
+                        title,
+                        category,
+                        access_level,
+                        current_section_title,
+                        chunk_text,
+                        current_is_table,
+                        pages_text,
+                    )
+                )
                 chunk_index += 1
 
                 # Generate overlap words from the end of previous block if not a table
@@ -149,7 +180,7 @@ class StructureAwareChunker:
                 if not current_is_table and self.overlap_tokens > 0:
                     words = chunk_text.split()
                     if len(words) > 20:
-                        overlap_words = words[-int(self.overlap_tokens * 0.75):]
+                        overlap_words = words[-int(self.overlap_tokens * 0.75) :]
                         overlap_text = " ".join(overlap_words)
 
                 current_chunk_blocks = [overlap_text, block] if overlap_text else [block]
@@ -165,10 +196,20 @@ class StructureAwareChunker:
         if current_chunk_blocks:
             chunk_text = "\n\n".join(current_chunk_blocks).strip()
             if chunk_text:
-                chunks.append(self._create_chunk(
-                    document_id, version, chunk_index, title, category, access_level,
-                    current_section_title, chunk_text, current_is_table, pages_text
-                ))
+                chunks.append(
+                    self._create_chunk(
+                        document_id,
+                        version,
+                        chunk_index,
+                        title,
+                        category,
+                        access_level,
+                        current_section_title,
+                        chunk_text,
+                        current_is_table,
+                        pages_text,
+                    )
+                )
 
         return chunks
 

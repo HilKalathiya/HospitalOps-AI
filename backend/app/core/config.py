@@ -67,7 +67,9 @@ class Settings(BaseSettings):
     # ── Knowledge Ingestion & Vector Store ────────────────────────────────────
     knowledge_storage_dir: str = "backend/data/knowledge/documents"
     chromadb_dir: str = "backend/data/knowledge/chroma"
-    embedding_provider: Literal["local_deterministic", "sentence_transformers"] = "local_deterministic"
+    embedding_provider: Literal["local_deterministic", "sentence_transformers"] = (
+        "local_deterministic"
+    )
     embedding_model_name: str = "all-MiniLM-L6-v2"
     max_upload_size_bytes: int = 25 * 1024 * 1024  # 25 MB
 

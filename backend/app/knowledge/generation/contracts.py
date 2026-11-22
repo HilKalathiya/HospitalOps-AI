@@ -119,7 +119,9 @@ class CitationReference(HospitalOpsBaseModel):
     similarity_score: float | None = None
     category: DocumentCategory | None = None
     access_level: AccessLevel | None = None
-    excerpt: str | None = Field(default=None, description="Excerpt of the chunk content for evidence inspection")
+    excerpt: str | None = Field(
+        default=None, description="Excerpt of the chunk content for evidence inspection"
+    )
 
     def model_post_init(self, __context: Any) -> None:
         if not self.marker and self.citation_marker:
@@ -187,7 +189,9 @@ class GenerationMetadata(HospitalOpsBaseModel):
 class RawAnswerOutput(HospitalOpsBaseModel):
     """Structured JSON schema expected from LLM completion."""
 
-    answer: str = Field(..., description="Evidence-grounded answer containing bracketed citations [S1]")
+    answer: str = Field(
+        ..., description="Evidence-grounded answer containing bracketed citations [S1]"
+    )
     answer_type: AnswerType = Field(default=AnswerType.GROUNDED)
     insufficient_evidence: bool = Field(default=False)
     limitations: list[str] = Field(default_factory=list)

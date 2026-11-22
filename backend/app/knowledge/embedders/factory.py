@@ -31,7 +31,10 @@ def get_embedding_provider(provider_type: str | None = None) -> EmbeddingProvide
         try:
             return SentenceTransformerEmbedder(model_name=settings.embedding_model_name)
         except Exception as err:
-            logger.warning("Could not initialize SentenceTransformerEmbedder (%s), falling back to LocalDeterministicEmbedder", err)
+            logger.warning(
+                "Could not initialize SentenceTransformerEmbedder (%s), falling back to LocalDeterministicEmbedder",
+                err,
+            )
             return LocalDeterministicEmbedder(dimension=384)
 
     return LocalDeterministicEmbedder(dimension=384)

@@ -310,15 +310,18 @@ async def test_orchestrator_partial_context_when_budget_capped(temp_chroma_dir):
     # Ingest documents sized ~80 tokens each so 2nd and 3rd chunks exceed a 200 token budget
     doc1 = (
         b"# Intensive Care Bed Surge Protocols\n\n"
-        + b"Intensive care bed surge protocols and nurse staffing ratios under crisis standards of care. " * 5
+        + b"Intensive care bed surge protocols and nurse staffing ratios under crisis standards of care. "
+        * 5
     )
     doc2 = (
         b"# Emergency Overflow Department Diversion\n\n"
-        + b"Emergency overflow department diversion protocols and critical inter-facility transport guidelines. " * 5
+        + b"Emergency overflow department diversion protocols and critical inter-facility transport guidelines. "
+        * 5
     )
     doc3 = (
         b"# Critical Care Mechanical Ventilation\n\n"
-        + b"Critical care mechanical ventilation allocation and preventive maintenance calibration procedures. " * 5
+        + b"Critical care mechanical ventilation allocation and preventive maintenance calibration procedures. "
+        * 5
     )
 
     await service.ingest_document(

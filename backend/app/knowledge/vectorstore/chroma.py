@@ -121,7 +121,9 @@ class ChromaVectorStore(VectorStore):
                 "content_hash": str(c.metadata.content_hash),
                 "is_table": bool(c.metadata.is_table),
                 "department_id": str(c.metadata.department_id or ""),
-                "embedding_space_id": str(c.metadata.embedding_space_id or self._embedding_space_id or ""),
+                "embedding_space_id": str(
+                    c.metadata.embedding_space_id or self._embedding_space_id or ""
+                ),
             }
             metadatas.append(flat_meta)
 
@@ -187,11 +189,15 @@ class ChromaVectorStore(VectorStore):
                     document_id=meta.get("document_id", document_id),
                     version=int(meta.get("version", version or 1)),
                     chunk_index=int(meta.get("chunk_index", i)),
-                    category=DocumentCategory(meta.get("category", DocumentCategory.GENERAL_REFERENCE.value)),
+                    category=DocumentCategory(
+                        meta.get("category", DocumentCategory.GENERAL_REFERENCE.value)
+                    ),
                     access_level=AccessLevel(meta.get("access_level", AccessLevel.INTERNAL.value)),
                     title=meta.get("title", ""),
                     section_title=meta.get("section_title") or None,
-                    page_number=int(meta.get("page_number")) if meta.get("page_number", 0) > 0 else None,
+                    page_number=int(meta.get("page_number"))
+                    if meta.get("page_number", 0) > 0
+                    else None,
                     token_count=int(meta.get("token_count", 0)),
                     char_count=int(meta.get("char_count", len(text))),
                     content_hash=meta.get("content_hash", ""),
@@ -274,11 +280,15 @@ class ChromaVectorStore(VectorStore):
                 document_id=meta.get("document_id", ""),
                 version=int(meta.get("version", 1)),
                 chunk_index=int(meta.get("chunk_index", i)),
-                category=DocumentCategory(meta.get("category", DocumentCategory.GENERAL_REFERENCE.value)),
+                category=DocumentCategory(
+                    meta.get("category", DocumentCategory.GENERAL_REFERENCE.value)
+                ),
                 access_level=AccessLevel(meta.get("access_level", AccessLevel.INTERNAL.value)),
                 title=meta.get("title", ""),
                 section_title=meta.get("section_title") or None,
-                page_number=int(meta.get("page_number")) if meta.get("page_number", 0) > 0 else None,
+                page_number=int(meta.get("page_number"))
+                if meta.get("page_number", 0) > 0
+                else None,
                 token_count=int(meta.get("token_count", 0)),
                 char_count=int(meta.get("char_count", len(text))),
                 content_hash=meta.get("content_hash", ""),

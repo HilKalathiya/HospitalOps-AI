@@ -63,25 +63,41 @@ class KnowledgeRepository(BaseRepository):
             return
 
         try:
-            await self.collection.create_indexes([
-                IndexModel([("document_id", pymongo.ASCENDING)], unique=True, name="doc_id_unique"),
-                IndexModel([("content_hash", pymongo.ASCENDING)], name="doc_hash"),
-                IndexModel([("category", pymongo.ASCENDING)], name="doc_category"),
-                IndexModel([("access_level", pymongo.ASCENDING)], name="doc_access_level"),
-                IndexModel([("created_at", pymongo.DESCENDING)], name="doc_created_at"),
-            ])
+            await self.collection.create_indexes(
+                [
+                    IndexModel(
+                        [("document_id", pymongo.ASCENDING)], unique=True, name="doc_id_unique"
+                    ),
+                    IndexModel([("content_hash", pymongo.ASCENDING)], name="doc_hash"),
+                    IndexModel([("category", pymongo.ASCENDING)], name="doc_category"),
+                    IndexModel([("access_level", pymongo.ASCENDING)], name="doc_access_level"),
+                    IndexModel([("created_at", pymongo.DESCENDING)], name="doc_created_at"),
+                ]
+            )
 
             if self.versions_collection is not None:
-                await self.versions_collection.create_indexes([
-                    IndexModel([("version_id", pymongo.ASCENDING)], unique=True, name="ver_id_unique"),
-                    IndexModel([("document_id", pymongo.ASCENDING), ("version", pymongo.ASCENDING)], unique=True, name="doc_ver_unique"),
-                ])
+                await self.versions_collection.create_indexes(
+                    [
+                        IndexModel(
+                            [("version_id", pymongo.ASCENDING)], unique=True, name="ver_id_unique"
+                        ),
+                        IndexModel(
+                            [("document_id", pymongo.ASCENDING), ("version", pymongo.ASCENDING)],
+                            unique=True,
+                            name="doc_ver_unique",
+                        ),
+                    ]
+                )
 
             if self.runs_collection is not None:
-                await self.runs_collection.create_indexes([
-                    IndexModel([("ingestion_id", pymongo.ASCENDING)], unique=True, name="ing_id_unique"),
-                    IndexModel([("document_id", pymongo.ASCENDING)], name="ing_doc_id"),
-                ])
+                await self.runs_collection.create_indexes(
+                    [
+                        IndexModel(
+                            [("ingestion_id", pymongo.ASCENDING)], unique=True, name="ing_id_unique"
+                        ),
+                        IndexModel([("document_id", pymongo.ASCENDING)], name="ing_doc_id"),
+                    ]
+                )
         except Exception as err:
             logger.warning("Could not create knowledge indexes: %s", err)
 
@@ -102,7 +118,9 @@ class KnowledgeRepository(BaseRepository):
         if self._db is not None:
             try:
                 data = doc.model_dump(by_alias=True, exclude_none=True)
-                await self.collection.replace_one({"document_id": doc.document_id}, data, upsert=True)
+                await self.collection.replace_one(
+                    {"document_id": doc.document_id}, data, upsert=True
+                )
             except Exception as err:
                 logger.debug("Mongo update fallback to memory: %s", err)
         return doc
@@ -198,7 +216,8 @@ class KnowledgeRepository(BaseRepository):
         if search:
             s_lower = search.lower()
             filtered = [
-                d for d in filtered
+                d
+                for d in filtered
                 if s_lower in d.title.lower()
                 or s_lower in d.source_filename.lower()
                 or any(s_lower in t.lower() for t in d.tags)
@@ -252,7 +271,11 @@ class KnowledgeRepository(BaseRepository):
             self._in_memory_versions[ver.document_id] = []
 
         existing_idx = next(
-            (i for i, v in enumerate(self._in_memory_versions[ver.document_id]) if v.version == ver.version),
+            (
+                i
+                for i, v in enumerate(self._in_memory_versions[ver.document_id])
+                if v.version == ver.version
+            ),
             None,
         )
         if existing_idx is not None:
@@ -275,7 +298,9 @@ class KnowledgeRepository(BaseRepository):
     async def find_versions_by_document(self, document_id: str) -> list[DocumentVersionDocument]:
         if self.versions_collection is not None:
             try:
-                cursor = self.versions_collection.find({"document_id": document_id}).sort("version", pymongo.ASCENDING)
+                cursor = self.versions_collection.find({"document_id": document_id}).sort(
+                    "version", pymongo.ASCENDING
+                )
                 versions: list[DocumentVersionDocument] = []
                 async for r in cursor:
                     if "_id" in r:
@@ -312,7 +337,9 @@ class KnowledgeRepository(BaseRepository):
         if self.runs_collection is not None:
             try:
                 data = run.model_dump(by_alias=True, exclude_none=True)
-                await self.runs_collection.replace_one({"ingestion_id": run.ingestion_id}, data, upsert=True)
+                await self.runs_collection.replace_one(
+                    {"ingestion_id": run.ingestion_id}, data, upsert=True
+                )
             except Exception as err:
                 logger.debug("Mongo update run fallback: %s", err)
         return run
@@ -337,7 +364,9 @@ class KnowledgeRepository(BaseRepository):
                 q: dict[str, Any] = {}
                 if document_id:
                     q["document_id"] = document_id
-                cursor = self.runs_collection.find(q).sort("created_at", pymongo.DESCENDING).limit(limit)
+                cursor = (
+                    self.runs_collection.find(q).sort("created_at", pymongo.DESCENDING).limit(limit)
+                )
                 runs: list[IngestionRunDocument] = []
                 async for r in cursor:
                     if "_id" in r:

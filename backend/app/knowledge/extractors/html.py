@@ -54,12 +54,14 @@ class HtmlExtractor(BaseExtractor):
             data_lines = ["| " + " | ".join(r) + " |" for r in data_rows]
             md_table = "\n".join([header_line, sep_line] + data_lines)
 
-            tables.append(ExtractedTable(
-                headers=headers,
-                rows=data_rows,
-                caption=f"Table {t_idx + 1}",
-                markdown=md_table,
-            ))
+            tables.append(
+                ExtractedTable(
+                    headers=headers,
+                    rows=data_rows,
+                    caption=f"Table {t_idx + 1}",
+                    markdown=md_table,
+                )
+            )
 
             # Replace table tag in soup with plaintext markdown
             table_tag.replace_with(soup.new_string(f"\n\n{md_table}\n\n"))

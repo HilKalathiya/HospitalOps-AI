@@ -177,7 +177,6 @@ def test_lstm_orchestrator_pipeline(tmp_path):
         runs_dir=str(tmp_path / "runs"),
     )
 
-
     experiment = orchestrator.run(dataset)
 
     assert experiment.status == "COMPLETED"

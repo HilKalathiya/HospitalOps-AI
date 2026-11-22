@@ -50,7 +50,11 @@ class PDFExtractor(BaseExtractor):
         requires_ocr = False
         if num_pages > 0 and total_extracted_chars == 0:
             requires_ocr = True
-            logger.warning("PDF %s contains %d pages but 0 text characters extracted (likely scanned image)", filename, num_pages)
+            logger.warning(
+                "PDF %s contains %d pages but 0 text characters extracted (likely scanned image)",
+                filename,
+                num_pages,
+            )
 
         full_raw_text = "\n\n".join(raw_parts)
 

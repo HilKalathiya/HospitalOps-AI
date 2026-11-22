@@ -133,7 +133,9 @@ async def test_embedding_space_mismatch_error(temp_chroma_dir):
     store._collection.modify(metadata={"embedding_space_id": "other_model:v2:d768:cosine"})
 
     repo = KnowledgeRepository(db=None)
-    retriever = KnowledgeRetriever(embedding_provider=embedder, vector_store=store, knowledge_repo=repo)
+    retriever = KnowledgeRetriever(
+        embedding_provider=embedder, vector_store=store, knowledge_repo=repo
+    )
 
     admin_user = _get_admin_user()
     req = KnowledgeSearchRequest(query="ICU surge policy")
@@ -165,7 +167,9 @@ def test_search_filter_builder_doctor_clearance_clamping():
 
     # Doctor requests CONFIDENTIAL (escalation attempt)
     filters = SearchFilters(access_level=AccessLevel.CONFIDENTIAL)
-    where_clause, applied, is_authorized = builder.build_where_clause(filters=filters, user=doctor_user)
+    where_clause, applied, is_authorized = builder.build_where_clause(
+        filters=filters, user=doctor_user
+    )
 
     # Escalation must be rejected; is_authorized must be False
     assert is_authorized is False
@@ -221,12 +225,16 @@ def test_result_ranker_score_conversion_and_ordering():
         content_hash="h2",
     )
 
-    c1 = KnowledgeChunk(chunk_id="c1", text="ICU emergency capacity protocol details.", metadata=meta1)
+    c1 = KnowledgeChunk(
+        chunk_id="c1", text="ICU emergency capacity protocol details.", metadata=meta1
+    )
     c2 = KnowledgeChunk(chunk_id="c2", text="General administrative guidelines.", metadata=meta2)
 
     # c1 has cosine distance 0.1 (similarity 0.9), c2 has distance 0.4 (similarity 0.6)
     candidates = [(c1, 0.1), (c2, 0.4)]
-    ranked = ranker.rank_and_format(candidates=candidates, query="emergency capacity", top_k=5, min_score=0.5)
+    ranked = ranker.rank_and_format(
+        candidates=candidates, query="emergency capacity", top_k=5, min_score=0.5
+    )
 
     assert len(ranked) == 2
     assert ranked[0].chunk_id == "c1"

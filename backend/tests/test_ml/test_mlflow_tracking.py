@@ -270,7 +270,9 @@ def test_model_registry_backend_support_detection(tmp_path):
     sqlite_tracker = MLflowTracker(tracking_uri=f"sqlite:///{db_file}", experiment_name="test-reg")
     assert sqlite_tracker.supports_model_registry() is True
 
-    file_tracker = MLflowTracker(tracking_uri=f"file:{tmp_path / 'mlruns'}", experiment_name="test-file")
+    file_tracker = MLflowTracker(
+        tracking_uri=f"file:{tmp_path / 'mlruns'}", experiment_name="test-file"
+    )
     assert file_tracker.supports_model_registry() is False
 
     # Attempting to register on unsupported file backend returns None with warning
@@ -287,7 +289,9 @@ def test_orchestrator_integration_with_mlflow(sample_dataset, tmp_path):
     """Verifies MLPipelineOrchestrator logs end-to-end parameters, metrics, and artifacts to MLflow."""
     db_file = tmp_path / "orchestrator_mlflow.db"
     tracking_uri = f"sqlite:///{db_file}"
-    tracker = MLflowTracker(tracking_uri=tracking_uri, experiment_name="hospitalops-orchestrator-test")
+    tracker = MLflowTracker(
+        tracking_uri=tracking_uri, experiment_name="hospitalops-orchestrator-test"
+    )
 
     config = ForecastConfig(
         dataset_name="hero_dmc",
@@ -347,7 +351,9 @@ def test_orchestrator_identical_predictions_with_and_without_tracking(sample_dat
 
     # 2. With MLflow tracking
     db_file = tmp_path / "ident.db"
-    mlflow_tracker = MLflowTracker(tracking_uri=f"sqlite:///{db_file}", experiment_name="test-ident")
+    mlflow_tracker = MLflowTracker(
+        tracking_uri=f"sqlite:///{db_file}", experiment_name="test-ident"
+    )
     orch_mlflow = MLPipelineOrchestrator(config=config, tracker=mlflow_tracker)
     exp_mlflow = orch_mlflow.run(sample_dataset)
 

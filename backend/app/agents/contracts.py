@@ -108,7 +108,9 @@ class ToolDefinition(HospitalOpsBaseModel):
     requires_approval: bool = Field(
         default=False, description="Whether human confirmation is mandatory before execution"
     )
-    timeout_seconds: float = Field(default=25.0, ge=1.0, le=60.0, description="Max execution duration in seconds")
+    timeout_seconds: float = Field(
+        default=25.0, ge=1.0, le=60.0, description="Max execution duration in seconds"
+    )
     enabled: bool = Field(default=True, description="Whether the tool is active and available")
     tags: list[str] = Field(default_factory=list, description="Searchable capability labels")
     input_schema_json: dict[str, Any] | None = Field(
@@ -143,41 +145,113 @@ class ToolCallRecord(HospitalOpsBaseModel):
     step_index: int = Field(ge=1, description="Sequential step index")
     tool_name: str = Field(description="Identifier of the executed tool")
     reason: str = Field(default="", description="Planner's stated rationale for this invocation")
-    arguments: dict[str, Any] = Field(default_factory=dict, description="Sanitized arguments passed to tool")
-    status: str = Field(default="SUCCESS", description="Execution outcome: SUCCESS, FAILED, BLOCKED, VALIDATION_ERROR")
+    arguments: dict[str, Any] = Field(
+        default_factory=dict, description="Sanitized arguments passed to tool"
+    )
+    status: str = Field(
+        default="SUCCESS",
+        description="Execution outcome: SUCCESS, FAILED, BLOCKED, VALIDATION_ERROR",
+    )
     duration_ms: float = Field(ge=0.0, description="Execution duration in milliseconds")
     output_summary: str = Field(default="", description="Sanitized summary of tool results")
     error_message: str | None = Field(default=None, description="Error message if execution failed")
-    error_code: ToolErrorCode | None = Field(default=None, description="Standardized error classification code")
-    schema_version: str | None = Field(default=None, description="Tool contract schema version executed")
-    sources_found: int = Field(default=0, ge=0, description="Count of evidence artifacts discovered")
-    provenance_ids: list[str] = Field(default_factory=list, description="IDs of discovered artifacts")
+    error_code: ToolErrorCode | None = Field(
+        default=None, description="Standardized error classification code"
+    )
+    schema_version: str | None = Field(
+        default=None, description="Tool contract schema version executed"
+    )
+    sources_found: int = Field(
+        default=0, ge=0, description="Count of evidence artifacts discovered"
+    )
+    provenance_ids: list[str] = Field(
+        default_factory=list, description="IDs of discovered artifacts"
+    )
 
 
 class AgentRunOptions(HospitalOpsBaseModel):
     """Client-configurable execution parameters (clamped strictly server-side)."""
 
-    max_steps: int = Field(default=6, ge=1, le=10, description="Maximum reasoning and decision steps")
+    max_steps: int = Field(
+        default=6, ge=1, le=10, description="Maximum reasoning and decision steps"
+    )
     max_tool_calls: int = Field(default=5, ge=1, le=8, description="Maximum individual tool calls")
-    timeout_seconds: float = Field(default=45.0, ge=5.0, le=60.0, description="Execution timeout limit")
+    timeout_seconds: float = Field(
+        default=45.0, ge=5.0, le=60.0, description="Execution timeout limit"
+    )
     temperature: float = Field(default=0.0, ge=0.0, le=1.0, description="Sampling temperature")
 
 
 class AgentRunRequest(HospitalOpsBaseModel):
     """Payload to initiate an agent run."""
 
-    agent_id: str = Field(default="hospital_operations_analyst", description="Target agent identifier")
-    task: str = Field(min_length=3, max_length=1000, description="Natural-language operational question or objective")
+    agent_id: str = Field(
+        default="hospital_operations_analyst", description="Target agent identifier"
+    )
+    task: str = Field(
+        min_length=3,
+        max_length=1000,
+        description="Natural-language operational question or objective",
+    )
     options: AgentRunOptions = Field(default_factory=AgentRunOptions)
+    session_id: str | None = Field(
+        default=None,
+        description="Optional conversational session ID for multi-turn continuity (Chunk 5.4)",
+    )
+    conversation_context: AgentConversationContext | None = Field(
+        default=None, description="Reconstructed context from session history (Chunk 5.4)"
+    )
+
+
+class AgentConversationTurn(HospitalOpsBaseModel):
+    """Single turn representation in conversational history for context reconstruction."""
+
+    role: str = Field(description="Turn speaker: user, assistant, or system")
+    content: str = Field(description="Content of the conversational turn")
+    execution_id: str | None = Field(
+        default=None, description="Associated run ID if assistant turn"
+    )
+    evidence_summaries: list[str] = Field(
+        default_factory=list, description="Summaries of evidence used in this turn"
+    )
+    timestamp: datetime = Field(default_factory=utc_now)
+
+
+class AgentConversationContext(HospitalOpsBaseModel):
+    """Bounded context reconstructed from session history to provide conversational continuity."""
+
+    session_id: str = Field(description="Parent session ID")
+    turns: list[AgentConversationTurn] = Field(
+        default_factory=list, description="Recent bounded conversational turns"
+    )
+    latest_execution_id: str | None = Field(
+        default=None, description="Most recent assistant execution ID"
+    )
+    referenced_evidence_ids: list[str] = Field(
+        default_factory=list, description="IDs of historical evidence referenced"
+    )
+    prior_forecast_references: list[str] = Field(
+        default_factory=list, description="Historical forecast identifiers"
+    )
+    prior_simulation_references: list[str] = Field(
+        default_factory=list, description="Historical simulation identifiers"
+    )
+    prior_optimization_references: list[str] = Field(
+        default_factory=list, description="Historical optimization identifiers"
+    )
+    context_budget_used_chars: int = Field(default=0, ge=0)
+    is_truncated: bool = Field(
+        default=False, description="True if older history was clamped to fit budget"
+    )
 
 
 class AgentRunExecutionMetadata(HospitalOpsBaseModel):
     """Telemetry and execution accounting for the agent run."""
 
-    steps_completed: int = Field(ge=0)
-    tool_calls: int = Field(ge=0)
-    duration_ms: float = Field(ge=0.0)
-    stop_reason: StopReason
+    steps_completed: int = Field(default=0, ge=0)
+    tool_calls: int = Field(default=0, ge=0)
+    duration_ms: float = Field(default=0.0, ge=0.0)
+    stop_reason: StopReason = Field(default=StopReason.SUFFICIENT_EVIDENCE)
     model: str = Field(default="unknown")
     provider: str = Field(default="unknown")
 
@@ -186,19 +260,40 @@ class AgentRunResponse(HospitalOpsBaseModel):
     """Standardized response schema for completed agent runs."""
 
     run_id: str = Field(description="Unique run execution identifier")
+    session_id: str | None = Field(
+        default=None, description="Session ID if executed in a conversational session (Chunk 5.4)"
+    )
     agent_id: str = Field(description="Agent identifier")
     agent_name: str = Field(description="Human-readable agent title")
     status: AgentExecutionStatus = Field(description="Final execution status")
     final_answer: str = Field(description="Synthesized operational answer grounded in evidence")
-    task_plan: AgentTaskPlan | None = Field(default=None, description="Initial task plan formulated by agent (Chunk 5.3)")
-    sources: list[CitationReference] = Field(default_factory=list, description="Document citations from knowledge base")
-    provenance: list[ProvenanceItem] = Field(default_factory=list, description="Categorized subsystem provenance artifacts")
-    evidence: list[AgentEvidence] = Field(default_factory=list, description="Classified operational evidence artifacts (Chunk 5.3)")
-    tool_trace: list[ToolCallRecord] = Field(default_factory=list, description="Sequential execution trace")
-    state_transitions: list[StateTransitionRecord] = Field(default_factory=list, description="Lifecycle state audit trail (Chunk 5.3)")
-    execution: AgentRunExecutionMetadata = Field(description="Execution metrics and accounting")
-    limitations: list[str] = Field(default_factory=list, description="Known operational constraints or caveats")
-    requires_human_review: bool = Field(default=True, description="Enforces human oversight requirement")
+    task_plan: AgentTaskPlan | None = Field(
+        default=None, description="Initial task plan formulated by agent (Chunk 5.3)"
+    )
+    sources: list[CitationReference] = Field(
+        default_factory=list, description="Document citations from knowledge base"
+    )
+    provenance: list[ProvenanceItem] = Field(
+        default_factory=list, description="Categorized subsystem provenance artifacts"
+    )
+    evidence: list[AgentEvidence] = Field(
+        default_factory=list, description="Classified operational evidence artifacts (Chunk 5.3)"
+    )
+    tool_trace: list[ToolCallRecord] = Field(
+        default_factory=list, description="Sequential execution trace"
+    )
+    state_transitions: list[StateTransitionRecord] = Field(
+        default_factory=list, description="Lifecycle state audit trail (Chunk 5.3)"
+    )
+    execution: AgentRunExecutionMetadata = Field(
+        default_factory=AgentRunExecutionMetadata, description="Execution metrics and accounting"
+    )
+    limitations: list[str] = Field(
+        default_factory=list, description="Known operational constraints or caveats"
+    )
+    requires_human_review: bool = Field(
+        default=True, description="Enforces human oversight requirement"
+    )
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -236,10 +331,18 @@ class AgentTaskPlan(HospitalOpsBaseModel):
         default="GENERAL",
         description="Domain classification (e.g. COMPARATIVE, FORECAST, SIMULATION, OPTIMIZATION, KNOWLEDGE)",
     )
-    requires_tools: bool = Field(default=True, description="Whether tools are needed to satisfy this inquiry")
-    reasoning_summary: str = Field(default="", description="User-safe summary of the planned approach")
-    required_evidence: list[str] = Field(default_factory=list, description="Specific evidence types needed")
-    candidate_tool_ids: list[str] = Field(default_factory=list, description="IDs of tools that may be consulted")
+    requires_tools: bool = Field(
+        default=True, description="Whether tools are needed to satisfy this inquiry"
+    )
+    reasoning_summary: str = Field(
+        default="", description="User-safe summary of the planned approach"
+    )
+    required_evidence: list[str] = Field(
+        default_factory=list, description="Specific evidence types needed"
+    )
+    candidate_tool_ids: list[str] = Field(
+        default_factory=list, description="IDs of tools that may be consulted"
+    )
     expected_result: str = Field(default="", description="Expected analytical deliverable")
 
 
@@ -247,11 +350,17 @@ class PlannerDecision(HospitalOpsBaseModel):
     """Structured decision output from the planner LLM."""
 
     decision: str = Field(description="'CALL_TOOL' or 'FINAL_ANSWER'")
-    tool_name: str | None = Field(default=None, description="Name of tool to execute when decision is CALL_TOOL")
-    arguments: dict[str, Any] = Field(default_factory=dict, description="Arguments for tool invocation")
+    tool_name: str | None = Field(
+        default=None, description="Name of tool to execute when decision is CALL_TOOL"
+    )
+    arguments: dict[str, Any] = Field(
+        default_factory=dict, description="Arguments for tool invocation"
+    )
     reason: str = Field(default="", description="Strategic rationale for this step")
     answer: str = Field(default="", description="Synthesized text when decision is FINAL_ANSWER")
-    limitations: list[str] = Field(default_factory=list, description="Identified limitations or assumptions")
+    limitations: list[str] = Field(
+        default_factory=list, description="Identified limitations or assumptions"
+    )
 
 
 class AgentExecutionTrace(HospitalOpsBaseModel):

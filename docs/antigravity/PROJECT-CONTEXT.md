@@ -743,4 +743,58 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `python -m ruff check backend`: 0 lint errors.
      - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
      - `npm --prefix frontend run build`: Clean production build in 5.86s.
-* **Next Planned Work:** Milestone 5, Chunk 5.4 (Multi-Agent Coordination & Specialized Decision Agents).
+* **Next Planned Work:** Milestone 5, Chunk 5.4 (Agent State Management & Conversation Continuity) — Completed.
+
+---
+
+## 21. Completed Workstream: Milestone 5, Chunk 5.4 (Agent State Management & Conversation Continuity)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Persistent Session & Message Persistence:**
+     - Created MongoDB models and collections `agent_sessions` (`AgentSessionDocument`) and `agent_messages` (`AgentMessageDocument`).
+     - Implemented `AgentSessionRepository` and `AgentMessageRepository` with compound indexes for scoped queries: `(user_id, status, last_activity_at DESC)`, `(session_id, created_at ASC)`.
+  2. **Bounded Context Reconstruction Engine:**
+     - `AgentContextBuilder` reconstructs chronological conversational turns (`AgentConversationTurn`) working backwards from the latest message.
+     - Enforces strict character/token budget clamping (`max_context_chars`), safely setting `is_truncated = True` when older turns are omitted.
+     - Dynamic RBAC Revalidation: revalidates user permissions (`predictions.read`, `simulation.read`, `optimization.read`, `knowledge.read`) against cached evidence before injecting into prompts.
+     - Formats prompt context with clear epistemic headers and disclaimer notices that historical dialogue does not override live operational reality.
+  3. **State Management Coordinator:**
+     - `AgentStateManager` coordinates session creation, retrieval, updates, status transitions (`ACTIVE`, `ARCHIVED`, `EXPIRED`), and deletion.
+     - Enforces strict ownership boundaries (`user_id == current_user.user_id`) ensuring callers cannot inspect or post to others' sessions.
+     - Enforces active status guards: rejects execution attempts on archived sessions with HTTP 400 Bad Request.
+     - Implements maximum message guardrails (`MAX_MESSAGES_PER_SESSION = 100`).
+     - Manages atomic message increments and timestamp updates via `update_activity(...)`.
+  4. **Preserved Execution Engine:**
+     - The Chunk 5.3 `AgentOrchestrator` remains the sole execution engine; `AgentStateManager` supplies reconstructed context and persists user and assistant turns with structured provenance metadata.
+  5. **Canonical 4-Turn Operational Inquiry:**
+     - Validated end-to-end multi-turn dialogue:
+       - Turn 1: "Show me the latest available ICU forecast."
+       - Turn 2: "Now compare it with the previous forecast."
+       - Turn 3: "What happens if admissions increase by 15%?"
+       - Turn 4: "Summarize the operational implications."
+  6. **REST Endpoints (`/api/v1/agents/sessions`):**
+     - `POST /api/v1/agents/sessions`: Create persistent conversational thread.
+     - `GET /api/v1/agents/sessions`: List caller's sessions with lifecycle status filtering and pagination.
+     - `GET /api/v1/agents/sessions/{id}`: Inspect session metadata.
+     - `PATCH /api/v1/agents/sessions/{id}`: Modify title or custom tags.
+     - `POST /api/v1/agents/sessions/{id}/archive` & `POST /api/v1/agents/sessions/{id}/restore`: Lifecycle transitions.
+     - `DELETE /api/v1/agents/sessions/{id}`: Purge conversational messages while preserving execution audit logs.
+     - `GET /api/v1/agents/sessions/{id}/messages`: List chronological message history.
+     - `POST /api/v1/agents/sessions/{id}/messages`: Submit follow-up inquiry and execute conversational turn.
+     - `POST /execute` & `POST /run`: Updated with optional `session_id` to route execution seamlessly through state management.
+  7. **Frontend Multi-Turn Workbench Integration:**
+     - `AgentSessionSidebar`: Interactive sidebar displaying user sessions, status filter tabs (Active, Archived, All), message counts, relative timestamps, and thread action controls (Archive, Restore, Delete, New Thread).
+     - `AgentConversationStream`: Chronological dialogue stream rendering user message bubbles, assistant cards with epistemic badges, formatted markdown answers, and expandable provenance accordions.
+     - Suggested Canonical Workflow: One-click quick-start buttons guiding users through the 4-turn operational scenario.
+     - Collapsible Diagnostics: Preserved full execution timeline and provenance card inspection for the latest turn.
+  8. **Architecture Decision Record:**
+     - Created `docs/decisions/ADR-016-agent-state-management-and-conversation-continuity.md`.
+  9. **Verification & Testing:**
+     - 10 new unit and API tests in `backend/tests/test_agent_sessions.py` covering session CRUD, ownership isolation, status guards, context reconstruction, RBAC revalidation, budget clamping, canonical 4-turn inquiry, and REST endpoints.
+     - 58/58 agent tests passed (`test_agents.py`, `test_agent_tools.py`, `test_agent_orchestrator.py`, `test_agent_sessions.py`).
+     - Full backend regression suite: 287 passed, 10 skipped, 0 failures.
+     - `python -m ruff check backend`: 0 lint errors.
+     - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
+     - `npm --prefix frontend run build`: Clean production build in 6.67s.
+* **Next Planned Work:** Milestone 5, Chunk 5.5 (Multi-Agent Coordination & Specialized Decision Agents).

@@ -145,7 +145,9 @@ class SimulationRunDocument(TimestampedModel):
     simulation_id: str = Field(description="Stable application UUID for the simulation run.")
     scenario_name: str = Field(max_length=200, description="Human-readable scenario title.")
     scenario_type: ScenarioType
-    base_timestamp: datetime = Field(description="UTC timestamp representing the simulation origin.")
+    base_timestamp: datetime = Field(
+        description="UTC timestamp representing the simulation origin."
+    )
     parameters: SimulationParameters
     baseline_summary: dict = Field(
         default_factory=dict, description="Snapshot of operational baseline values at run time."

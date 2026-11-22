@@ -46,6 +46,8 @@ def clean_text(raw_text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
 
     # 6. Remove non-printable control characters except \n and \t
-    text = "".join(ch for ch in text if ch == "\n" or ch == "\t" or unicodedata.category(ch)[0] != "C")
+    text = "".join(
+        ch for ch in text if ch == "\n" or ch == "\t" or unicodedata.category(ch)[0] != "C"
+    )
 
     return text.strip()

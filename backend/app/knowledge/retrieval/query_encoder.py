@@ -82,6 +82,8 @@ class QueryEncoder:
 
         for i, val in enumerate(embedding):
             if not isinstance(val, int | float) or math.isnan(val) or math.isinf(val):
-                raise ValueError(f"Embedding vector contains non-finite numerical value at index {i}: {val}")
+                raise ValueError(
+                    f"Embedding vector contains non-finite numerical value at index {i}: {val}"
+                )
 
         return embedding

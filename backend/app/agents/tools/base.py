@@ -63,7 +63,9 @@ class DefaultToolOutput(BaseModel):
     """Generic fallback output schema for tools with untyped dictionary payloads."""
 
     result_summary: str = Field(description="Summary of tool outcome")
-    records_count: int = Field(default=0, ge=0, description="Count of records retrieved or generated")
+    records_count: int = Field(
+        default=0, ge=0, description="Count of records retrieved or generated"
+    )
     details: dict[str, Any] = Field(default_factory=dict, description="Arbitrary output details")
 
 
@@ -285,7 +287,9 @@ class AgentTool(ABC):
                         "type": e["type"],
                     }
                 )
-            msg = f"Input validation failed for tool '{self.name}': {val_err.error_count()} error(s)."
+            msg = (
+                f"Input validation failed for tool '{self.name}': {val_err.error_count()} error(s)."
+            )
             return None, ToolExecutionError(
                 code=ToolErrorCode.INVALID_INPUT,
                 message=msg,
@@ -318,7 +322,9 @@ class AgentTool(ABC):
             elif isinstance(output_data, dict):
                 validated = self.output_schema.model_validate(output_data)
             else:
-                validated = self.output_schema.model_validate({"details": {"raw": str(output_data)}})
+                validated = self.output_schema.model_validate(
+                    {"details": {"raw": str(output_data)}}
+                )
             return validated, None
         except ValidationError as val_err:
             error_details = []
@@ -379,7 +385,11 @@ class AgentTool(ABC):
         # 1. Input Validation
         valid_args, input_err = self.validate_input(arguments)
         if input_err or valid_args is None:
-            logger.warning("Tool execution blocked by input validation error | tool=%s err=%s", self.name, input_err)
+            logger.warning(
+                "Tool execution blocked by input validation error | tool=%s err=%s",
+                self.name,
+                input_err,
+            )
             return ToolResult(
                 success=False,
                 tool_id=self.tool_id,
@@ -409,7 +419,9 @@ class AgentTool(ABC):
                     result.status = "VALIDATION_ERROR"
                     result.error = out_err
                     result.error_message = out_err.message
-                    result.output_summary += f" [Warning: Output failed schema contract: {out_err.message}]"
+                    result.output_summary += (
+                        f" [Warning: Output failed schema contract: {out_err.message}]"
+                    )
                 elif validated_output is not None:
                     result.data = validated_output
 
@@ -417,7 +429,9 @@ class AgentTool(ABC):
 
         except TimeoutError:
             t_dur = (time.perf_counter() - t_start) * 1000
-            logger.warning("Tool execution timed out | tool=%s timeout=%.1fs", self.name, self.timeout_seconds)
+            logger.warning(
+                "Tool execution timed out | tool=%s timeout=%.1fs", self.name, self.timeout_seconds
+            )
             timeout_err = ToolExecutionError(
                 code=ToolErrorCode.EXECUTION_TIMEOUT,
                 message=f"Tool execution timed out after {self.timeout_seconds} seconds.",
@@ -435,7 +449,12 @@ class AgentTool(ABC):
             )
         except Exception as exc:
             t_dur = (time.perf_counter() - t_start) * 1000
-            logger.error("Tool execution failed with exception | tool=%s err=%s", self.name, exc, exc_info=True)
+            logger.error(
+                "Tool execution failed with exception | tool=%s err=%s",
+                self.name,
+                exc,
+                exc_info=True,
+            )
             exec_err = ToolExecutionError(
                 code=ToolErrorCode.EXECUTION_FAILED,
                 message=f"Tool execution failed: {exc}",

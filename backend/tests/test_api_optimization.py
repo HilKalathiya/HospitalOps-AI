@@ -294,6 +294,7 @@ def test_read_only_operational_isolation(mock_service):
     )
 
     import asyncio
+
     asyncio.run(mock_service.run_optimization(req, user))
 
     # Assert no operational mutation was called

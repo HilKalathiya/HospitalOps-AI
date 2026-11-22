@@ -71,6 +71,7 @@ class GroundedAnswerGenerator:
 
         if available_citations is None and context_blocks:
             from app.knowledge.retrieval.contracts import SourceCitation
+
             available_citations = [
                 SourceCitation(
                     citation_id=b.citation_id,
@@ -152,12 +153,17 @@ class GroundedAnswerGenerator:
                 duration_ms=round(duration_ms, 2),
             )
             from app.knowledge.generation.provider import NullLLMProvider
+
             is_unavailable = (
                 isinstance(self.provider, NullLLMProvider)
                 or "disabled" in str(exc).lower()
                 or "unconfigured" in str(exc).lower()
             )
-            status = AnswerStatus.GENERATION_UNAVAILABLE if is_unavailable else AnswerStatus.GENERATION_FAILED
+            status = (
+                AnswerStatus.GENERATION_UNAVAILABLE
+                if is_unavailable
+                else AnswerStatus.GENERATION_FAILED
+            )
             msg = f"Answer generation is currently unavailable: {exc}" if is_unavailable else ""
             return (
                 status,
@@ -229,10 +235,12 @@ class GroundedAnswerGenerator:
                 retry_parsed, retry_err = self._parse_raw_output(retry_content)
                 if retry_parsed and not retry_err:
                     retry_cited_markers = CitationValidator.extract_markers(retry_parsed.answer)
-                    retry_valid, retry_invalid, retry_verified = CitationValidator.validate_citations(
-                        cited_markers=retry_cited_markers,
-                        available_citations=available_citations,
-                        context_blocks=context_blocks,
+                    retry_valid, retry_invalid, retry_verified = (
+                        CitationValidator.validate_citations(
+                            cited_markers=retry_cited_markers,
+                            available_citations=available_citations,
+                            context_blocks=context_blocks,
+                        )
                     )
                     if retry_valid:
                         parsed_output = retry_parsed
@@ -257,7 +265,10 @@ class GroundedAnswerGenerator:
         )
 
         if not is_valid:
-            logger.error("Answer failed citation validation after retry; unknown markers: %s", invalid_markers)
+            logger.error(
+                "Answer failed citation validation after retry; unknown markers: %s",
+                invalid_markers,
+            )
             return (
                 AnswerStatus.GENERATION_FAILED,
                 AnswerType.INSUFFICIENT_EVIDENCE,
@@ -273,7 +284,10 @@ class GroundedAnswerGenerator:
         limitations = list(parsed_output.limitations)
         status_reason = None
 
-        if parsed_output.insufficient_evidence or parsed_output.answer_type == AnswerType.INSUFFICIENT_EVIDENCE:
+        if (
+            parsed_output.insufficient_evidence
+            or parsed_output.answer_type == AnswerType.INSUFFICIENT_EVIDENCE
+        ):
             answer_status = AnswerStatus.INSUFFICIENT_EVIDENCE
             answer_type = AnswerType.INSUFFICIENT_EVIDENCE
             status_reason = "Available reference documents do not establish sufficient facts to answer the question."
@@ -299,7 +313,9 @@ class GroundedAnswerGenerator:
         else:
             answer_status = AnswerStatus.ANSWERED
             answer_type = AnswerType.GROUNDED
-            status_reason = "Answer generated and verified against retrieved operational references."
+            status_reason = (
+                "Answer generated and verified against retrieved operational references."
+            )
 
         return (
             answer_status,

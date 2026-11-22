@@ -27,12 +27,17 @@ class PrivacyValidationResult(BaseModel):
 # Compiled regex patterns for PHI and clinical patient keys
 PHI_PATTERNS: dict[str, re.Pattern[str]] = {
     "SSN": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
-    "MRN_EXPLICIT": re.compile(r"\b(?:MRN|Medical Record Number|Patient ID)[\s:#]+[A-Z0-9-]{6,12}\b", re.IGNORECASE),
+    "MRN_EXPLICIT": re.compile(
+        r"\b(?:MRN|Medical Record Number|Patient ID)[\s:#]+[A-Z0-9-]{6,12}\b", re.IGNORECASE
+    ),
     "MIMIC_HADM": re.compile(r"\bhadm_id[\s:=]+[0-9]{4,10}\b", re.IGNORECASE),
     "MIMIC_SUBJECT": re.compile(r"\bsubject_id[\s:=]+[0-9]{4,10}\b", re.IGNORECASE),
     "MIMIC_STAY": re.compile(r"\bstay_id[\s:=]+[0-9]{4,10}\b", re.IGNORECASE),
     "PHONE_US": re.compile(r"\b(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
-    "PATIENT_DOB": re.compile(r"\b(?:DOB|Date of Birth)[\s:#]+(?:0[1-9]|1[0-2])[/-](?:0[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2}\b", re.IGNORECASE),
+    "PATIENT_DOB": re.compile(
+        r"\b(?:DOB|Date of Birth)[\s:#]+(?:0[1-9]|1[0-2])[/-](?:0[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2}\b",
+        re.IGNORECASE,
+    ),
 }
 
 

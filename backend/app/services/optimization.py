@@ -104,7 +104,9 @@ class OptimizationService:
         # Pad or truncate demand series to match requested horizon
         for dept in departments:
             while len(dept.demand_series) < horizon:
-                last_val = dept.demand_series[-1] if dept.demand_series else float(dept.baseline_capacity)
+                last_val = (
+                    dept.demand_series[-1] if dept.demand_series else float(dept.baseline_capacity)
+                )
                 dept.demand_series.append(last_val)
 
         resources = [
@@ -152,7 +154,11 @@ class OptimizationService:
             try:
                 for res in resources:
                     doc = await self.resources_repo.find_by_type(res.resource_type)
-                    if doc and hasattr(doc, "quantity_available") and isinstance(doc.quantity_available, int):
+                    if (
+                        doc
+                        and hasattr(doc, "quantity_available")
+                        and isinstance(doc.quantity_available, int)
+                    ):
                         res.available_inventory = doc.quantity_available
             except Exception as e:
                 logger.debug("Could not enrich resources from resources repo: %s", e)
@@ -254,7 +260,9 @@ class OptimizationService:
             recs.append("Check mandatory minimum equipment ratios or relax surge bed limits.")
 
         elif status == OptimizationStatus.TIMEOUT:
-            warns.append("Solver timed out before proving optimality. Intermediate feasible plan returned.")
+            warns.append(
+                "Solver timed out before proving optimality. Intermediate feasible plan returned."
+            )
 
         return recs, warns
 
@@ -329,7 +337,10 @@ class OptimizationService:
             solve_time_seconds=round(solve_time, 4),
             optimality_gap=gap,
             is_optimal=(opt_status == OptimizationStatus.OPTIMAL),
-            is_feasible=(x_sol is not None and opt_status in (OptimizationStatus.OPTIMAL, OptimizationStatus.FEASIBLE)),
+            is_feasible=(
+                x_sol is not None
+                and opt_status in (OptimizationStatus.OPTIMAL, OptimizationStatus.FEASIBLE)
+            ),
             horizon=params.horizon,
             cadence=params.cadence,
             allocations=allocations,
@@ -384,7 +395,9 @@ class OptimizationService:
                     details={
                         "plan_name": request.plan_name,
                         "status": opt_status.value,
-                        "objective_value": breakdown.weighted_objective_value if breakdown else None,
+                        "objective_value": breakdown.weighted_objective_value
+                        if breakdown
+                        else None,
                         "solve_time": solve_time,
                     },
                 )
@@ -435,9 +448,7 @@ class OptimizationService:
             created_at=doc.created_at,
         )
 
-    async def get_optimization_explanation(
-        self, run_id: str
-    ) -> OptimizationExplanationResponse:
+    async def get_optimization_explanation(self, run_id: str) -> OptimizationExplanationResponse:
         """Retrieves the evidence-based explanation package for an optimization run (Chunk 3.4)."""
         run = await self.get_optimization(run_id)
         if run.result.explanation is None:
@@ -473,9 +484,7 @@ class OptimizationService:
 
         if self.optimizations_repo:
             try:
-                db_runs, _ = await self.optimizations_repo.list_optimization_runs(
-                    skip=0, limit=100
-                )
+                db_runs, _ = await self.optimizations_repo.list_optimization_runs(skip=0, limit=100)
                 if isinstance(db_runs, list):
                     for doc in db_runs:
                         if (
@@ -627,7 +636,9 @@ class OptimizationService:
         opt_shortage = float(opt_breakdown.total_bed_shortage if opt_breakdown else 0.0)
         opt_equip_def = float(opt_breakdown.total_equipment_deficit if opt_breakdown else 0.0)
         opt_surge_used = int(opt_breakdown.total_surge_beds_activated if opt_breakdown else 0)
-        opt_transfer_churn = float(opt_breakdown.total_equipment_transfers if opt_breakdown else 0.0)
+        opt_transfer_churn = float(
+            opt_breakdown.total_equipment_transfers if opt_breakdown else 0.0
+        )
         opt_score = float(opt_breakdown.weighted_objective_value if opt_breakdown else 0.0)
 
         # Compute peak bed deficit & shortage periods in the optimized plan
@@ -642,27 +653,19 @@ class OptimizationService:
         # Averted metrics with zero-baseline division protection
         averted_peak = max(0.0, sim_peak_deficit - opt_peak_deficit)
         peak_pct = (
-            round((averted_peak / sim_peak_deficit) * 100.0, 1)
-            if sim_peak_deficit > 0
-            else 0.0
+            round((averted_peak / sim_peak_deficit) * 100.0, 1) if sim_peak_deficit > 0 else 0.0
         )
 
         averted_days = max(0.0, sim_days_shortage - float(opt_shortage_periods))
         days_pct = (
-            round((averted_days / sim_days_shortage) * 100.0, 1)
-            if sim_days_shortage > 0
-            else 0.0
+            round((averted_days / sim_days_shortage) * 100.0, 1) if sim_days_shortage > 0 else 0.0
         )
 
         averted_unmet = max(0.0, sim_unmet - opt_shortage)
-        unmet_pct = (
-            round((averted_unmet / sim_unmet) * 100.0, 1) if sim_unmet > 0 else 0.0
-        )
+        unmet_pct = round((averted_unmet / sim_unmet) * 100.0, 1) if sim_unmet > 0 else 0.0
 
         averted_equip = max(0.0, sim_equip_def - opt_equip_def)
-        equip_pct = (
-            round((averted_equip / sim_equip_def) * 100.0, 1) if sim_equip_def > 0 else 0.0
-        )
+        equip_pct = round((averted_equip / sim_equip_def) * 100.0, 1) if sim_equip_def > 0 else 0.0
 
         metrics = [
             DecisionMetricComparison(

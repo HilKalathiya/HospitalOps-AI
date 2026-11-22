@@ -179,8 +179,18 @@ def mock_subsystems():
                 config_name="default_sarimax",
             ),
             predictions=[
-                PredictionPoint(timestamp="2026-11-22T00:00:00Z", value=125.0, lower_bound=110.0, upper_bound=140.0),
-                PredictionPoint(timestamp="2026-11-23T00:00:00Z", value=128.0, lower_bound=112.0, upper_bound=144.0),
+                PredictionPoint(
+                    timestamp="2026-11-22T00:00:00Z",
+                    value=125.0,
+                    lower_bound=110.0,
+                    upper_bound=140.0,
+                ),
+                PredictionPoint(
+                    timestamp="2026-11-23T00:00:00Z",
+                    value=128.0,
+                    lower_bound=112.0,
+                    upper_bound=144.0,
+                ),
             ],
         )
     )
@@ -198,7 +208,9 @@ def mock_subsystems():
                 config_name="default_prophet",
             ),
             predictions=[
-                PredictionPoint(timestamp="2026-11-23T00:00:00Z", value=85.0, lower_bound=78.0, upper_bound=92.0),
+                PredictionPoint(
+                    timestamp="2026-11-23T00:00:00Z", value=85.0, lower_bound=78.0, upper_bound=92.0
+                ),
             ],
         )
     )
@@ -331,10 +343,14 @@ def mock_subsystems():
 def orchestrator_runtime(mock_subsystems):
     tool_reg = ToolRegistry()
     tool_reg.register(SearchHospitalKnowledgeTool(knowledge_service=mock_subsystems["knowledge"]))
-    tool_reg.register(AnswerFromHospitalKnowledgeTool(knowledge_service=mock_subsystems["knowledge"]))
+    tool_reg.register(
+        AnswerFromHospitalKnowledgeTool(knowledge_service=mock_subsystems["knowledge"])
+    )
     tool_reg.register(GetExistingForecastTool(forecast_service=mock_subsystems["forecast"]))
     tool_reg.register(GetSimulationResultTool(simulation_service=mock_subsystems["simulation"]))
-    tool_reg.register(GetOptimizationExplanationTool(optimization_service=mock_subsystems["optimization"]))
+    tool_reg.register(
+        GetOptimizationExplanationTool(optimization_service=mock_subsystems["optimization"])
+    )
 
     agent_reg = AgentRegistry(tool_registry=tool_reg)
     mock_provider = MockLLMProvider()

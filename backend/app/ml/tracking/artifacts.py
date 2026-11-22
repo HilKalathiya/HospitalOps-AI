@@ -115,6 +115,7 @@ def log_model_artifact(
         if hasattr(model, "model") and hasattr(model.model, "state_dict"):
             try:
                 import torch
+
                 model_path = os.path.join(tmp_dir, "model.pt")
                 torch.save(model.model.state_dict(), model_path)
                 tracker.log_artifact(model_path, artifact_path="model")

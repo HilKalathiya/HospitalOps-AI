@@ -101,14 +101,18 @@ class ModelSelector:
             for run in runs_for_cfg:
                 m_type = getattr(run.config, "model_type", "baseline")
                 if run.status == "FAILED" or not run.forecasts:
-                    failed_candidate_reasons.append("Experiment run status FAILED or produced no forecasts")
+                    failed_candidate_reasons.append(
+                        "Experiment run status FAILED or produced no forecasts"
+                    )
                     continue
 
                 fr_val = next((f for f in run.forecasts if f.split_name == "validation"), None)
                 fr_test = next((f for f in run.forecasts if f.split_name == "test"), None)
 
                 if fr_val is None:
-                    failed_candidate_reasons.append("Validation split forecast missing; cannot evaluate without leakage")
+                    failed_candidate_reasons.append(
+                        "Validation split forecast missing; cannot evaluate without leakage"
+                    )
                     continue
 
                 # Ensure MAPE is populated
@@ -144,7 +148,11 @@ class ModelSelector:
                 )
                 successful_entries.append(valid_candidates[0])
             else:
-                reason = failed_candidate_reasons[0] if failed_candidate_reasons else "Configuration execution failed"
+                reason = (
+                    failed_candidate_reasons[0]
+                    if failed_candidate_reasons
+                    else "Configuration execution failed"
+                )
                 failed_entries.append(
                     ModelEvaluationEntry(
                         model_type=model_type,

@@ -225,7 +225,9 @@ def test_structure_aware_chunker():
         "Activate float pool nurses for high-acuity zones.\n"
     )
 
-    chunker = StructureAwareChunker(target_tokens=50, max_tokens=150, min_tokens=10, overlap_tokens=15)
+    chunker = StructureAwareChunker(
+        target_tokens=50, max_tokens=150, min_tokens=10, overlap_tokens=15
+    )
     chunks = chunker.chunk_document(
         document_id="doc_test_101",
         version=1,
@@ -262,6 +264,7 @@ def test_local_deterministic_embedder():
 
     # Check L2 unit length
     import math
+
     norm = math.sqrt(sum(x * x for x in v1))
     assert abs(norm - 1.0) < 1e-4
 
@@ -297,8 +300,12 @@ def test_chroma_vector_store_crud(temp_chroma_dir):
         content_hash="hash2",
     )
 
-    c1 = KnowledgeChunk(chunk_id="doc_chroma_1_v1_c0", text="Text chunk 1", metadata=meta1, embedding=emb1)
-    c2 = KnowledgeChunk(chunk_id="doc_chroma_1_v1_c1", text="Text chunk 2", metadata=meta2, embedding=emb2)
+    c1 = KnowledgeChunk(
+        chunk_id="doc_chroma_1_v1_c0", text="Text chunk 1", metadata=meta1, embedding=emb1
+    )
+    c2 = KnowledgeChunk(
+        chunk_id="doc_chroma_1_v1_c1", text="Text chunk 2", metadata=meta2, embedding=emb2
+    )
 
     added = store.add_chunks([c1, c2])
     assert added == 2
@@ -346,7 +353,9 @@ async def test_knowledge_pipeline_execution(temp_chroma_dir):
     assert result.total_chunks > 0
     assert result.is_quarantined is False
     assert len(result.stages) == 10
-    stage_names = [s.stage.value if hasattr(s.stage, "value") else str(s.stage) for s in result.stages]
+    stage_names = [
+        s.stage.value if hasattr(s.stage, "value") else str(s.stage) for s in result.stages
+    ]
     assert "DOCUMENT_INPUT" in stage_names
     assert "VECTOR_INDEXING" in stage_names
     assert "COMPLETED" in stage_names
@@ -432,7 +441,9 @@ async def test_knowledge_service_lifecycle_and_versioning(temp_chroma_dir):
     assert len(detail.versions) == 2
 
     # 4. Reindex document
-    reindex_res = await service.reindex_document(doc_id, target_chunk_tokens=60, chunk_overlap_tokens=10)
+    reindex_res = await service.reindex_document(
+        doc_id, target_chunk_tokens=60, chunk_overlap_tokens=10
+    )
     assert reindex_res.status == IngestionStatus.COMPLETED
 
     # 5. Delete document

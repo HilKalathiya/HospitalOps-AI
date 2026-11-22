@@ -102,7 +102,9 @@ class RetrievalContextOrchestrator:
                 citations=[],
                 formatted_context=None,
                 skipped_chunks=[],
-                limitations=["No matching operational guidelines or policies found in knowledge base."],
+                limitations=[
+                    "No matching operational guidelines or policies found in knowledge base."
+                ],
                 warnings=[],
             )
 
@@ -146,8 +148,12 @@ class RetrievalContextOrchestrator:
                 citations=[],
                 formatted_context=None,
                 skipped_chunks=[],
-                limitations=["Retrieved material lacks sufficient semantic relevance to support reliable grounding."],
-                warnings=["Consider lowering the minimum similarity threshold or using broader terminology."],
+                limitations=[
+                    "Retrieved material lacks sufficient semantic relevance to support reliable grounding."
+                ],
+                warnings=[
+                    "Consider lowering the minimum similarity threshold or using broader terminology."
+                ],
             )
 
         # Check for ungrounded noise (top hit is too weak)
@@ -178,8 +184,12 @@ class RetrievalContextOrchestrator:
                 citations=[],
                 formatted_context=None,
                 skipped_chunks=[],
-                limitations=["Knowledge base contains no closely related operational policies for this question."],
-                warnings=["The retrieved text is not sufficiently similar to guarantee factual relevance."],
+                limitations=[
+                    "Knowledge base contains no closely related operational policies for this question."
+                ],
+                warnings=[
+                    "The retrieved text is not sufficiently similar to guarantee factual relevance."
+                ],
             )
 
         # 6. Token Budget Allocation
@@ -241,12 +251,16 @@ class RetrievalContextOrchestrator:
                 citations=[],
                 formatted_context=None,
                 skipped_chunks=budget_mgr.skipped_chunks,
-                limitations=["Token budget too small to accommodate even the highest-ranked chunk."],
+                limitations=[
+                    "Token budget too small to accommodate even the highest-ranked chunk."
+                ],
                 warnings=["Increase max_context_tokens to allow full chunk assembly."],
             )
 
         # 8. Apply Context Ordering Strategy
-        ordered_chunks = ContextBuilder.order_chunks(selected_chunks, strategy=request.context_ordering)
+        ordered_chunks = ContextBuilder.order_chunks(
+            selected_chunks, strategy=request.context_ordering
+        )
 
         # 9. Assemble Structured Context Blocks, Citations, and Formatted Context String
         context_blocks, citations, formatted_context = ContextBuilder.build_context_package(

@@ -59,7 +59,11 @@ class AgentRuntime:
         provider_name = self.provider.provider_name
         is_configured = provider_name != "null"
 
-        status_str = "ready" if (is_configured and is_healthy) else ("degraded" if is_configured else "unavailable")
+        status_str = (
+            "ready"
+            if (is_configured and is_healthy)
+            else ("degraded" if is_configured else "unavailable")
+        )
 
         return AgentHealthResponse(
             status=status_str,

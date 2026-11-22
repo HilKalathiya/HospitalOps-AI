@@ -23,7 +23,11 @@ def get_default_hero_dmc_grid():
     arima_grid = [
         ("arima", "arima_1_0_0", {"arima_order": (1, 0, 0), "arima_seasonal_order": (0, 0, 0, 0)}),
         ("arima", "arima_1_1_1", {"arima_order": (1, 1, 1), "arima_seasonal_order": (0, 0, 0, 0)}),
-        ("arima", "sarima_1_0_0_7", {"arima_order": (1, 0, 0), "arima_seasonal_order": (1, 0, 0, 7)}),
+        (
+            "arima",
+            "sarima_1_0_0_7",
+            {"arima_order": (1, 0, 0), "arima_seasonal_order": (1, 0, 0, 7)},
+        ),
     ]
     prophet_grid = [
         ("prophet", "prophet_default", {}),
@@ -34,7 +38,11 @@ def get_default_hero_dmc_grid():
         ),
     ]
     lstm_grid = [
-        ("lstm", "lstm_h32_l2_e15", {"lstm_hidden_dim": 32, "lstm_num_layers": 2, "lstm_epochs": 15}),
+        (
+            "lstm",
+            "lstm_h32_l2_e15",
+            {"lstm_hidden_dim": 32, "lstm_num_layers": 2, "lstm_epochs": 15},
+        ),
     ]
     return baselines + arima_grid + prophet_grid + lstm_grid
 
@@ -58,7 +66,11 @@ def get_default_nhsn_grid():
         ),
     ]
     lstm_grid = [
-        ("lstm", "lstm_h32_l2_e15", {"lstm_hidden_dim": 32, "lstm_num_layers": 2, "lstm_epochs": 15}),
+        (
+            "lstm",
+            "lstm_h32_l2_e15",
+            {"lstm_hidden_dim": 32, "lstm_num_layers": 2, "lstm_epochs": 15},
+        ),
     ]
     return baselines + arima_grid + prophet_grid + lstm_grid
 
@@ -204,8 +216,16 @@ class BenchmarkEvaluator:
                 v_mae = f"{w.val_metrics.mae:.2f}"
                 t_mae = f"{w.test_metrics.mae:.2f}" if w.test_metrics else "N/A"
                 t_rmse = f"{w.test_metrics.rmse:.2f}" if w.test_metrics else "N/A"
-                t_smape = f"{w.test_metrics.smape:.2f}%" if (w.test_metrics and w.test_metrics.smape is not None) else "N/A"
-                t_mape = f"{w.test_metrics.mape:.2f}%" if (w.test_metrics and w.test_metrics.mape is not None) else "N/A"
+                t_smape = (
+                    f"{w.test_metrics.smape:.2f}%"
+                    if (w.test_metrics and w.test_metrics.smape is not None)
+                    else "N/A"
+                )
+                t_mape = (
+                    f"{w.test_metrics.mape:.2f}%"
+                    if (w.test_metrics and w.test_metrics.mape is not None)
+                    else "N/A"
+                )
                 lines.append(
                     f"| {ds} | `{tgt}` | **{h_str}** | **{w.model_type.upper()}** | `{w.config_name}` | {v_mae} | {t_mae} | {t_rmse} | {t_smape} | {t_mape} |"
                 )
@@ -214,34 +234,48 @@ class BenchmarkEvaluator:
                     f"| {ds} | `{tgt}` | **{h_str}** | *None* | *No valid runs* | N/A | N/A | N/A | N/A | N/A |"
                 )
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## 2. Detailed Leaderboard per Horizon",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## 2. Detailed Leaderboard per Horizon",
+                "",
+            ]
+        )
 
         for comp in report.comparisons:
             ds = comp.dataset_name.upper()
             tgt = comp.target_column
             h_str = f"{comp.horizon}{comp.horizon_unit}"
-            lines.extend([
-                f"### {ds} — {tgt} (Horizon: {h_str})",
-                "",
-                "| Rank | Status | Model Type | Configuration | Val MAE | Val RMSE | Test MAE | Test RMSE | Test sMAPE | Test MAPE |",
-                "|:---:|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|",
-            ])
+            lines.extend(
+                [
+                    f"### {ds} — {tgt} (Horizon: {h_str})",
+                    "",
+                    "| Rank | Status | Model Type | Configuration | Val MAE | Val RMSE | Test MAE | Test RMSE | Test sMAPE | Test MAPE |",
+                    "|:---:|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|",
+                ]
+            )
 
             for e in comp.leaderboard:
-                status_icon = "✅" if e.status == "SUCCESS" else ("❌" if e.status == "FAILED" else "⚠️")
+                status_icon = (
+                    "✅" if e.status == "SUCCESS" else ("❌" if e.status == "FAILED" else "⚠️")
+                )
                 rank_str = str(e.rank) if e.rank is not None else "-"
                 v_mae = f"{e.val_metrics.mae:.2f}" if e.val_metrics else "-"
                 v_rmse = f"{e.val_metrics.rmse:.2f}" if e.val_metrics else "-"
                 t_mae = f"{e.test_metrics.mae:.2f}" if e.test_metrics else "-"
                 t_rmse = f"{e.test_metrics.rmse:.2f}" if e.test_metrics else "-"
-                t_smape = f"{e.test_metrics.smape:.2f}%" if (e.test_metrics and e.test_metrics.smape is not None) else "-"
-                t_mape = f"{e.test_metrics.mape:.2f}%" if (e.test_metrics and e.test_metrics.mape is not None) else "-"
+                t_smape = (
+                    f"{e.test_metrics.smape:.2f}%"
+                    if (e.test_metrics and e.test_metrics.smape is not None)
+                    else "-"
+                )
+                t_mape = (
+                    f"{e.test_metrics.mape:.2f}%"
+                    if (e.test_metrics and e.test_metrics.mape is not None)
+                    else "-"
+                )
 
                 lines.append(
                     f"| {rank_str} | {status_icon} {e.status} | {e.model_type} | `{e.config_name}` | {v_mae} | {v_rmse} | {t_mae} | {t_rmse} | {t_smape} | {t_mape} |"

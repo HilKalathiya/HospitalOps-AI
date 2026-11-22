@@ -78,7 +78,9 @@ class ScipyMilpSolver:
                 x_sol = res.x
             elif status_code == 1:
                 # Iteration/node limit
-                status = OptimizationStatus.FEASIBLE if res.x is not None else OptimizationStatus.TIMEOUT
+                status = (
+                    OptimizationStatus.FEASIBLE if res.x is not None else OptimizationStatus.TIMEOUT
+                )
                 x_sol = res.x
             elif status_code == 2:
                 status = OptimizationStatus.INFEASIBLE

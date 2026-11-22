@@ -582,7 +582,7 @@ See `.env.example` for the full list including future-chunk placeholders.
 
 See [`docs/architecture/overview.md`](docs/architecture/overview.md) for the full architecture documentation.
 
-See [`docs/decisions/`](docs/decisions/) for Architecture Decision Records (ADR-001 to ADR-010).
+See [`docs/decisions/`](docs/decisions/) for Architecture Decision Records (ADR-001 to ADR-016).
 
 ---
 

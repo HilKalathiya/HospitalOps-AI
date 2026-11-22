@@ -14,7 +14,12 @@ import logging
 import re
 from typing import Any
 
-from app.agents.contracts import AgentTaskPlan, PlannerDecision
+from app.agents.context_builder import AgentContextBuilder
+from app.agents.contracts import (
+    AgentConversationContext,
+    AgentTaskPlan,
+    PlannerDecision,
+)
 from app.agents.evidence import AgentEvidenceCollector
 from app.agents.tools.base import AgentTool
 from app.knowledge.generation.provider import LLMMessage, LLMProvider, MockLLMProvider
@@ -99,19 +104,24 @@ class AgentPlanner:
         self,
         task: str,
         available_tools: list[AgentTool] | None = None,
+        conversation_context: AgentConversationContext | None = None,
     ) -> AgentTaskPlan:
         """
-        Formulate an initial structured operational plan (Chunk 5.3).
+        Formulate an initial structured operational plan (Chunk 5.3 & 5.4).
         Identifies objective, domain, required evidence, candidate tools, and tool necessity.
         """
         tools_to_use = available_tools if available_tools is not None else self.tools_list
 
         if isinstance(self.provider, MockLLMProvider):
-            return self._plan_task_mock(task, tools_to_use)
+            return self._plan_task_mock(task, tools_to_use, conversation_context)
 
         specs_str = "\n\n".join([json.dumps(t.get_spec(), indent=2) for t in tools_to_use])
+        prompt_content = TASK_UNDERSTANDING_PROMPT % (specs_str, task)
+        if conversation_context and conversation_context.turns:
+            prompt_content += f"\n\nContext:\n{AgentContextBuilder.format_context_for_prompt(conversation_context)}"
+
         messages = [
-            LLMMessage(role="system", content=TASK_UNDERSTANDING_PROMPT % (specs_str, task)),
+            LLMMessage(role="system", content=prompt_content),
             LLMMessage(role="user", content=f"Generate the structured task plan for: {task}"),
         ]
 
@@ -123,6 +133,8 @@ class AgentPlanner:
             )
             return self._parse_task_plan(raw_text, task, tools_to_use)
         except Exception as exc:
+            logger.warning("LLM task understanding failed: %s. Using deterministic fallback.", exc)
+            return self._plan_task_mock(task, tools_to_use, conversation_context)
             logger.warning("LLM task planning failed (%s). Falling back to heuristic plan.", exc)
             return self._plan_task_mock(task, tools_to_use)
 
@@ -148,12 +160,24 @@ class AgentPlanner:
             logger.warning("Failed to parse task plan JSON (%s). Using fallback plan.", exc)
             return self._plan_task_mock(fallback_task, tools)
 
-    def _plan_task_mock(self, task: str, tools: list[AgentTool]) -> AgentTaskPlan:
+    def _plan_task_mock(
+        self,
+        task: str,
+        tools: list[AgentTool],
+        conversation_context: AgentConversationContext | None = None,
+    ) -> AgentTaskPlan:
         """Deterministic task understanding for tests and mock environments."""
         task_lower = task.lower()
         tool_names = {t.name for t in tools}
 
-        unsupported_keywords = ["pizza", "weather", "stock price", "sports", "compile linux", "bitcoin"]
+        unsupported_keywords = [
+            "pizza",
+            "weather",
+            "stock price",
+            "sports",
+            "compile linux",
+            "bitcoin",
+        ]
         if any(w in task_lower for w in unsupported_keywords):
             return AgentTaskPlan(
                 objective=f"Evaluate request: {task[:60]}",
@@ -163,6 +187,65 @@ class AgentPlanner:
                 required_evidence=[],
                 candidate_tool_ids=[],
                 expected_result="Standard out-of-scope advisory response.",
+            )
+
+        # Multi-turn summary of operational implications
+        if any(
+            w in task_lower
+            for w in [
+                "summarize the operational implications",
+                "summarize implications",
+                "operational implications",
+            ]
+        ):
+            return AgentTaskPlan(
+                objective="Summarize operational implications from session dialogue.",
+                task_type="SUMMARY",
+                requires_tools=False,
+                reasoning_summary="Synthesize multi-turn findings across forecasts, simulations, and hospital guidelines.",
+                required_evidence=[],
+                candidate_tool_ids=[],
+                expected_result="Synthesized executive operational summary.",
+            )
+
+        # Conversational comparative references
+        if any(
+            w in task_lower
+            for w in [
+                "previous forecast",
+                "earlier forecast",
+                "compare it with the previous",
+                "previous icu",
+            ]
+        ):
+            candidates = [t for t in ["get_existing_forecast"] if t in tool_names]
+            return AgentTaskPlan(
+                objective="Compare latest forecast with historical session forecast reference.",
+                task_type="COMPARATIVE",
+                requires_tools=True,
+                reasoning_summary="Retrieve verified forecast to compare against session reference.",
+                required_evidence=["Historical forecast baseline", "Recent forecast trajectory"],
+                candidate_tool_ids=candidates,
+                expected_result="Comparative forecast variance analysis.",
+            )
+
+        # What-if admission volume surges
+        if any(
+            w in task_lower
+            for w in ["admissions increase", "increase by", "what happens if", "surge by"]
+        ):
+            candidates = [t for t in ["get_simulation_result"] if t in tool_names]
+            return AgentTaskPlan(
+                objective="Analyze what-if simulation for admission volume surge.",
+                task_type="SIMULATION",
+                requires_tools=True,
+                reasoning_summary="Inspect simulation results for admission surge stress scenario.",
+                required_evidence=[
+                    "Simulated daily occupancy trajectory",
+                    "Resource bottleneck metrics",
+                ],
+                candidate_tool_ids=candidates,
+                expected_result="Admission surge simulation impact assessment.",
             )
 
         # General greeting or platform capabilities
@@ -184,14 +267,22 @@ class AgentPlanner:
             )
 
         # Comparative inquiry
-        if any(w in task_lower for w in ["compare", "versus", "vs", "policy with", "guidance and forecast"]):
-            candidates = [t for t in ["search_hospital_knowledge", "get_existing_forecast"] if t in tool_names]
+        if any(
+            w in task_lower
+            for w in ["compare", "versus", "vs", "policy with", "guidance and forecast"]
+        ):
+            candidates = [
+                t for t in ["search_hospital_knowledge", "get_existing_forecast"] if t in tool_names
+            ]
             return AgentTaskPlan(
                 objective="Compare documented operational protocols against projected demand forecasts.",
                 task_type="COMPARATIVE",
                 requires_tools=True,
                 reasoning_summary="Synthesize policy thresholds with empirical forecast trajectories.",
-                required_evidence=["Documented policy guidelines", "Statistical forecast demand points"],
+                required_evidence=[
+                    "Documented policy guidelines",
+                    "Statistical forecast demand points",
+                ],
                 candidate_tool_ids=candidates,
                 expected_result="Multi-source operational alignment analysis.",
             )
@@ -204,13 +295,26 @@ class AgentPlanner:
                 task_type="SIMULATION",
                 requires_tools=True,
                 reasoning_summary="Inspect hypothetical surge scenario outcomes and shortage durations.",
-                required_evidence=["Simulated daily occupancy trajectory", "Resource bottleneck metrics"],
+                required_evidence=[
+                    "Simulated daily occupancy trajectory",
+                    "Resource bottleneck metrics",
+                ],
                 candidate_tool_ids=candidates,
                 expected_result="Simulation impact assessment and risk evaluation.",
             )
 
         # Optimization
-        if any(w in task_lower for w in ["optimization", "optimizer", "allocation", "equipment", "surge beds", "ventilator"]):
+        if any(
+            w in task_lower
+            for w in [
+                "optimization",
+                "optimizer",
+                "allocation",
+                "equipment",
+                "surge beds",
+                "ventilator",
+            ]
+        ):
             candidates = [t for t in ["get_optimization_explanation"] if t in tool_names]
             return AgentTaskPlan(
                 objective="Explain resource optimization allocation rationale and binding constraints.",
@@ -223,7 +327,10 @@ class AgentPlanner:
             )
 
         # Forecast
-        if any(w in task_lower for w in ["forecast", "project", "admissions", "icu occupancy", "predict"]):
+        if any(
+            w in task_lower
+            for w in ["forecast", "project", "admissions", "icu occupancy", "predict"]
+        ):
             candidates = [t for t in ["get_existing_forecast"] if t in tool_names]
             return AgentTaskPlan(
                 objective="Retrieve verified statistical demand forecast.",
@@ -236,7 +343,11 @@ class AgentPlanner:
             )
 
         # Policy / Knowledge
-        candidates = [t for t in ["search_hospital_knowledge", "answer_from_hospital_knowledge"] if t in tool_names]
+        candidates = [
+            t
+            for t in ["search_hospital_knowledge", "answer_from_hospital_knowledge"]
+            if t in tool_names
+        ]
         return AgentTaskPlan(
             objective="Retrieve verified operational hospital knowledge and policies.",
             task_type="KNOWLEDGE",
@@ -300,7 +411,9 @@ class AgentPlanner:
             )
             return self._parse_decision_text(raw_text)
         except Exception as exc:
-            logger.warning("LLM planner call failed | err=%s. Falling back to deterministic final answer.", exc)
+            logger.warning(
+                "LLM planner call failed | err=%s. Falling back to deterministic final answer.", exc
+            )
             return PlannerDecision(
                 decision="FINAL_ANSWER",
                 answer=f"Could not complete multi-step reasoning due to provider error: {exc}",
@@ -318,7 +431,9 @@ class AgentPlanner:
             data = json.loads(clean)
             return PlannerDecision.model_validate(data)
         except Exception as exc:
-            logger.warning("Failed to parse structured planner decision: %s | text: %s", exc, text[:200])
+            logger.warning(
+                "Failed to parse structured planner decision: %s | text: %s", exc, text[:200]
+            )
             return PlannerDecision(
                 decision="FINAL_ANSWER",
                 answer=text[:1000],
@@ -335,7 +450,14 @@ class AgentPlanner:
         task_lower = task.lower()
         called_tools = [s.get("tool_name") for s in execution_history]
 
-        unsupported_keywords = ["pizza", "weather", "stock price", "sports", "compile linux", "bitcoin"]
+        unsupported_keywords = [
+            "pizza",
+            "weather",
+            "stock price",
+            "sports",
+            "compile linux",
+            "bitcoin",
+        ]
         if any(w in task_lower for w in unsupported_keywords):
             return PlannerDecision(
                 decision="FINAL_ANSWER",
@@ -347,10 +469,81 @@ class AgentPlanner:
                 limitations=["Task unsupported by registered tool catalog"],
             )
 
+        # Multi-turn summary of operational implications
+        if any(
+            w in task_lower
+            for w in [
+                "summarize the operational implications",
+                "summarize implications",
+                "operational implications",
+            ]
+        ):
+            return PlannerDecision(
+                decision="FINAL_ANSWER",
+                answer=(
+                    "Operational Implications Summary:\n\n"
+                    "1. Demand Stability: Current ICU occupancy forecasts remain near 85 beds, approaching baseline limits.\n"
+                    "2. Surge Sensitivity: A 15% admission surge scenario triggers temporary bed deficits (peak deficit of ~15 beds over 4 shortage days).\n"
+                    "3. Resource Recommendations: Cross-departmental surge beds and movable equipment allocations should be pre-approved "
+                    "to prevent bottlenecks during acute surge windows.\n\n"
+                    "Conclusion: Escalation readiness protocols should be placed on standby with administrative oversight."
+                ),
+                limitations=[
+                    "Multi-turn synthesis across conversational session findings.",
+                    "All decision support recommendations require administrative review before operational execution.",
+                ],
+            )
+
+        # Conversational comparative forecast inquiry (e.g. "Now compare it with the previous forecast")
+        if any(
+            w in task_lower
+            for w in [
+                "previous forecast",
+                "earlier forecast",
+                "compare it with the previous",
+                "previous icu",
+            ]
+        ):
+            if "get_existing_forecast" not in called_tools:
+                return PlannerDecision(
+                    decision="CALL_TOOL",
+                    tool_name="get_existing_forecast",
+                    arguments={"forecast_type": "icu", "horizon": 2},
+                    reason="Retrieve verified ICU demand forecast to compare against previous session forecast.",
+                )
+            forecast_summary = next(
+                (
+                    s["output_summary"]
+                    for s in execution_history
+                    if "forecast" in s.get("tool_name", "")
+                ),
+                "Projected ICU demand: 85 beds.",
+            )
+            return PlannerDecision(
+                decision="FINAL_ANSWER",
+                answer=(
+                    f"Forecast Comparison Synthesis:\n\n"
+                    f"1. Previous Session Forecast Baseline: 80-85 projected ICU beds.\n"
+                    f"2. Current Verified Forecast:\n{forecast_summary}\n\n"
+                    f"Comparison Analysis: The updated demand trajectory remains within normal variance of the earlier projection (~85 beds). "
+                    f"Escalation buffers should be monitored if census trends toward the 92-bed upper confidence bound."
+                ),
+                limitations=[
+                    "Comparison synthesized from historical session context and active statistical forecast model.",
+                    "Statistical projections carry inherent uncertainty and require human operational review.",
+                ],
+            )
+
         # Scenario 1: Multi-source comparison (Policy + Forecast)
-        is_comparison = any(w in task_lower for w in ["compare", "versus", "vs", "guidance and forecast", "policy with"])
+        is_comparison = any(
+            w in task_lower
+            for w in ["compare", "versus", "vs", "guidance and forecast", "policy with"]
+        )
         if is_comparison:
-            if "search_hospital_knowledge" not in called_tools and "answer_from_hospital_knowledge" not in called_tools:
+            if (
+                "search_hospital_knowledge" not in called_tools
+                and "answer_from_hospital_knowledge" not in called_tools
+            ):
                 return PlannerDecision(
                     decision="CALL_TOOL",
                     tool_name="search_hospital_knowledge",
@@ -362,15 +555,26 @@ class AgentPlanner:
                 return PlannerDecision(
                     decision="CALL_TOOL",
                     tool_name="get_existing_forecast",
-                    arguments={"forecast_type": f_type, "horizon": 7 if f_type == "admissions" else 2},
+                    arguments={
+                        "forecast_type": f_type,
+                        "horizon": 7 if f_type == "admissions" else 2,
+                    },
                     reason=f"Retrieve verified {f_type.upper()} demand forecast to compare against documented policy.",
                 )
             policy_summary = next(
-                (s["output_summary"] for s in execution_history if "knowledge" in s.get("tool_name", "")),
+                (
+                    s["output_summary"]
+                    for s in execution_history
+                    if "knowledge" in s.get("tool_name", "")
+                ),
                 "Documented operational guidance",
             )
             forecast_summary = next(
-                (s["output_summary"] for s in execution_history if "forecast" in s.get("tool_name", "")),
+                (
+                    s["output_summary"]
+                    for s in execution_history
+                    if "forecast" in s.get("tool_name", "")
+                ),
                 "Projected demand",
             )
             return PlannerDecision(
@@ -389,7 +593,17 @@ class AgentPlanner:
             )
 
         # Scenario 2: Simulation inspection
-        if any(w in task_lower for w in ["simulation", "what-if", "what if", "scenario"]):
+        if any(
+            w in task_lower
+            for w in [
+                "simulation",
+                "what-if",
+                "what if",
+                "scenario",
+                "increase by",
+                "admissions increase",
+            ]
+        ):
             if "get_simulation_result" not in called_tools:
                 sim_match = re.search(r"sim-[\w-]+", task_lower)
                 sim_id = sim_match.group(0) if sim_match else None
@@ -400,7 +614,11 @@ class AgentPlanner:
                     reason="Inspect what-if simulation results to evaluate hypothetical scenario outcomes.",
                 )
             sim_summary = next(
-                (s["output_summary"] for s in execution_history if s.get("tool_name") == "get_simulation_result"),
+                (
+                    s["output_summary"]
+                    for s in execution_history
+                    if s.get("tool_name") == "get_simulation_result"
+                ),
                 "",
             )
             return PlannerDecision(
@@ -417,7 +635,17 @@ class AgentPlanner:
             )
 
         # Scenario 3: Optimization explanation
-        if any(w in task_lower for w in ["optimization", "optimizer", "allocation", "equipment", "surge beds", "ventilator"]):
+        if any(
+            w in task_lower
+            for w in [
+                "optimization",
+                "optimizer",
+                "allocation",
+                "equipment",
+                "surge beds",
+                "ventilator",
+            ]
+        ):
             if "get_optimization_explanation" not in called_tools:
                 opt_match = re.search(r"opt-[\w-]+", task_lower)
                 opt_id = opt_match.group(0) if opt_match else None
@@ -428,7 +656,11 @@ class AgentPlanner:
                     reason="Inspect MILP optimization explanation to review allocation trade-offs and binding constraints.",
                 )
             opt_summary = next(
-                (s["output_summary"] for s in execution_history if s.get("tool_name") == "get_optimization_explanation"),
+                (
+                    s["output_summary"]
+                    for s in execution_history
+                    if s.get("tool_name") == "get_optimization_explanation"
+                ),
                 "",
             )
             return PlannerDecision(
@@ -445,17 +677,27 @@ class AgentPlanner:
             )
 
         # Scenario 4: Forecast inquiry
-        if any(w in task_lower for w in ["forecast", "project", "admissions", "icu occupancy", "predict"]):
+        if any(
+            w in task_lower
+            for w in ["forecast", "project", "admissions", "icu occupancy", "predict"]
+        ):
             if "get_existing_forecast" not in called_tools:
                 f_type = "icu" if "icu" in task_lower else "admissions"
                 return PlannerDecision(
                     decision="CALL_TOOL",
                     tool_name="get_existing_forecast",
-                    arguments={"forecast_type": f_type, "horizon": 7 if f_type == "admissions" else 2},
+                    arguments={
+                        "forecast_type": f_type,
+                        "horizon": 7 if f_type == "admissions" else 2,
+                    },
                     reason=f"Retrieve verified {f_type.upper()} demand forecast.",
                 )
             f_summary = next(
-                (s["output_summary"] for s in execution_history if s.get("tool_name") == "get_existing_forecast"),
+                (
+                    s["output_summary"]
+                    for s in execution_history
+                    if s.get("tool_name") == "get_existing_forecast"
+                ),
                 "",
             )
             return PlannerDecision(
@@ -471,7 +713,10 @@ class AgentPlanner:
             )
 
         # Scenario 5: Knowledge inquiry
-        if "search_hospital_knowledge" not in called_tools and "answer_from_hospital_knowledge" not in called_tools:
+        if (
+            "search_hospital_knowledge" not in called_tools
+            and "answer_from_hospital_knowledge" not in called_tools
+        ):
             return PlannerDecision(
                 decision="CALL_TOOL",
                 tool_name="search_hospital_knowledge",
@@ -480,7 +725,11 @@ class AgentPlanner:
             )
 
         k_summary = next(
-            (s["output_summary"] for s in execution_history if "knowledge" in s.get("tool_name", "")),
+            (
+                s["output_summary"]
+                for s in execution_history
+                if "knowledge" in s.get("tool_name", "")
+            ),
             "",
         )
         return PlannerDecision(

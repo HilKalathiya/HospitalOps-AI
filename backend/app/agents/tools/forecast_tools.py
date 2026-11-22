@@ -44,8 +44,12 @@ class ForecastPointOutput(BaseModel):
 
     timestamp: str = Field(description="ISO timestamp of projection")
     value: float = Field(description="Point estimate in physical units")
-    lower_bound: float | None = Field(default=None, description="Lower prediction interval (e.g. 95% CI)")
-    upper_bound: float | None = Field(default=None, description="Upper prediction interval (e.g. 95% CI)")
+    lower_bound: float | None = Field(
+        default=None, description="Lower prediction interval (e.g. 95% CI)"
+    )
+    upper_bound: float | None = Field(
+        default=None, description="Upper prediction interval (e.g. 95% CI)"
+    )
 
 
 class GetExistingForecastOutput(BaseModel):
@@ -54,11 +58,15 @@ class GetExistingForecastOutput(BaseModel):
     dataset_name: str = Field(description="Underlying dataset ('hero_dmc' or 'nhsn_hrd')")
     target_column: str = Field(description="Physical target metric forecasted")
     model_name: str = Field(description="Specific model identifier or configuration")
-    model_type: str = Field(description="Model architecture family ('arima', 'prophet', 'lstm', etc.)")
+    model_type: str = Field(
+        description="Model architecture family ('arima', 'prophet', 'lstm', etc.)"
+    )
     horizon: int = Field(description="Horizon length")
     horizon_unit: str = Field(description="Horizon unit ('d' for days, 'w' for weeks)")
     predictions_count: int = Field(ge=0, description="Total projected steps in trajectory")
-    sample_predictions: list[ForecastPointOutput] = Field(default_factory=list, description="Initial projection points")
+    sample_predictions: list[ForecastPointOutput] = Field(
+        default_factory=list, description="Initial projection points"
+    )
 
 
 class GetExistingForecastTool(AgentTool):
@@ -112,7 +120,11 @@ class GetExistingForecastTool(AgentTool):
         return 20.0
 
     async def execute(self, arguments: BaseModel, context: ToolContext) -> ToolResult:
-        args = arguments if isinstance(arguments, GetExistingForecastInput) else GetExistingForecastInput.model_validate(arguments)
+        args = (
+            arguments
+            if isinstance(arguments, GetExistingForecastInput)
+            else GetExistingForecastInput.model_validate(arguments)
+        )
 
         f_type = args.forecast_type.lower()
         try:
@@ -149,7 +161,11 @@ class GetExistingForecastTool(AgentTool):
         sample_pts: list[ForecastPointOutput] = []
 
         for pt in resp.predictions[:7]:
-            ci_str = f" [95% CI: {pt.lower_bound:.1f} - {pt.upper_bound:.1f}]" if pt.lower_bound is not None else ""
+            ci_str = (
+                f" [95% CI: {pt.lower_bound:.1f} - {pt.upper_bound:.1f}]"
+                if pt.lower_bound is not None
+                else ""
+            )
             val = getattr(pt, "value", getattr(pt, "predicted_value", 0.0))
             points_summary.append(f"{pt.timestamp[:10]}: {val:.1f} {meta.target_units}{ci_str}")
             sample_pts.append(
@@ -161,7 +177,9 @@ class GetExistingForecastTool(AgentTool):
                 )
             )
 
-        model_identifier = getattr(meta, "model_name", getattr(meta, "config_name", meta.model_type))
+        model_identifier = getattr(
+            meta, "model_name", getattr(meta, "config_name", meta.model_type)
+        )
 
         prov_item = ProvenanceItem(
             category=ProvenanceCategory.FORECAST,

@@ -9,7 +9,7 @@ Provides reusable dependencies for:
 
 import logging
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -27,6 +27,8 @@ from app.database.client import get_database
 from app.database.redis_client import get_redis
 from app.models.user import Role, UserDocument
 from app.repositories.admissions import AdmissionsRepository
+from app.repositories.agent_messages import AgentMessageRepository
+from app.repositories.agent_sessions import AgentSessionRepository
 from app.repositories.audit_logs import AuditLogsRepository
 from app.repositories.beds import BedsRepository
 from app.repositories.departments import DepartmentsRepository
@@ -156,6 +158,7 @@ def get_simulations_repository(
 async def get_optional_database() -> AsyncIOMotorDatabase | None:  # type: ignore[type-arg]
     """Returns database instance if initialised, or None without raising."""
     from app.database.client import _database
+
     return _database
 
 
@@ -289,7 +292,9 @@ def get_optional_knowledge_repository(
 
 def get_knowledge_service(
     knowledge_repo: Annotated[KnowledgeRepository, Depends(get_optional_knowledge_repository)],
-    audit_repo: Annotated[AuditLogsRepository | None, Depends(get_optional_audit_log_repository)] = None,
+    audit_repo: Annotated[
+        AuditLogsRepository | None, Depends(get_optional_audit_log_repository)
+    ] = None,
 ) -> KnowledgeService:
     return KnowledgeService(knowledge_repo=knowledge_repo, audit_repo=audit_repo)
 
@@ -327,6 +332,35 @@ def get_agent_runtime(
         provider=provider,
     )
 
+
+def get_optional_agent_session_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> AgentSessionRepository | None:
+    return AgentSessionRepository(db) if db is not None else None
+
+
+def get_optional_agent_message_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> AgentMessageRepository | None:
+    return AgentMessageRepository(db) if db is not None else None
+
+
+def get_agent_state_manager(
+    runtime: Annotated[Any, Depends(get_agent_runtime)],
+    session_repo: Annotated[
+        AgentSessionRepository | None, Depends(get_optional_agent_session_repository)
+    ] = None,
+    message_repo: Annotated[
+        AgentMessageRepository | None, Depends(get_optional_agent_message_repository)
+    ] = None,
+):
+    from app.agents.state_manager import AgentStateManager
+
+    return AgentStateManager(
+        session_repo=session_repo,  # type: ignore[arg-type]
+        message_repo=message_repo,  # type: ignore[arg-type]
+        orchestrator=runtime.orchestrator,
+    )
 
 
 # ── Authentication ────────────────────────────────────────────────────────────

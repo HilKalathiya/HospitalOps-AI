@@ -49,10 +49,7 @@ class OptimizationsRepository(BaseRepository):
         """Lists historical optimization runs ordered by created_at DESC."""
         total = await self.collection.count_documents({})
         cursor = (
-            self.collection.find({})
-            .sort("created_at", pymongo.DESCENDING)
-            .skip(skip)
-            .limit(limit)
+            self.collection.find({}).sort("created_at", pymongo.DESCENDING).skip(skip).limit(limit)
         )
 
         runs: list[OptimizationRunDocument] = []

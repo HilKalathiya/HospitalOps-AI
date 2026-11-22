@@ -51,21 +51,28 @@ class AgentEvidence(HospitalOpsBaseModel):
     )
     tool_id: str = Field(description="Identifier of the executing tool")
     tool_version: str = Field(default="1.0.0", description="Semver version of the tool contract")
-    execution_step: int = Field(default=1, ge=1, description="Sequential step index where evidence was collected")
+    execution_step: int = Field(
+        default=1, ge=1, description="Sequential step index where evidence was collected"
+    )
     category: EvidenceCategory = Field(description="Domain semantic classification")
     summary: str = Field(description="Sanitized summary of the gathered operational facts")
-    data: dict[str, Any] = Field(default_factory=dict, description="Structured payload extracted from tool output")
+    data: dict[str, Any] = Field(
+        default_factory=dict, description="Structured payload extracted from tool output"
+    )
     source_references: list[str] = Field(
         default_factory=list, description="IDs of underlying records (e.g. run ID, doc chunk ID)"
     )
     is_projection: bool = Field(
-        default=False, description="True if evidence is a statistical prediction, NOT observed history"
+        default=False,
+        description="True if evidence is a statistical prediction, NOT observed history",
     )
     is_hypothetical: bool = Field(
-        default=False, description="True if evidence is a what-if simulation scenario, NOT real events"
+        default=False,
+        description="True if evidence is a what-if simulation scenario, NOT real events",
     )
     is_recommendation: bool = Field(
-        default=False, description="True if evidence is an optimization proposal, NOT an executed action"
+        default=False,
+        description="True if evidence is an optimization proposal, NOT an executed action",
     )
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -177,7 +184,9 @@ class AgentEvidenceCollector:
             qualifier_str = f" [{', '.join(qualifiers)}]" if qualifiers else ""
 
             header = f"[Evidence #{idx} | {category_tag}{qualifier_str} | Tool: {ev.tool_id}]"
-            sources = f"Sources: {', '.join(ev.source_references) if ev.source_references else 'None'}"
+            sources = (
+                f"Sources: {', '.join(ev.source_references) if ev.source_references else 'None'}"
+            )
             sections.append(f"{header}\n{sources}\n{ev.summary}")
 
         return "\n\n---\n\n".join(sections)

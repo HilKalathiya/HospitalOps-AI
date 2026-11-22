@@ -164,9 +164,7 @@ class MIMICIVIngestionPipeline(BaseIngestionPipeline):
                         if sub_id is not None:
                             patients_lookup[sub_id] = {
                                 "gender": (
-                                    str(row["gender"])
-                                    if pd.notna(row.get("gender"))
-                                    else None
+                                    str(row["gender"]) if pd.notna(row.get("gender")) else None
                                 ),
                                 "anchor_age": parse_int(row.get("anchor_age")),
                             }

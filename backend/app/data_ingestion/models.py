@@ -151,8 +151,12 @@ class HistoricalICUStayDocument(HospitalOpsBaseModel):
     # ICU Stay Details
     first_careunit: str | None = Field(default=None, description="Initial ICU unit type.")
     last_careunit: str | None = Field(default=None, description="Final ICU unit type.")
-    intime: datetime | None = Field(default=None, description="Patient-shifted ICU admission datetime.")
-    outtime: datetime | None = Field(default=None, description="Patient-shifted ICU discharge datetime.")
+    intime: datetime | None = Field(
+        default=None, description="Patient-shifted ICU admission datetime."
+    )
+    outtime: datetime | None = Field(
+        default=None, description="Patient-shifted ICU discharge datetime."
+    )
     los: float | None = Field(
         default=None, description="Length of stay in ICU in fractional days (ground truth target)."
     )
@@ -160,7 +164,9 @@ class HistoricalICUStayDocument(HospitalOpsBaseModel):
     # Demographics & Clinical Context (from admissions/patients tables)
     admission_type: str | None = Field(default=None, description="Admission acuity/type.")
     admission_location: str | None = Field(default=None, description="Admission origin location.")
-    discharge_location: str | None = Field(default=None, description="Discharge destination location.")
+    discharge_location: str | None = Field(
+        default=None, description="Discharge destination location."
+    )
     hospital_expire_flag: int | None = Field(
         default=None, description="In-hospital mortality flag (0 or 1)."
     )

@@ -113,7 +113,9 @@ class KnowledgeService:
         # 1. Deduplication check via content hash
         existing_doc = await self.knowledge_repo.find_document_by_content_hash(content_hash)
         if existing_doc and existing_doc.status == IngestionStatus.COMPLETED:
-            logger.info("Deduplication matched doc %s for hash %s", existing_doc.document_id, content_hash)
+            logger.info(
+                "Deduplication matched doc %s for hash %s", existing_doc.document_id, content_hash
+            )
             return DocumentUploadResponse(
                 document_id=existing_doc.document_id,
                 version=existing_doc.active_version,
@@ -137,11 +139,17 @@ class KnowledgeService:
             document_id = f"doc_{uuid.uuid4().hex[:12]}"
             new_version = 1
             is_new_doc = True
-            effective_title = title or filename.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
+            effective_title = (
+                title or filename.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
+            )
 
         # 3. Store raw file to disk
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "txt"
-        file_type = SupportedFileType(ext) if ext in [e.value for e in SupportedFileType] else SupportedFileType.TXT
+        file_type = (
+            SupportedFileType(ext)
+            if ext in [e.value for e in SupportedFileType]
+            else SupportedFileType.TXT
+        )
         storage_filename = f"{document_id}_v{new_version}_{filename}"
         storage_path = os.path.join(self.settings.knowledge_storage_dir, storage_filename)
 
@@ -160,7 +168,8 @@ class KnowledgeService:
             status=IngestionStatus.PROCESSING,
             is_active=False,
             created_by=user_id,
-            change_summary=change_summary or ("Initial version" if new_version == 1 else "Updated document content"),
+            change_summary=change_summary
+            or ("Initial version" if new_version == 1 else "Updated document content"),
         )
         await self.knowledge_repo.insert_version(version_doc)
 
@@ -191,13 +200,18 @@ class KnowledgeService:
         # 7. Update Ingestion Run with execution results
         ingestion_run.status = pipeline_result.status
         ingestion_run.current_stage = (
-            IngestionStage.COMPLETED if pipeline_result.success else IngestionStage.PRIVACY_VALIDATION
-            if pipeline_result.is_quarantined else IngestionStage.FILE_VALIDATION
+            IngestionStage.COMPLETED
+            if pipeline_result.success
+            else IngestionStage.PRIVACY_VALIDATION
+            if pipeline_result.is_quarantined
+            else IngestionStage.FILE_VALIDATION
         )
         ingestion_run.stages = pipeline_result.stages
         ingestion_run.chunks_produced = pipeline_result.total_chunks
         ingestion_run.tokens_produced = pipeline_result.total_tokens
-        ingestion_run.embeddings_generated = pipeline_result.total_chunks if pipeline_result.success else 0
+        ingestion_run.embeddings_generated = (
+            pipeline_result.total_chunks if pipeline_result.success else 0
+        )
         ingestion_run.error_message = pipeline_result.error_message
         ingestion_run.completed_at = utc_now()
         ingestion_run.total_duration_ms = pipeline_result.total_duration_ms
@@ -465,7 +479,9 @@ class KnowledgeService:
             chunks_count=pipeline_result.total_chunks,
             total_tokens=pipeline_result.total_tokens,
             ingestion_id=ingestion_id,
-            message="Reindexing complete." if pipeline_result.success else pipeline_result.error_message or "Reindex failed",
+            message="Reindexing complete."
+            if pipeline_result.success
+            else pipeline_result.error_message or "Reindex failed",
         )
 
     async def delete_document(self, document_id: str) -> bool:

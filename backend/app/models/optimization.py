@@ -79,9 +79,7 @@ class ResourceRequirementInput(HospitalOpsBaseModel):
 
     resource_type: str = Field(description="Category of resource (e.g. VENTILATOR, MONITOR).")
     name: str = Field(description="Human readable name.")
-    available_inventory: int = Field(
-        ge=0, description="Total available hospital-wide pool count."
-    )
+    available_inventory: int = Field(ge=0, description="Total available hospital-wide pool count.")
     ratios_per_department: dict[str, float] = Field(
         default_factory=dict,
         description="Required equipment ratio per bed/patient by department_id (e.g. {'DEPT-ICU': 0.8}).",
@@ -300,7 +298,9 @@ class ObjectiveComponentExplanation(HospitalOpsBaseModel):
 
     name: str = Field(description="Component name (e.g. Bed Shortage Penalty).")
     raw_quantity: float = Field(description="Unweighted physical quantity (e.g. patient-days).")
-    unit: str = Field(description="Physical unit (e.g. 'patient-days', 'bed-periods', 'units', 'transfers').")
+    unit: str = Field(
+        description="Physical unit (e.g. 'patient-days', 'bed-periods', 'units', 'transfers')."
+    )
     weight: float = Field(description="Configured penalty weight.")
     weighted_value: float = Field(description="raw_quantity * weight.")
     pct_of_total_objective: float = Field(
@@ -312,9 +312,7 @@ class ObjectiveComponentExplanation(HospitalOpsBaseModel):
 class ObjectiveExplanation(HospitalOpsBaseModel):
     """Structured breakdown and interpretation of the optimization objective."""
 
-    total_objective_value: float = Field(
-        description="Total minimized operational penalty score."
-    )
+    total_objective_value: float = Field(description="Total minimized operational penalty score.")
     components: list[ObjectiveComponentExplanation] = Field(default_factory=list)
     interpretation: str = Field(
         description="Summary of which operational trade-offs dominated the solve."
@@ -575,9 +573,7 @@ class DecisionComparison(HospitalOpsBaseModel):
     equipment_deficit_resolved: float = Field(
         ge=0.0, description="Reduction in equipment shortfalls achieved by mobilization."
     )
-    transfer_churn: float = Field(
-        ge=0.0, description="Movable equipment movements across periods."
-    )
+    transfer_churn: float = Field(ge=0.0, description="Movable equipment movements across periods.")
     total_objective_score: float = Field(
         description="Total multi-criteria objective penalty score."
     )

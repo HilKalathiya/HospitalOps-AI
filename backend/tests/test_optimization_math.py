@@ -232,8 +232,7 @@ def test_equipment_allocation_and_shortage_tracking(solver):
     # All 15 available ventilators must be allocated
     period_alloc = allocations[0]
     total_vent_allocated = sum(
-        d.equipment_allocated.get("VENTILATOR", 0)
-        for d in period_alloc.department_allocations
+        d.equipment_allocated.get("VENTILATOR", 0) for d in period_alloc.department_allocations
     )
     assert total_vent_allocated == 15
 

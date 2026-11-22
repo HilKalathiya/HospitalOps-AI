@@ -139,7 +139,9 @@ class MLPipelineOrchestrator:
             # High demand evaluation threshold
             threshold = None
             if self.config.high_demand_quantile is not None:
-                threshold = train_df[dataset.target_column].quantile(self.config.high_demand_quantile)
+                threshold = train_df[dataset.target_column].quantile(
+                    self.config.high_demand_quantile
+                )
 
             # Baseline fast-path (static sliding window via lagged features)
             if is_baseline:
@@ -176,7 +178,9 @@ class MLPipelineOrchestrator:
 
             # Record metrics with strict separation between validation and held-out test splits
             metrics_to_log: dict[str, float] = {}
-            fr_val_entry = next((f for f in experiment.forecasts if f.split_name == "validation"), None)
+            fr_val_entry = next(
+                (f for f in experiment.forecasts if f.split_name == "validation"), None
+            )
             if fr_val_entry and fr_val_entry.metrics:
                 metrics_to_log["val_mae"] = fr_val_entry.metrics.mae
                 metrics_to_log["val_rmse"] = fr_val_entry.metrics.rmse
@@ -255,7 +259,6 @@ class MLPipelineOrchestrator:
                 mc_samples=self.config.lstm_mc_samples,
             )
         raise ValueError(f"Unknown model_type: {self.config.model_type}")
-
 
     def _evaluate_baseline(
         self,

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 try:
     import mlflow
     from mlflow.exceptions import MlflowException
+
     MLFLOW_AVAILABLE = True
 except ImportError:
     mlflow = None  # type: ignore
@@ -53,7 +54,9 @@ class MLflowTracker(ExperimentTracker):
     def _initialize(self) -> None:
         if not MLFLOW_AVAILABLE:
             self._healthy = False
-            logger.warning("MLflow library is not installed. MLflowTracker will operate in degraded mode.")
+            logger.warning(
+                "MLflow library is not installed. MLflowTracker will operate in degraded mode."
+            )
             return
 
         try:
@@ -91,7 +94,9 @@ class MLflowTracker(ExperimentTracker):
             )
         except Exception as e:
             self._healthy = False
-            logger.warning("Failed to initialize MLflow tracking backend (%s): %s", self.tracking_uri, e)
+            logger.warning(
+                "Failed to initialize MLflow tracking backend (%s): %s", self.tracking_uri, e
+            )
             if self.raise_on_error:
                 raise
 

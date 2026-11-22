@@ -53,6 +53,7 @@ def create_default_llm_provider(settings: Settings) -> LLMProvider:
 
     if provider_type in ("mock", "mock_llm", "mock_grounded_llm"):
         from app.knowledge.generation.provider import MockLLMProvider
+
         return MockLLMProvider()
 
     if provider_type == "openai_compatible":
@@ -125,14 +126,20 @@ class KnowledgeAnswerService:
                 retrieved_sources=[],
                 retrieval=empty_retrieval,
                 generation=None,
-                limitations=["Request involves patient-specific clinical decision making outside platform scope."],
+                limitations=[
+                    "Request involves patient-specific clinical decision making outside platform scope."
+                ],
                 follow_up_questions=[],
                 created_at=now_iso,
             )
 
         # 2. Check if Answer Generation is Configured and Available
         if self.provider.provider_name == "null" or not self.settings.rag_generation_enabled:
-            logger.info("Generation unavailable | req_id=%s provider=%s", request_id, self.provider.provider_name)
+            logger.info(
+                "Generation unavailable | req_id=%s provider=%s",
+                request_id,
+                self.provider.provider_name,
+            )
             empty_retrieval = RetrievalSummary(
                 retrieval_id="none",
                 status=RetrievalStatus.NO_RESULTS,
@@ -210,7 +217,8 @@ class KnowledgeAnswerService:
             return KnowledgeAnswerResponse(
                 request_id=request_id,
                 status=AnswerStatus.INSUFFICIENT_EVIDENCE,
-                status_reason=retrieval_res.status_reason or "Retrieved passages lack sufficient semantic relevance.",
+                status_reason=retrieval_res.status_reason
+                or "Retrieved passages lack sufficient semantic relevance.",
                 query=request.query,
                 answer=(
                     "The hospital knowledge base contains documents with distant terminology, but none with sufficient "
@@ -221,7 +229,9 @@ class KnowledgeAnswerService:
                 retrieved_sources=[],
                 retrieval=retrieval_summary,
                 generation=None,
-                limitations=["Retrieved passages fell below minimum similarity grounding threshold."],
+                limitations=[
+                    "Retrieved passages fell below minimum similarity grounding threshold."
+                ],
                 follow_up_questions=[],
                 created_at=now_iso,
             )
@@ -301,7 +311,9 @@ class KnowledgeAnswerService:
         retrieval_health = await self.orchestrator.retriever.check_health()
         provider_ready = await self.provider.check_health()
 
-        is_ok = self.settings.rag_generation_enabled and provider_ready and retrieval_health.is_ready
+        is_ok = (
+            self.settings.rag_generation_enabled and provider_ready and retrieval_health.is_ready
+        )
         status_str = "ok" if is_ok else "degraded"
 
         return AnswerHealthResponse(

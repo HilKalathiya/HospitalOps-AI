@@ -66,9 +66,9 @@ class CitationBuilder:
         """
         Produce a compact citation header line for the formatted context block.
         """
-        sec = f" | Section: \"{citation.section_title}\"" if citation.section_title else ""
+        sec = f' | Section: "{citation.section_title}"' if citation.section_title else ""
         pg = f" | Page: {citation.page_number}" if citation.page_number is not None else ""
-        return f"{citation.citation_marker} Document: \"{citation.document_title}\" (v{citation.document_version}){sec}{pg}"
+        return f'{citation.citation_marker} Document: "{citation.document_title}" (v{citation.document_version}){sec}{pg}'
 
     @classmethod
     def estimate_citation_overhead(cls, chunk: KnowledgeSearchResult, citation_number: int) -> int:

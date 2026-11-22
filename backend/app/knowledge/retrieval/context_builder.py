@@ -56,7 +56,10 @@ class ContextBuilder:
 
             for c in chunks:
                 doc_groups.setdefault(c.document_id, []).append(c)
-                if c.document_id not in doc_best_rank or c.ranking_position < doc_best_rank[c.document_id]:
+                if (
+                    c.document_id not in doc_best_rank
+                    or c.ranking_position < doc_best_rank[c.document_id]
+                ):
                     doc_best_rank[c.document_id] = c.ranking_position
 
             sorted_doc_ids = sorted(doc_groups.keys(), key=lambda d: doc_best_rank[d])
@@ -74,7 +77,10 @@ class ContextBuilder:
 
             for c in chunks:
                 doc_groups.setdefault(c.document_id, []).append(c)
-                if c.document_id not in doc_best_score or c.similarity_score > doc_best_score[c.document_id]:
+                if (
+                    c.document_id not in doc_best_score
+                    or c.similarity_score > doc_best_score[c.document_id]
+                ):
                     doc_best_score[c.document_id] = c.similarity_score
 
             sorted_doc_ids = sorted(doc_groups.keys(), key=lambda d: -doc_best_score[d])
@@ -140,7 +146,9 @@ class ContextBuilder:
             if include_formatted_context:
                 header_line = CitationBuilder.format_citation_header(citation)
                 # Sanitize any closing tags in untrusted content
-                sanitized_content = re.sub(r"</reference_content>", "&lt;/reference_content&gt;", chunk.full_text)
+                sanitized_content = re.sub(
+                    r"</reference_content>", "&lt;/reference_content&gt;", chunk.full_text
+                )
                 section_text = (
                     f"{header_line}\n"
                     f"<reference_content>\n"

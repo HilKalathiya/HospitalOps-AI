@@ -94,7 +94,6 @@ async def main() -> None:
             lstm_epochs=15,
         )
 
-
     # 2. Fetch Dataset
     print(f"Fetching dataset {args.dataset}...")
     dataset = await adapter.fetch_dataset()

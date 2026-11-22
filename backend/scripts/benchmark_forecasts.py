@@ -51,7 +51,6 @@ def get_hero_dmc_grid():
     return baselines + arima_grid + prophet_grid + lstm_grid
 
 
-
 def get_nhsn_grid():
     baselines = [
         ("baseline", "naive", {}),
@@ -79,7 +78,6 @@ def get_nhsn_grid():
     ]
 
     return baselines + arima_grid + prophet_grid + lstm_grid
-
 
 
 async def run_benchmark(
@@ -125,7 +123,6 @@ async def run_benchmark(
                 cfg_kwargs["prophet_kwargs"] = kwargs
             elif model_type == "lstm":
                 cfg_kwargs.update(kwargs)
-
 
             config = ForecastConfig(
                 dataset_name=dataset_name,
@@ -263,7 +260,6 @@ async def run_benchmark(
                     else None,
                 }
             )
-
 
     df_final = pd.DataFrame(final_table)
     if not df_final.empty:

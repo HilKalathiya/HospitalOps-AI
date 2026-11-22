@@ -119,7 +119,9 @@ class ToolExecutionCoordinator:
             )
 
         # 2. Check RBAC Permissions
-        allowed, denial_reason = AgentPolicyEnforcer.check_tool_permission(tool_context.permissions, tool)
+        allowed, denial_reason = AgentPolicyEnforcer.check_tool_permission(
+            tool_context.permissions, tool
+        )
         if not allowed:
             logger.warning("Tool execution blocked by RBAC: %s", denial_reason)
             record = ToolCallRecord(
@@ -180,7 +182,9 @@ class ToolExecutionCoordinator:
                 tool_name=tool.name,
                 reason=reason,
                 arguments=arguments,
-                status=result.status if result.status else ("SUCCESS" if result.success else "FAILED"),
+                status=result.status
+                if result.status
+                else ("SUCCESS" if result.success else "FAILED"),
                 duration_ms=round(duration_ms, 2),
                 output_summary=result.output_summary[:1000],
                 error_message=result.error_message,
@@ -207,7 +211,9 @@ class ToolExecutionCoordinator:
 
             return ToolCoordinationResult(
                 tool_id=tool.name,
-                status=result.status if result.status else ("SUCCESS" if result.success else "FAILED"),
+                status=result.status
+                if result.status
+                else ("SUCCESS" if result.success else "FAILED"),
                 record=record,
                 evidence=evidence,
                 provenance_items=result.provenance_items,

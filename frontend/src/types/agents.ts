@@ -187,6 +187,7 @@ export const DEFAULT_AGENT_OPTIONS: AgentRunOptions = {
 export interface AgentRunRequest {
   agent_id: string
   task: string
+  session_id?: string | null
   options?: Partial<AgentRunOptions>
 }
 
@@ -203,6 +204,7 @@ export interface AgentRunResponse {
   run_id: string
   agent_id: string
   agent_name: string
+  session_id?: string | null
   status: AgentExecutionStatus
   final_answer: string
   task_plan?: AgentTaskPlan | null
@@ -215,6 +217,50 @@ export interface AgentRunResponse {
   limitations: string[]
   requires_human_review: boolean
   created_at: string
+}
+
+export type SessionStatus = 'ACTIVE' | 'ARCHIVED' | 'EXPIRED'
+
+export interface AgentSession {
+  session_id: string
+  user_id: string
+  agent_id: string
+  title: string
+  status: SessionStatus
+  created_at: string
+  updated_at: string
+  last_activity_at: string
+  message_count: number
+  latest_execution_id?: string | null
+  version: number
+  metadata: Record<string, unknown>
+}
+
+export interface AgentSessionCreate {
+  title?: string
+  agent_id?: string
+  initial_message?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface AgentSessionUpdate {
+  title?: string
+  metadata?: Record<string, unknown>
+}
+
+export type AgentMessageRole = 'USER' | 'ASSISTANT' | 'SYSTEM'
+export type AgentMessageStatus = 'SENT' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PARTIAL'
+
+export interface AgentMessage {
+  message_id: string
+  session_id: string
+  user_id: string
+  role: AgentMessageRole
+  content: string
+  status: AgentMessageStatus
+  execution_id?: string | null
+  created_at: string
+  metadata: Record<string, unknown>
 }
 
 export interface AgentMetadata {

@@ -128,6 +128,7 @@ class AgentOrchestrator:
                 duration_ms=duration_ms,
                 tracker=tracker,
                 current_user=current_user,
+                session_id=request.session_id,
             )
 
         # 2. CLAMP EXECUTION BOUNDS SERVER-SIDE
@@ -163,6 +164,7 @@ class AgentOrchestrator:
                     "Clinical queries are prohibited under the HospitalOps AI constitution.",
                     DISCLAIMER_TEXT,
                 ],
+                session_id=request.session_id,
             )
 
         # 4. RESOLVE USER PERMISSIONS & CONTEXT
@@ -175,11 +177,14 @@ class AgentOrchestrator:
         )
 
         # 5. STATE: UNDERSTANDING (Formulate Task Plan)
-        tracker.transition_to(OrchestrationState.UNDERSTANDING, reason="Formulating initial operational task plan.")
+        tracker.transition_to(
+            OrchestrationState.UNDERSTANDING, reason="Formulating initial operational task plan."
+        )
         eligible_tools = self.coordinator.get_eligible_tools(user_permissions)
         task_plan = await self.planner.understand_and_plan(
             task=request.task,
             available_tools=eligible_tools,
+            conversation_context=request.conversation_context,
         )
 
         # Check if tools are required or if query is unsupported
@@ -204,6 +209,7 @@ class AgentOrchestrator:
                     tracker=tracker,
                     current_user=current_user,
                     task_plan=task_plan,
+                    session_id=request.session_id,
                 )
 
             # Direct no-tool answer path
@@ -216,8 +222,11 @@ class AgentOrchestrator:
                 task_plan=task_plan,
                 evidence_collector=evidence_collector,
                 citations=[],
+                conversation_context=request.conversation_context,
             )
-            tracker.transition_to(OrchestrationState.COMPLETED, reason="Direct inquiry completed successfully.")
+            tracker.transition_to(
+                OrchestrationState.COMPLETED, reason="Direct inquiry completed successfully."
+            )
             duration_ms = (time.perf_counter() - start_time) * 1000
             return self._build_completed_response(
                 run_id=run_id,
@@ -235,6 +244,7 @@ class AgentOrchestrator:
                 tool_calls_count=0,
                 limitations=direct_result.limitations,
                 current_user=current_user,
+                session_id=request.session_id,
             )
 
         # 6. SEQUENTIAL ORCHESTRATION LOOP
@@ -245,12 +255,16 @@ class AgentOrchestrator:
         final_limitations: list[str] = []
         is_partial = False
 
-        tracker.transition_to(OrchestrationState.PLANNING, reason="Entering multi-step investigation loop.")
+        tracker.transition_to(
+            OrchestrationState.PLANNING, reason="Entering multi-step investigation loop."
+        )
 
         while step_count < max_steps:
             elapsed = time.perf_counter() - start_time
             if elapsed >= timeout_seconds:
-                logger.warning("Orchestration timeout exceeded | run_id=%s elapsed=%.1fs", run_id, elapsed)
+                logger.warning(
+                    "Orchestration timeout exceeded | run_id=%s elapsed=%.1fs", run_id, elapsed
+                )
                 stop_reason = StopReason.TIMEOUT
                 is_partial = True
                 break
@@ -269,7 +283,9 @@ class AgentOrchestrator:
             except Exception as exc:
                 logger.error("Planner failure | run_id=%s step=%d err=%s", run_id, step_count, exc)
                 stop_reason = StopReason.PROVIDER_UNAVAILABLE
-                final_answer_text = f"Agent reasoning interrupted by unexpected planner error: {exc}"
+                final_answer_text = (
+                    f"Agent reasoning interrupted by unexpected planner error: {exc}"
+                )
                 is_partial = True
                 break
 
@@ -285,7 +301,11 @@ class AgentOrchestrator:
                 tool_name = decision.tool_name or ""
 
                 if tool_calls_count >= max_tool_calls:
-                    logger.info("Maximum tool-call ceiling reached | run_id=%s limit=%d", run_id, max_tool_calls)
+                    logger.info(
+                        "Maximum tool-call ceiling reached | run_id=%s limit=%d",
+                        run_id,
+                        max_tool_calls,
+                    )
                     stop_reason = StopReason.MAX_TOOL_CALLS_REACHED
                     is_partial = True
                     break
@@ -335,7 +355,9 @@ class AgentOrchestrator:
                 )
 
                 if coord_result.is_terminal_failure:
-                    logger.warning("Tool execution triggered terminal loop stop | tool=%s", tool_name)
+                    logger.warning(
+                        "Tool execution triggered terminal loop stop | tool=%s", tool_name
+                    )
                     stop_reason = StopReason.MAX_TOOL_CALLS_REACHED
                     is_partial = True
                     break
@@ -361,6 +383,7 @@ class AgentOrchestrator:
             citations=citations,
             is_partial=is_partial,
             stop_reason_notes=stop_reason.value if is_partial else None,
+            conversation_context=request.conversation_context,
         )
 
         final_response_text = final_answer_text or synth_result.answer
@@ -372,18 +395,26 @@ class AgentOrchestrator:
         duration_ms = (time.perf_counter() - start_time) * 1000
 
         if stop_reason == StopReason.TIMEOUT:
-            tracker.transition_to(OrchestrationState.TIMED_OUT, reason="Orchestration exceeded execution timeout.")
+            tracker.transition_to(
+                OrchestrationState.TIMED_OUT, reason="Orchestration exceeded execution timeout."
+            )
         elif stop_reason in (StopReason.MAX_STEPS_REACHED, StopReason.MAX_TOOL_CALLS_REACHED):
-            tracker.transition_to(OrchestrationState.MAX_STEPS_REACHED, reason="Orchestration step limit reached.")
+            tracker.transition_to(
+                OrchestrationState.MAX_STEPS_REACHED, reason="Orchestration step limit reached."
+            )
         elif not synth_result.evidence_sufficient:
             tracker.transition_to(
                 OrchestrationState.INSUFFICIENT_EVIDENCE,
                 reason="Gathered operational evidence was insufficient.",
             )
         elif stop_reason in (StopReason.TOOL_FAILURE, StopReason.PROVIDER_UNAVAILABLE):
-            tracker.transition_to(OrchestrationState.FAILED, reason="Subsystem or planner error encountered.")
+            tracker.transition_to(
+                OrchestrationState.FAILED, reason="Subsystem or planner error encountered."
+            )
         else:
-            tracker.transition_to(OrchestrationState.COMPLETED, reason="Investigation completed successfully.")
+            tracker.transition_to(
+                OrchestrationState.COMPLETED, reason="Investigation completed successfully."
+            )
 
         return self._build_completed_response(
             run_id=run_id,
@@ -401,6 +432,7 @@ class AgentOrchestrator:
             tool_calls_count=tool_calls_count,
             limitations=final_limitations,
             current_user=current_user,
+            session_id=request.session_id,
         )
 
     def _build_completed_response(
@@ -420,6 +452,7 @@ class AgentOrchestrator:
         tool_calls_count: int,
         limitations: list[str],
         current_user: UserDocument,
+        session_id: str | None = None,
     ) -> AgentRunResponse:
         # Deduplicate provenance
         seen_prov: set[str] = set()
@@ -453,6 +486,7 @@ class AgentOrchestrator:
 
         response = AgentRunResponse(
             run_id=run_id,
+            session_id=session_id,
             agent_id=agent_meta.agent_id,
             agent_name=agent_meta.name,
             status=exec_status,
@@ -508,10 +542,12 @@ class AgentOrchestrator:
         current_user: UserDocument,
         task_plan: Any = None,
         limitations: list[str] | None = None,
+        session_id: str | None = None,
     ) -> AgentRunResponse:
         default_limits = limitations or [DISCLAIMER_TEXT]
         response = AgentRunResponse(
             run_id=run_id,
+            session_id=session_id,
             agent_id=agent_id,
             agent_name=agent_name,
             status=AgentExecutionStatus.REJECTED,

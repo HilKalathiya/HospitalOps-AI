@@ -168,9 +168,7 @@ class LSTMForecastModel(ForecastModel):
         self._last_train_features = features[-self.sequence_length :]
 
         dataset = TensorDataset(torch.from_numpy(X_seq), torch.from_numpy(y_seq))
-        loader = DataLoader(
-            dataset, batch_size=min(self.batch_size, len(dataset)), shuffle=True
-        )
+        loader = DataLoader(dataset, batch_size=min(self.batch_size, len(dataset)), shuffle=True)
 
         self.model = HospitalLSTMNet(
             input_dim=input_dim,
@@ -188,7 +186,6 @@ class LSTMForecastModel(ForecastModel):
         self.model.train()
         for _epoch in range(self.epochs):
             for batch_x, batch_y in loader:
-
                 batch_x = batch_x.to(self.device)
                 batch_y = batch_y.to(self.device)
 
@@ -199,9 +196,7 @@ class LSTMForecastModel(ForecastModel):
                 nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 optimizer.step()
 
-    def predict(
-        self, X: pd.DataFrame
-    ) -> tuple[pd.Series, pd.Series | None, pd.Series | None]:
+    def predict(self, X: pd.DataFrame) -> tuple[pd.Series, pd.Series | None, pd.Series | None]:
         """
         Predicts future values with Monte Carlo Dropout uncertainty bounds.
         Returns: (y_pred, y_lower, y_upper)

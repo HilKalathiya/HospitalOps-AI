@@ -546,9 +546,7 @@ class ForecastService:
             (f for f in run.forecasts if f.split_name == "test"), None
         )
         if not target_forecast:
-            target_forecast = next(
-                (f for f in run.forecasts if f.split_name == "validation"), None
-            )
+            target_forecast = next((f for f in run.forecasts if f.split_name == "validation"), None)
 
         if not target_forecast or not target_forecast.predictions:
             raise HTTPException(

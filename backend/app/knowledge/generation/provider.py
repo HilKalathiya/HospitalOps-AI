@@ -167,13 +167,13 @@ class MockLLMProvider(LLMProvider):
 
         # Default fallback JSON output
         default_json = (
-            '{\n'
+            "{\n"
             '  "answer": "This is a deterministic mock answer grounded in hospital reference policy. [S1]",\n'
             '  "answer_type": "GROUNDED",\n'
             '  "insufficient_evidence": false,\n'
             '  "limitations": [],\n'
             '  "follow_up_questions": ["What is the escalation timeline?"]\n'
-            '}'
+            "}"
         )
         return default_json, self._preset_usage, {"mock": True}
 
@@ -242,7 +242,9 @@ class OpenAICompatibleProvider(LLMProvider):
                         self.provider_name,
                         resp.status_code,
                     )
-                    raise RuntimeError(f"Provider returned error status {resp.status_code}: {resp.text[:200]}")
+                    raise RuntimeError(
+                        f"Provider returned error status {resp.status_code}: {resp.text[:200]}"
+                    )
 
                 data = resp.json()
                 choices = data.get("choices", [])
@@ -259,12 +261,20 @@ class OpenAICompatibleProvider(LLMProvider):
                 return content, usage, meta
 
         except httpx.TimeoutException as exc:
-            logger.error("LLM provider request timed out | provider=%s timeout=%.1fs", self.provider_name, self._timeout_seconds)
+            logger.error(
+                "LLM provider request timed out | provider=%s timeout=%.1fs",
+                self.provider_name,
+                self._timeout_seconds,
+            )
             raise TimeoutError(f"LLM provider timed out after {self._timeout_seconds}s") from exc
         except Exception as exc:
             if isinstance(exc, RuntimeError | TimeoutError):
                 raise
-            logger.error("LLM provider connection failed | provider=%s err=%s", self.provider_name, type(exc).__name__)
+            logger.error(
+                "LLM provider connection failed | provider=%s err=%s",
+                self.provider_name,
+                type(exc).__name__,
+            )
             raise RuntimeError(f"LLM provider communication failed: {type(exc).__name__}") from exc
 
     async def check_health(self) -> bool:

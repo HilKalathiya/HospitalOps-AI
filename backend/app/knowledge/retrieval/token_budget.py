@@ -26,7 +26,9 @@ try:
 
     _TIKTOKEN_ENCODER = tiktoken.get_encoding("cl100k_base")
 except Exception as e:
-    logger.warning("tiktoken cl100k_base unavailable, falling back to word-based approximation: %s", e)
+    logger.warning(
+        "tiktoken cl100k_base unavailable, falling back to word-based approximation: %s", e
+    )
     _TOKEN_METHOD = "approximate_words_1.33"
 
 
@@ -63,7 +65,9 @@ class TokenBudgetManager:
 
     def __init__(self, max_context_tokens: int = 3000) -> None:
         if max_context_tokens < 100:
-            raise ValueError(f"max_context_tokens must be at least 100 (received {max_context_tokens})")
+            raise ValueError(
+                f"max_context_tokens must be at least 100 (received {max_context_tokens})"
+            )
 
         self.max_context_tokens = max_context_tokens
         self.assembled_content_tokens = 0

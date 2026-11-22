@@ -209,7 +209,9 @@ async def test_prepare_optimization_from_resource_bottleneck(clean_services):
     preview = await service.prepare_optimization_from_simulation("SIM-VENT-01")
 
     assert preview.simulation_id == "SIM-VENT-01"
-    vent = next(r for r in preview.parameters.resource_requirements if r.resource_type == "VENTILATOR")
+    vent = next(
+        r for r in preview.parameters.resource_requirements if r.resource_type == "VENTILATOR"
+    )
     assert vent.available_inventory == 33  # 35 base - 2 delta
     assert vent.ratios_per_department["DEPT-ICU"] == 0.85
 
@@ -243,7 +245,9 @@ async def test_compare_simulation_and_optimization_3way_evaluation(clean_service
     opt_resp = await service.run_optimization(solve_req, user)
 
     # Perform 3-way decision comparison
-    comparison = await service.compare_simulation_and_optimization("SIM-COMPARE-01", opt_resp.run_id)
+    comparison = await service.compare_simulation_and_optimization(
+        "SIM-COMPARE-01", opt_resp.run_id
+    )
 
     assert comparison.simulation_id == "SIM-COMPARE-01"
     assert comparison.optimization_run_id == opt_resp.run_id
@@ -306,6 +310,7 @@ def test_api_compare_decision_endpoint(clean_services):
     req = OptimizationRequest(plan_name="API Plan", parameters=params)
 
     import asyncio
+
     opt_resp = asyncio.run(service.run_optimization(req, user))
 
     app.dependency_overrides[get_optimization_service] = lambda: service
@@ -313,7 +318,9 @@ def test_api_compare_decision_endpoint(clean_services):
 
     client = TestClient(app)
     try:
-        resp = client.get(f"/api/v1/optimization/compare-decision/{sim_doc.simulation_id}/{opt_resp.run_id}")
+        resp = client.get(
+            f"/api/v1/optimization/compare-decision/{sim_doc.simulation_id}/{opt_resp.run_id}"
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert "data" in body

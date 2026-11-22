@@ -82,7 +82,9 @@ async def run_ingestion(
             pipeline = HeroDMCIngestionPipeline(run_repo, adm_repo)
             run_doc = await pipeline.process_file(filepath, batch_size=batch_size, dry_run=dry_run)
         elif dataset == "nhsn_hrd":
-            cap_repo = HistoricalHospitalCapacityRepository(db) if db else StandaloneDomainRepository()  # type: ignore[assignment]
+            cap_repo = (
+                HistoricalHospitalCapacityRepository(db) if db else StandaloneDomainRepository()
+            )  # type: ignore[assignment]
             pipeline = NHSNHRDIngestionPipeline(run_repo, cap_repo)
             run_doc = await pipeline.process_file(filepath, batch_size=batch_size, dry_run=dry_run)
         elif dataset == "mimic_iv":

@@ -361,7 +361,11 @@ async def init_indexes() -> None:
     await db["knowledge_document_versions"].create_indexes(
         [
             IndexModel([("version_id", ASCENDING)], unique=True, name="ver_id_unique"),
-            IndexModel([("document_id", ASCENDING), ("version", ASCENDING)], unique=True, name="doc_ver_unique"),
+            IndexModel(
+                [("document_id", ASCENDING), ("version", ASCENDING)],
+                unique=True,
+                name="doc_ver_unique",
+            ),
         ]
     )
 
@@ -373,8 +377,44 @@ async def init_indexes() -> None:
         ]
     )
 
-    logger.info("MongoDB indexes initialised for all core collections")
+    # ── agent_sessions ────────────────────────────────────────────────────────
+    # session_id: unique session key.
+    # user_id + status + last_activity_at: user sessions list.
+    # user_id + agent_id: query by user and agent.
+    await db["agent_sessions"].create_indexes(
+        [
+            IndexModel([("session_id", ASCENDING)], unique=True, name="agent_sessions_id_unique"),
+            IndexModel(
+                [("user_id", ASCENDING), ("status", ASCENDING), ("last_activity_at", DESCENDING)],
+                name="agent_sessions_user_status_activity",
+            ),
+            IndexModel(
+                [("user_id", ASCENDING), ("agent_id", ASCENDING)],
+                name="agent_sessions_user_agent",
+            ),
+        ]
+    )
 
+    # ── agent_messages ────────────────────────────────────────────────────────
+    # message_id: unique message identifier.
+    # session_id + created_at: chronological session message history.
+    # execution_id: lookup turn by agent run id (sparse).
+    await db["agent_messages"].create_indexes(
+        [
+            IndexModel([("message_id", ASCENDING)], unique=True, name="agent_messages_id_unique"),
+            IndexModel(
+                [("session_id", ASCENDING), ("created_at", ASCENDING)],
+                name="agent_messages_session_created",
+            ),
+            IndexModel(
+                [("execution_id", ASCENDING)],
+                sparse=True,
+                name="agent_messages_execution_id",
+            ),
+        ]
+    )
+
+    logger.info("MongoDB indexes initialised for all core collections")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

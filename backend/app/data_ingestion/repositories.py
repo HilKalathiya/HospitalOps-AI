@@ -162,9 +162,7 @@ class HistoricalICUStaysRepository(BaseRepository):
             if "_id" in doc_dict:
                 del doc_dict["_id"]
 
-            operations.append(
-                UpdateOne({"stay_id": doc.stay_id}, {"$set": doc_dict}, upsert=True)
-            )
+            operations.append(UpdateOne({"stay_id": doc.stay_id}, {"$set": doc_dict}, upsert=True))
 
         result = await self.collection.bulk_write(operations, ordered=False)
         return {

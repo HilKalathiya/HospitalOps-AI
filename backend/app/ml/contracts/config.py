@@ -60,7 +60,9 @@ class ForecastConfig(BaseModel):
     lstm_batch_size: int = Field(
         default=32, description="Batch size for LSTM mini-batch gradient descent."
     )
-    lstm_learning_rate: float = Field(default=0.005, description="Learning rate for AdamW optimizer.")
+    lstm_learning_rate: float = Field(
+        default=0.005, description="Learning rate for AdamW optimizer."
+    )
     lstm_sequence_length: int = Field(
         default=14, description="Sliding lookback sequence window length."
     )
@@ -81,4 +83,3 @@ class ForecastConfig(BaseModel):
     tracking_tags: dict[str, str] = Field(
         default_factory=dict, description="Custom tags to log with this run."
     )
-

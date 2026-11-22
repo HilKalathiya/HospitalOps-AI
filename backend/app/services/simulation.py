@@ -55,9 +55,7 @@ class SimulationService:
         self.admissions_repo = admissions_repo
         self.audit_repo = audit_repo
 
-    async def _gather_baseline(
-        self, department_id: str | None, resource_type: str | None
-    ) -> dict:
+    async def _gather_baseline(self, department_id: str | None, resource_type: str | None) -> dict:
         """
         Extracts current operational baseline state from live inventory.
         If the database is clean or mock-initialized, provides safe fallback defaults.
@@ -77,7 +75,9 @@ class SimulationService:
                 reserved_filters = {**filters, "status": BedStatus.RESERVED.value}
                 reserved_beds = await self.beds_repo.count_beds(filters=reserved_filters)
             except Exception as err:
-                logger.warning("Live bed count unavailable; using operational baseline defaults: %s", err)
+                logger.warning(
+                    "Live bed count unavailable; using operational baseline defaults: %s", err
+                )
 
         # Baseline defaults if inventory is empty or unavailable
         if total_beds == 0:
@@ -91,7 +91,9 @@ class SimulationService:
         daily_admissions_baseline = max(5.0, current_active / 5.0)
         if self.admissions_repo:
             try:
-                recent_admissions = await self.admissions_repo.count_admissions(filters={"status": "ACTIVE"})
+                recent_admissions = await self.admissions_repo.count_admissions(
+                    filters={"status": "ACTIVE"}
+                )
                 if recent_admissions > 0:
                     daily_admissions_baseline = float(recent_admissions)
             except Exception:
@@ -115,7 +117,9 @@ class SimulationService:
                     res_query: dict = {"resource_type": resource_type}
                     if department_id:
                         res_query["department_id"] = department_id
-                    resources = await self.resources_repo.list_resources(filters=res_query, limit=100)
+                    resources = await self.resources_repo.list_resources(
+                        filters=res_query, limit=100
+                    )
                     if resources:
                         total_qty = sum(r.quantity_total for r in resources)
                         avail_qty = sum(r.quantity_available for r in resources)
@@ -416,8 +420,14 @@ class SimulationService:
             all_cached.sort(key=lambda d: d.created_at or d.base_timestamp, reverse=True)
             if scenario_type:
                 all_cached = [
-                    d for d in all_cached
-                    if (d.scenario_type.value if hasattr(d.scenario_type, "value") else str(d.scenario_type)) == scenario_type
+                    d
+                    for d in all_cached
+                    if (
+                        d.scenario_type.value
+                        if hasattr(d.scenario_type, "value")
+                        else str(d.scenario_type)
+                    )
+                    == scenario_type
                 ]
             total = len(all_cached)
             docs = all_cached[skip : skip + limit]

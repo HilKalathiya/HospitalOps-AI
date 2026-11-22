@@ -482,9 +482,7 @@ class OptimizationExplanationGenerator:
                     f"No additional surge beds could be allocated in period {p.period}; any surplus demand resulted in bed shortages."
                 )
             else:
-                consequence = (
-                    f"Facility surge pool had {int(slack)} unallocated buffer beds in period {p.period}."
-                )
+                consequence = f"Facility surge pool had {int(slack)} unallocated buffer beds in period {p.period}."
 
             constraints.append(
                 ConstraintExplanation(
@@ -790,13 +788,18 @@ class OptimizationExplanationGenerator:
         depts_with_surge = [d for d in dept_explanations if d.total_surge_allocated > 0]
         depts_with_shortage = [d for d in dept_explanations if d.unmet_demand_patient_days > 0.001]
         binding_pool_periods = [
-            c.period for c in constraint_explanations if c.constraint_type == "SURGE_POOL" and c.is_binding
+            c.period
+            for c in constraint_explanations
+            if c.constraint_type == "SURGE_POOL" and c.is_binding
         ]
 
         sentences: list[str] = []
 
         if depts_with_surge:
-            dept_names = ", ".join(f"{d.department_name} ({d.total_surge_allocated} surge beds)" for d in depts_with_surge)
+            dept_names = ", ".join(
+                f"{d.department_name} ({d.total_surge_allocated} surge beds)"
+                for d in depts_with_surge
+            )
             sentences.append(
                 f"The optimizer recommends activating {breakdown.total_surge_beds_activated} cumulative surge bed-periods "
                 f"across {len(depts_with_surge)} department(s): {dept_names}."
@@ -819,22 +822,23 @@ class OptimizationExplanationGenerator:
 
         if depts_with_shortage:
             shortage_depts = ", ".join(
-                f"{d.department_name} ({d.unmet_demand_patient_days:.1f} patient-days)" for d in depts_with_shortage
+                f"{d.department_name} ({d.unmet_demand_patient_days:.1f} patient-days)"
+                for d in depts_with_shortage
             )
             pool_clause = (
                 f" due to facility-wide surge limits in period(s) {', '.join(map(str, binding_pool_periods))}"
                 if binding_pool_periods
                 else ""
             )
-            sentences.append(
-                f"Residual unmet demand remains in {shortage_depts}{pool_clause}."
-            )
+            sentences.append(f"Residual unmet demand remains in {shortage_depts}{pool_clause}.")
         else:
             sentences.append(
                 "All projected patient bed demand is fully met across all departments under this plan."
             )
 
-        exhausted_res = [r for r in res_explanations if r.inventory_conservation_status == "BINDING"]
+        exhausted_res = [
+            r for r in res_explanations if r.inventory_conservation_status == "BINDING"
+        ]
         if exhausted_res:
             res_names = ", ".join(r.name for r in exhausted_res)
             sentences.append(

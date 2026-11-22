@@ -68,12 +68,14 @@ class DocxExtractor(BaseExtractor):
             data_lines = ["| " + " | ".join(r) + " |" for r in data_rows]
             md_table = "\n".join([header_line, sep_line] + data_lines)
 
-            tables.append(ExtractedTable(
-                headers=headers,
-                rows=data_rows,
-                caption=f"Table {t_idx + 1}",
-                markdown=md_table,
-            ))
+            tables.append(
+                ExtractedTable(
+                    headers=headers,
+                    rows=data_rows,
+                    caption=f"Table {t_idx + 1}",
+                    markdown=md_table,
+                )
+            )
             text_parts.append(f"\n{md_table}\n")
 
         full_text = "\n\n".join(text_parts)

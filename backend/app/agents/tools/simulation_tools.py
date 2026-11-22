@@ -29,7 +29,9 @@ class GetSimulationResultInput(BaseModel):
         default=None,
         description="Optional filter by scenario type: 'ADMISSION_SURGE', 'BED_CAPACITY_CHANGE', 'RESOURCE_BOTTLENECK'",
     )
-    limit: int = Field(default=5, ge=1, le=10, description="Max simulations to list if simulation_id is omitted")
+    limit: int = Field(
+        default=5, ge=1, le=10, description="Max simulations to list if simulation_id is omitted"
+    )
 
 
 class SimulationRunSummary(BaseModel):
@@ -46,14 +48,26 @@ class SimulationRunSummary(BaseModel):
 class GetSimulationResultOutput(BaseModel):
     """Standardized output schema for what-if simulation inspection."""
 
-    simulation_id: str | None = Field(default=None, description="Inspected simulation ID if single run queried")
-    scenario_name: str | None = Field(default=None, description="Inspected scenario name if single run queried")
-    scenario_type: str | None = Field(default=None, description="Inspected scenario type if single run queried")
+    simulation_id: str | None = Field(
+        default=None, description="Inspected simulation ID if single run queried"
+    )
+    scenario_name: str | None = Field(
+        default=None, description="Inspected scenario name if single run queried"
+    )
+    scenario_type: str | None = Field(
+        default=None, description="Inspected scenario type if single run queried"
+    )
     simulations_count: int = Field(ge=0, description="Count of simulation runs returned")
-    peak_deficit: float | None = Field(default=None, description="Peak bed deficit if single run queried")
-    shortage_days: int | None = Field(default=None, description="Days in shortage if single run queried")
+    peak_deficit: float | None = Field(
+        default=None, description="Peak bed deficit if single run queried"
+    )
+    shortage_days: int | None = Field(
+        default=None, description="Days in shortage if single run queried"
+    )
     summary: str = Field(default="", description="Textual summary of simulation findings")
-    recent_runs: list[SimulationRunSummary] = Field(default_factory=list, description="List of recent scenario runs")
+    recent_runs: list[SimulationRunSummary] = Field(
+        default_factory=list, description="List of recent scenario runs"
+    )
 
 
 class GetSimulationResultTool(AgentTool):
@@ -106,13 +120,23 @@ class GetSimulationResultTool(AgentTool):
         return 20.0
 
     async def execute(self, arguments: BaseModel, context: ToolContext) -> ToolResult:
-        args = arguments if isinstance(arguments, GetSimulationResultInput) else GetSimulationResultInput.model_validate(arguments)
+        args = (
+            arguments
+            if isinstance(arguments, GetSimulationResultInput)
+            else GetSimulationResultInput.model_validate(arguments)
+        )
 
         try:
             if args.simulation_id:
-                sim = await self.service.get_simulation_run(args.simulation_id, current_user=context.user)
+                sim = await self.service.get_simulation_run(
+                    args.simulation_id, current_user=context.user
+                )
                 out = sim.outcome
-                scen_type = sim.scenario_type.value if hasattr(sim.scenario_type, "value") else str(sim.scenario_type)
+                scen_type = (
+                    sim.scenario_type.value
+                    if hasattr(sim.scenario_type, "value")
+                    else str(sim.scenario_type)
+                )
 
                 prov = ProvenanceItem(
                     category=ProvenanceCategory.SIMULATION,
@@ -185,8 +209,12 @@ class GetSimulationResultTool(AgentTool):
             summaries: list[SimulationRunSummary] = []
             lines = [f"Found {len(sims)} simulation run(s):"]
 
-            for s in sims[:args.limit]:
-                stype = s.scenario_type.value if hasattr(s.scenario_type, "value") else str(s.scenario_type)
+            for s in sims[: args.limit]:
+                stype = (
+                    s.scenario_type.value
+                    if hasattr(s.scenario_type, "value")
+                    else str(s.scenario_type)
+                )
                 prov_items.append(
                     ProvenanceItem(
                         category=ProvenanceCategory.SIMULATION,

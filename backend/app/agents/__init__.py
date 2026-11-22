@@ -5,7 +5,10 @@ Provides bounded, evidence-driven operational agents, standardized tool contract
 machine-readable schemas, policy enforcement, and execution runtimes.
 """
 
+from app.agents.context_builder import AgentContextBuilder
 from app.agents.contracts import (
+    AgentConversationContext,
+    AgentConversationTurn,
     AgentExecutionStatus,
     AgentExecutionTrace,
     AgentHealthResponse,
@@ -38,8 +41,23 @@ from app.agents.policies import AgentPolicyEnforcer
 from app.agents.registry import AgentRegistry, ToolRegistry
 from app.agents.response_generator import AgentResponseGenerator, GroundedResponseResult
 from app.agents.runtime import AgentRuntime
+from app.agents.state_manager import AgentStateManager
 from app.agents.tool_coordinator import ToolCoordinationResult, ToolExecutionCoordinator
 from app.agents.tools.base import AgentTool, ToolContext, ToolResult
+from app.models.agent_message import (
+    AgentMessageCreate,
+    AgentMessageDocument,
+    AgentMessageResponse,
+    MessageRole,
+    MessageStatus,
+)
+from app.models.agent_session import (
+    AgentSessionCreate,
+    AgentSessionDocument,
+    AgentSessionResponse,
+    AgentSessionUpdate,
+    SessionStatus,
+)
 
 __all__ = [
     "AgentExecutionStatus",
@@ -81,4 +99,18 @@ __all__ = [
     "AgentTool",
     "ToolContext",
     "ToolResult",
+    "AgentContextBuilder",
+    "AgentConversationContext",
+    "AgentConversationTurn",
+    "AgentStateManager",
+    "SessionStatus",
+    "AgentSessionDocument",
+    "AgentSessionCreate",
+    "AgentSessionUpdate",
+    "AgentSessionResponse",
+    "MessageRole",
+    "MessageStatus",
+    "AgentMessageDocument",
+    "AgentMessageCreate",
+    "AgentMessageResponse",
 ]

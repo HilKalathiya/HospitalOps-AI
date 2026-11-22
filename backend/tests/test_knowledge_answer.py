@@ -125,17 +125,36 @@ def _build_dummy_context_block(
 def test_clinical_query_screening():
     """Verifies healthcare safety boundary detects clinical diagnosis/prescriptions."""
     # Clinical queries -> MUST be flagged True
-    assert is_clinical_query("What medication dosage should I prescribe for acute pneumonia?")[0] is True
-    assert is_clinical_query("What are the diagnostic criteria and symptoms for pulmonary embolism?")[0] is True
+    assert (
+        is_clinical_query("What medication dosage should I prescribe for acute pneumonia?")[0]
+        is True
+    )
+    assert (
+        is_clinical_query("What are the diagnostic criteria and symptoms for pulmonary embolism?")[
+            0
+        ]
+        is True
+    )
     assert is_clinical_query("How do I diagnose septic shock in an elderly patient?")[0] is True
     assert is_clinical_query("Patient has high creatinine, recommend treatment regimen")[0] is True
-    assert is_clinical_query("Should I discharge this patient with low oxygen saturation?")[0] is True
+    assert (
+        is_clinical_query("Should I discharge this patient with low oxygen saturation?")[0] is True
+    )
 
     # Operational queries -> MUST be False
-    assert is_clinical_query("What is the bed escalation protocol when occupancy reaches 85%?")[0] is False
+    assert (
+        is_clinical_query("What is the bed escalation protocol when occupancy reaches 85%?")[0]
+        is False
+    )
     assert is_clinical_query("How do I report a shortage of mechanical ventilators?")[0] is False
-    assert is_clinical_query("What are the nurse-to-patient staffing ratios in ICU during surge?")[0] is False
-    assert is_clinical_query("Explain the SOP for cleaning isolation rooms after discharge")[0] is False
+    assert (
+        is_clinical_query("What are the nurse-to-patient staffing ratios in ICU during surge?")[0]
+        is False
+    )
+    assert (
+        is_clinical_query("Explain the SOP for cleaning isolation rooms after discharge")[0]
+        is False
+    )
 
 
 def test_system_prompt_builder():
@@ -236,7 +255,9 @@ async def test_grounded_answer_generator_valid_json():
     provider = MockLLMProvider(preset_response=json.dumps(mock_payload))
     generator = GroundedAnswerGenerator(provider=provider)
 
-    block1 = _build_dummy_context_block("S1", "doc_1", "Bed Surge SOP", "At 85% occupancy, open ward.")
+    block1 = _build_dummy_context_block(
+        "S1", "doc_1", "Bed Surge SOP", "At 85% occupancy, open ward."
+    )
     (
         status,
         answer_type,
@@ -276,26 +297,32 @@ async def test_grounded_answer_generator_one_shot_retry_on_invalid_citation():
         turn_counter += 1
         if turn_counter == 1:
             # Turn 1: Emit invalid marker [S99]
-            return json.dumps({
-                "answer": "Surge activates at 85% [S99].",
-                "answer_type": "GROUNDED",
-                "insufficient_evidence": False,
-                "limitations": [],
-                "conflicts_detected": [],
-            })
+            return json.dumps(
+                {
+                    "answer": "Surge activates at 85% [S99].",
+                    "answer_type": "GROUNDED",
+                    "insufficient_evidence": False,
+                    "limitations": [],
+                    "conflicts_detected": [],
+                }
+            )
         else:
             # Turn 2 (Correction): Emit valid marker [S1]
-            return json.dumps({
-                "answer": "Surge activates at 85% per policy [S1].",
-                "answer_type": "GROUNDED",
-                "insufficient_evidence": False,
-                "limitations": [],
-                "conflicts_detected": [],
-            })
+            return json.dumps(
+                {
+                    "answer": "Surge activates at 85% per policy [S1].",
+                    "answer_type": "GROUNDED",
+                    "insufficient_evidence": False,
+                    "limitations": [],
+                    "conflicts_detected": [],
+                }
+            )
 
     provider = MockLLMProvider(custom_handler=retry_handler)
     generator = GroundedAnswerGenerator(provider=provider)
-    block1 = _build_dummy_context_block("S1", "doc_1", "Bed Surge SOP", "At 85% occupancy, open ward.")
+    block1 = _build_dummy_context_block(
+        "S1", "doc_1", "Bed Surge SOP", "At 85% occupancy, open ward."
+    )
 
     (
         status,
@@ -539,7 +566,10 @@ def test_api_answer_generation_and_health(answer_api_client):
     health_data = health_resp.json()
     assert health_data["status"] in ("ok", "ready")
     assert health_data["is_generation_ready"] is True
-    assert "mock" in health_data["provider_name"].lower() or "llm" in health_data["provider_name"].lower()
+    assert (
+        "mock" in health_data["provider_name"].lower()
+        or "llm" in health_data["provider_name"].lower()
+    )
 
     # 2. Answer generation endpoint with Admin user
     ans_resp = client.post(

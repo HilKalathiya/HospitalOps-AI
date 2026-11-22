@@ -31,4 +31,6 @@ class ExperimentRun(BaseModel):
 
     # MLflow Tracking Linkage (Chunk 2.6)
     mlflow_run_id: str | None = Field(default=None, description="Linked MLflow run ID if tracked")
-    mlflow_experiment_id: str | None = Field(default=None, description="Linked MLflow experiment ID")
+    mlflow_experiment_id: str | None = Field(
+        default=None, description="Linked MLflow experiment ID"
+    )

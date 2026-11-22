@@ -43,7 +43,9 @@ class AgentPolicyEnforcer:
         return False, ""
 
     @staticmethod
-    def check_tool_permission(user_permissions: list[str], tool: AgentTool) -> tuple[bool, str | None]:
+    def check_tool_permission(
+        user_permissions: list[str], tool: AgentTool
+    ) -> tuple[bool, str | None]:
         """
         Verify that the authenticated caller holds the permission required by the tool.
         Returns: (allowed, reason_if_denied)
@@ -51,7 +53,9 @@ class AgentPolicyEnforcer:
         required = tool.required_permission
         if required not in user_permissions:
             msg = f"User lacks required permission '{required}' to invoke tool '{tool.name}'."
-            logger.warning("Agent tool permission denied | tool=%s required=%s", tool.name, required)
+            logger.warning(
+                "Agent tool permission denied | tool=%s required=%s", tool.name, required
+            )
             return False, msg
         return True, None
 

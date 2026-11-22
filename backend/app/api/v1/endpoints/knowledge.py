@@ -61,9 +61,15 @@ router = APIRouter()
     description="Uploads a PDF, DOCX, TXT, MD, or HTML document, executes 10-stage ingestion, and indexes chunks.",
 )
 async def upload_document(
-    file: Annotated[UploadFile, File(description="Approved document file (PDF, DOCX, TXT, MD, HTML)")],
-    category: Annotated[DocumentCategory, Form(description="Document category")] = DocumentCategory.GENERAL_REFERENCE,
-    access_level: Annotated[AccessLevel, Form(description="Access classification")] = AccessLevel.INTERNAL,
+    file: Annotated[
+        UploadFile, File(description="Approved document file (PDF, DOCX, TXT, MD, HTML)")
+    ],
+    category: Annotated[
+        DocumentCategory, Form(description="Document category")
+    ] = DocumentCategory.GENERAL_REFERENCE,
+    access_level: Annotated[
+        AccessLevel, Form(description="Access classification")
+    ] = AccessLevel.INTERNAL,
     title: Annotated[str | None, Form(description="Optional custom title")] = None,
     description: Annotated[str | None, Form(description="Document description / context")] = None,
     tags: Annotated[str | None, Form(description="Comma-separated or JSON list of tags")] = None,
@@ -86,10 +92,14 @@ async def upload_document(
     try:
         content = await file.read()
     except Exception as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to read file: {err}") from err
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to read file: {err}"
+        ) from err
 
     if len(content) == 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty."
+        )
 
     # Parse tags
     parsed_tags: list[str] = []
@@ -187,7 +197,9 @@ async def get_document_versions(
 )
 async def get_document_chunks(
     document_id: str,
-    version: int | None = Query(None, description="Specific version number (defaults to active version)"),
+    version: int | None = Query(
+        None, description="Specific version number (defaults to active version)"
+    ),
     current_user: UserDocument = Depends(require_permission("knowledge.read")),
     knowledge_service: KnowledgeService = Depends(get_knowledge_service),
 ) -> DocumentChunksResponse:
@@ -229,8 +241,14 @@ async def delete_document(
 ) -> dict[str, Any]:
     deleted = await knowledge_service.delete_document(document_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found.")
-    return {"deleted": True, "document_id": document_id, "message": "Document and all associated chunks permanently deleted."}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found."
+        )
+    return {
+        "deleted": True,
+        "document_id": document_id,
+        "message": "Document and all associated chunks permanently deleted.",
+    }
 
 
 # ── Ingestion Runs & Telemetry ────────────────────────────────────────────────
@@ -262,7 +280,9 @@ async def get_ingestion_run(
 ) -> IngestionRunDocument:
     run = await knowledge_service.get_ingestion_run(ingestion_id)
     if not run:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Ingestion run {ingestion_id} not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Ingestion run {ingestion_id} not found."
+        )
     return run
 
 
@@ -383,12 +403,8 @@ async def get_categories(
 ) -> dict[str, Any]:
     return {
         "categories": [
-            {"value": c.value, "label": c.value.replace("_", " ").title()}
-            for c in DocumentCategory
+            {"value": c.value, "label": c.value.replace("_", " ").title()} for c in DocumentCategory
         ],
-        "access_levels": [
-            {"value": a.value, "label": a.value.title()}
-            for a in AccessLevel
-        ],
+        "access_levels": [{"value": a.value, "label": a.value.title()} for a in AccessLevel],
         "supported_file_types": [e.value for e in SupportedFileType],
     }

@@ -178,8 +178,18 @@ def mock_subsystems():
                 config_name="default_sarimax",
             ),
             predictions=[
-                PredictionPoint(timestamp="2026-11-22T00:00:00Z", value=124.5, lower_bound=110.0, upper_bound=139.0),
-                PredictionPoint(timestamp="2026-11-23T00:00:00Z", value=128.2, lower_bound=112.5, upper_bound=144.0),
+                PredictionPoint(
+                    timestamp="2026-11-22T00:00:00Z",
+                    value=124.5,
+                    lower_bound=110.0,
+                    upper_bound=139.0,
+                ),
+                PredictionPoint(
+                    timestamp="2026-11-23T00:00:00Z",
+                    value=128.2,
+                    lower_bound=112.5,
+                    upper_bound=144.0,
+                ),
             ],
         )
     )
@@ -199,8 +209,12 @@ def mock_subsystems():
                 config_name="default_lstm",
             ),
             predictions=[
-                PredictionPoint(timestamp="2026-11-23T00:00:00Z", value=42.0, lower_bound=38.0, upper_bound=46.0),
-                PredictionPoint(timestamp="2026-11-30T00:00:00Z", value=45.5, lower_bound=40.0, upper_bound=51.0),
+                PredictionPoint(
+                    timestamp="2026-11-23T00:00:00Z", value=42.0, lower_bound=38.0, upper_bound=46.0
+                ),
+                PredictionPoint(
+                    timestamp="2026-11-30T00:00:00Z", value=45.5, lower_bound=40.0, upper_bound=51.0
+                ),
             ],
         )
     )
@@ -526,7 +540,9 @@ async def test_loop_and_duplicate_call_prevention(agent_runtime):
     """
     Verifies that identical tool calls with identical arguments are blocked by policy.
     """
-    call_history = [("search_hospital_knowledge", '{"category": null, "query": "bed escalation", "top_k": 3}')]
+    call_history = [
+        ("search_hospital_knowledge", '{"category": null, "query": "bed escalation", "top_k": 3}')
+    ]
     is_dup = AgentPolicyEnforcer.is_duplicate_call(
         history=call_history,
         tool_name="search_hospital_knowledge",
@@ -611,7 +627,9 @@ def test_api_agents_health(agent_api_client):
     assert data["status"] in ("ready", "degraded", "unavailable")
     assert data["registered_agents_count"] >= 1
     assert data["registered_tools_count"] == 5
-    assert "hospital_operations_analyst" in data["agent_version"] or len(data["registered_tools"]) == 5
+    assert (
+        "hospital_operations_analyst" in data["agent_version"] or len(data["registered_tools"]) == 5
+    )
 
 
 def test_api_list_agents(agent_api_client):

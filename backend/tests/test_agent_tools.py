@@ -179,7 +179,12 @@ def mock_subsystems():
                 config_name="default_sarimax",
             ),
             predictions=[
-                PredictionPoint(timestamp="2026-11-22T00:00:00Z", value=125.0, lower_bound=110.0, upper_bound=140.0),
+                PredictionPoint(
+                    timestamp="2026-11-22T00:00:00Z",
+                    value=125.0,
+                    lower_bound=110.0,
+                    upper_bound=140.0,
+                ),
             ],
         )
     )
@@ -270,7 +275,9 @@ def mock_subsystems():
             result=OptimizationResult.model_construct(
                 status=OptimizationStatus.OPTIMAL,
                 is_optimal=True,
-                objective_breakdown=ObjectiveBreakdown.model_construct(total_surge_beds_activated=10),
+                objective_breakdown=ObjectiveBreakdown.model_construct(
+                    total_surge_beds_activated=10
+                ),
             ),
             created_by="usr_admin_123",
             created_at=datetime(2026, 11, 21, 0, 0, 0, tzinfo=UTC),
@@ -286,7 +293,9 @@ def mock_subsystems():
                     result=OptimizationResult.model_construct(
                         status=OptimizationStatus.OPTIMAL,
                         is_optimal=True,
-                        objective_breakdown=ObjectiveBreakdown.model_construct(total_surge_beds_activated=10),
+                        objective_breakdown=ObjectiveBreakdown.model_construct(
+                            total_surge_beds_activated=10
+                        ),
                     ),
                     created_by="usr_admin_123",
                     created_at=datetime(2026, 11, 21, 0, 0, 0, tzinfo=UTC),
@@ -564,11 +573,15 @@ def test_schema_version_compatibility_checks(populated_tool_registry):
     assert is_compatible_semver("0.9.0", "1.0.0") is False
 
     # Registry helper
-    is_ok, msg = populated_tool_registry.check_version_compatibility("search_hospital_knowledge", "1.0.0")
+    is_ok, msg = populated_tool_registry.check_version_compatibility(
+        "search_hospital_knowledge", "1.0.0"
+    )
     assert is_ok is True
     assert msg == "Compatible"
 
-    is_fail, fail_msg = populated_tool_registry.check_version_compatibility("search_hospital_knowledge", "2.0.0")
+    is_fail, fail_msg = populated_tool_registry.check_version_compatibility(
+        "search_hospital_knowledge", "2.0.0"
+    )
     assert is_fail is False
     assert "Incompatible" in fail_msg
 
@@ -608,7 +621,10 @@ def test_api_list_tools_admin(agent_tools_api_client):
 def test_api_list_tools_doctor_permission_filtered(agent_tools_api_client, monkeypatch):
     """Verifies GET /api/v1/agents/tools for restricted caller filters out unauthorized tools."""
     app.dependency_overrides[get_current_user] = _get_doctor_user
-    monkeypatch.setattr("app.api.v1.endpoints.agents.get_permissions_for_role", lambda role: ["agents.read", "knowledge.read"])
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.agents.get_permissions_for_role",
+        lambda role: ["agents.read", "knowledge.read"],
+    )
     client = TestClient(agent_tools_api_client)
 
     resp = client.get("/api/v1/agents/tools")
@@ -652,7 +668,10 @@ def test_api_get_tool_detail_success(agent_tools_api_client):
 def test_api_get_tool_detail_forbidden_for_unprivileged(agent_tools_api_client, monkeypatch):
     """Verifies GET /api/v1/agents/tools/{tool_id} returns 403 Forbidden when caller lacks permission."""
     app.dependency_overrides[get_current_user] = _get_doctor_user
-    monkeypatch.setattr("app.api.v1.endpoints.agents.get_permissions_for_role", lambda role: ["agents.read", "knowledge.read"])
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.agents.get_permissions_for_role",
+        lambda role: ["agents.read", "knowledge.read"],
+    )
     client = TestClient(agent_tools_api_client)
 
     # Caller lacks optimization.read

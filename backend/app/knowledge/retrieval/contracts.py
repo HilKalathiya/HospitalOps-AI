@@ -23,15 +23,21 @@ from app.models.knowledge import AccessLevel, DocumentCategory
 class SearchFilters(HospitalOpsBaseModel):
     """Optional search criteria for filtering retrieved knowledge chunks."""
 
-    category: DocumentCategory | None = Field(default=None, description="Filter by document category")
+    category: DocumentCategory | None = Field(
+        default=None, description="Filter by document category"
+    )
     access_levels: list[AccessLevel] | None = Field(
         default=None, description="Explicit access level filter (must be within user authorization)"
     )
     access_level: AccessLevel | None = Field(
         default=None, description="Convenience singular access level filter"
     )
-    department_id: str | None = Field(default=None, description="Filter by clinical or administrative department")
-    document_id: str | None = Field(default=None, description="Restrict retrieval to a specific document ID")
+    department_id: str | None = Field(
+        default=None, description="Filter by clinical or administrative department"
+    )
+    document_id: str | None = Field(
+        default=None, description="Restrict retrieval to a specific document ID"
+    )
     version: int | None = Field(
         default=None, ge=1, description="Restrict retrieval to a specific version number"
     )
@@ -102,7 +108,9 @@ class KnowledgeSearchResult(HospitalOpsBaseModel):
     category: DocumentCategory
     department_id: str | None = None
     access_level: AccessLevel
-    distance: float = Field(..., description="Raw vector distance (cosine distance: 0=identical, 2=opposite)")
+    distance: float = Field(
+        ..., description="Raw vector distance (cosine distance: 0=identical, 2=opposite)"
+    )
     similarity_score: float = Field(..., description="Normalized cosine similarity [0.0, 1.0]")
     ranking_position: int = Field(..., ge=1, description="1-based rank position in search results")
     is_table: bool = False

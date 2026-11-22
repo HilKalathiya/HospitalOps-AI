@@ -225,7 +225,9 @@ class OptimizationProblemBuilder:
                     row_list.append([(idx_y, 1.0), (idx_es, 1.0), (idx_b, ratio)])
                     lhs_list.append(req_equip)
                     rhs_list.append(np.inf)
-                    names_list.append(f"EquipBalance_{res.resource_type}_{dept.department_id}_t{t+1}")
+                    names_list.append(
+                        f"EquipBalance_{res.resource_type}_{dept.department_id}_t{t+1}"
+                    )
 
         # Constraint 4: Equipment Total Inventory Conservation: sum_d y_equip[r,d,t] <= Available[r]
         for r, res in enumerate(params.resource_requirements):
@@ -252,13 +254,17 @@ class OptimizationProblemBuilder:
                         row_list.append([(idx_z, 1.0), (idx_y1, -1.0), (idx_y0, 1.0)])
                         lhs_list.append(0.0)
                         rhs_list.append(np.inf)
-                        names_list.append(f"TransferPos_{res.resource_type}_{dept.department_id}_t{t_step+1}")
+                        names_list.append(
+                            f"TransferPos_{res.resource_type}_{dept.department_id}_t{t_step+1}"
+                        )
 
                         # z + y1 - y0 >= 0
                         row_list.append([(idx_z, 1.0), (idx_y1, 1.0), (idx_y0, -1.0)])
                         lhs_list.append(0.0)
                         rhs_list.append(np.inf)
-                        names_list.append(f"TransferNeg_{res.resource_type}_{dept.department_id}_t{t_step+1}")
+                        names_list.append(
+                            f"TransferNeg_{res.resource_type}_{dept.department_id}_t{t_step+1}"
+                        )
 
         # Assemble sparse/dense matrix A
         num_constraints = len(row_list)

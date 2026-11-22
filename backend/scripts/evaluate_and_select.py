@@ -48,7 +48,11 @@ def main() -> None:
         h_str = f"{comp.horizon}{comp.horizon_unit}"
         if w and w.val_metrics:
             t_mae = f"{w.test_metrics.mae:.2f}" if w.test_metrics else "N/A"
-            t_mape = f"{w.test_metrics.mape:.2f}%" if (w.test_metrics and w.test_metrics.mape is not None) else "N/A"
+            t_mape = (
+                f"{w.test_metrics.mape:.2f}%"
+                if (w.test_metrics and w.test_metrics.mape is not None)
+                else "N/A"
+            )
             print(
                 f"[{comp.dataset_name.upper():8}] Horizon: {h_str:4} | Winner: {w.model_type.upper():8} ({w.config_name:20}) | Val MAE: {w.val_metrics.mae:.2f} | Test MAE: {t_mae} | Test MAPE: {t_mape}"
             )

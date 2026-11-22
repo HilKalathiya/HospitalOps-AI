@@ -97,6 +97,7 @@ def build_user_message(
         )
         if citations is None:
             from app.knowledge.retrieval.contracts import SourceCitation
+
             citations = [
                 SourceCitation(
                     citation_id=getattr(b, "citation_id", "S1"),
@@ -120,7 +121,9 @@ def build_user_message(
 
     available_markers = [c.citation_marker for c in (citations or [])]
     markers_summary = (
-        ", ".join(available_markers) if available_markers else "None (No reference context available)"
+        ", ".join(available_markers)
+        if available_markers
+        else "None (No reference context available)"
     )
 
     return (
@@ -146,7 +149,9 @@ def build_correction_message(
     citation markers and use only available valid markers.
     """
     invalid_str = ", ".join(f"[{m.strip('[]')}]" for m in invalid_markers)
-    valid_str = ", ".join(f"[{m.strip('[]')}]" for m in available_markers) if available_markers else "None"
+    valid_str = (
+        ", ".join(f"[{m.strip('[]')}]" for m in available_markers) if available_markers else "None"
+    )
     return (
         f"CITATION ERROR: Your previous answer cited markers that DO NOT exist in the supplied context: {invalid_str}.\n"
         f"The ONLY valid citation markers permitted are: {valid_str}.\n"

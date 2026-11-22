@@ -34,7 +34,9 @@ class OptimizationPlanSummary(BaseModel):
     run_id: str = Field(description="Unique stable plan identifier")
     plan_name: str = Field(description="Descriptive scenario plan name")
     status: str = Field(description="Solver termination status (e.g. 'OPTIMAL')")
-    is_optimal: bool = Field(description="Whether the mathematical solver verified global optimality")
+    is_optimal: bool = Field(
+        description="Whether the mathematical solver verified global optimality"
+    )
     surge_beds_activated: int = Field(default=0, ge=0, description="Total surge beds scheduled")
     summary: str = Field(default="", description="Executive plain-language plan summary")
 
@@ -47,11 +49,19 @@ class GetOptimizationExplanationOutput(BaseModel):
     solver_status: str = Field(default="OPTIMAL", description="Mathematical solver status")
     is_optimal: bool = Field(default=True, description="Whether plan is mathematically optimal")
     summary: str = Field(default="", description="Executive summary of allocation recommendations")
-    surge_beds_allocated: int = Field(default=0, ge=0, description="Surge beds activated across all departments")
-    binding_constraints_count: int = Field(default=0, ge=0, description="Number of binding resource bottlenecks")
-    binding_constraints_sample: list[str] = Field(default_factory=list, description="Sample descriptions of binding bottlenecks")
+    surge_beds_allocated: int = Field(
+        default=0, ge=0, description="Surge beds activated across all departments"
+    )
+    binding_constraints_count: int = Field(
+        default=0, ge=0, description="Number of binding resource bottlenecks"
+    )
+    binding_constraints_sample: list[str] = Field(
+        default_factory=list, description="Sample descriptions of binding bottlenecks"
+    )
     plans_count: int = Field(ge=0, description="Count of optimization plans returned")
-    recent_plans: list[OptimizationPlanSummary] = Field(default_factory=list, description="Recent optimization plans")
+    recent_plans: list[OptimizationPlanSummary] = Field(
+        default_factory=list, description="Recent optimization plans"
+    )
 
 
 class GetOptimizationExplanationTool(AgentTool):
@@ -97,14 +107,25 @@ class GetOptimizationExplanationTool(AgentTool):
 
     @property
     def tags(self) -> list[str]:
-        return ["optimization", "milp", "surge-beds", "equipment", "binding-constraints", "tradeoffs"]
+        return [
+            "optimization",
+            "milp",
+            "surge-beds",
+            "equipment",
+            "binding-constraints",
+            "tradeoffs",
+        ]
 
     @property
     def timeout_seconds(self) -> float:
         return 25.0
 
     async def execute(self, arguments: BaseModel, context: ToolContext) -> ToolResult:
-        args = arguments if isinstance(arguments, GetOptimizationExplanationInput) else GetOptimizationExplanationInput.model_validate(arguments)
+        args = (
+            arguments
+            if isinstance(arguments, GetOptimizationExplanationInput)
+            else GetOptimizationExplanationInput.model_validate(arguments)
+        )
 
         try:
             if args.run_id:
@@ -116,7 +137,8 @@ class GetOptimizationExplanationTool(AgentTool):
 
                 surge_beds_count = (
                     opt_resp.result.objective_breakdown.total_surge_beds_activated
-                    if hasattr(opt_resp.result, "objective_breakdown") and opt_resp.result.objective_breakdown
+                    if hasattr(opt_resp.result, "objective_breakdown")
+                    and opt_resp.result.objective_breakdown
                     else getattr(opt_resp.result, "total_surge_beds_allocated", 0)
                 )
 
@@ -150,7 +172,12 @@ class GetOptimizationExplanationTool(AgentTool):
                     f"- Binding Bottlenecks ({len(expl.binding_constraints)}): "
                     + ", ".join(binding_sample)
                     + "\n- Allocation Rationales: "
-                    + "; ".join([f"{d.department_id}: {d.allocation_rationale}" for d in expl.department_explanations[:3]])
+                    + "; ".join(
+                        [
+                            f"{d.department_id}: {d.allocation_rationale}"
+                            for d in expl.department_explanations[:3]
+                        ]
+                    )
                     + "\nNote: This is an advisory recommendation requiring administrative approval prior to implementation."
                 )
 
@@ -202,14 +229,16 @@ class GetOptimizationExplanationTool(AgentTool):
             summaries: list[OptimizationPlanSummary] = []
             lines = [f"Found {len(opts)} optimization plan(s):"]
 
-            for o in opts[:args.limit]:
+            for o in opts[: args.limit]:
                 s_beds = (
                     o.result.objective_breakdown.total_surge_beds_activated
                     if hasattr(o.result, "objective_breakdown") and o.result.objective_breakdown
                     else getattr(o.result, "total_surge_beds_allocated", 0)
                 )
                 is_opt = getattr(
-                    o.result, "is_optimal", str(getattr(o.result, "solver_status", "")).lower() == "optimal"
+                    o.result,
+                    "is_optimal",
+                    str(getattr(o.result, "solver_status", "")).lower() == "optimal",
                 )
                 stat = getattr(o.result, "status", getattr(o.result, "solver_status", "COMPLETED"))
                 prov_items.append(

@@ -39,7 +39,9 @@ class ResultRanker:
         max_chunks_per_document: int = 3,
         max_chunks_per_doc: int = 3,
     ) -> None:
-        self.default_max_chunks = max_chunks_per_document if max_chunks_per_document != 3 else max_chunks_per_doc
+        self.default_max_chunks = (
+            max_chunks_per_document if max_chunks_per_document != 3 else max_chunks_per_doc
+        )
 
     def _rank_impl(
         self,
@@ -53,7 +55,11 @@ class ResultRanker:
         **kwargs: Any,
     ) -> list[KnowledgeSearchResult]:
         hits = raw_hits or candidates or []
-        limit_doc = max_chunks_per_doc if max_chunks_per_doc is not None else kwargs.get("max_chunks_per_document", getattr(self, "default_max_chunks", 3))
+        limit_doc = (
+            max_chunks_per_doc
+            if max_chunks_per_doc is not None
+            else kwargs.get("max_chunks_per_document", getattr(self, "default_max_chunks", 3))
+        )
         return self._do_rank_and_format(
             raw_hits=hits,
             filters=filters,

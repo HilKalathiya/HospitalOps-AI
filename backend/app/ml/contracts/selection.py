@@ -14,7 +14,9 @@ class ModelEvaluationEntry(BaseModel):
     status: Literal["SUCCESS", "FAILED", "MISSING"] = Field(
         default="SUCCESS", description="Execution and evaluation status"
     )
-    error_message: str | None = Field(default=None, description="Failure reason if status != SUCCESS")
+    error_message: str | None = Field(
+        default=None, description="Failure reason if status != SUCCESS"
+    )
 
     val_metrics: EvaluationMetrics | None = Field(
         default=None, description="Validation split metrics (sole criterion for selection)"
@@ -23,8 +25,12 @@ class ModelEvaluationEntry(BaseModel):
         default=None, description="Held-out test split metrics (reported post-selection only)"
     )
 
-    run_id: str | None = Field(default=None, description="Associated experiment run UUID if available")
-    rank: int | None = Field(default=None, description="Leaderboard rank based strictly on validation score")
+    run_id: str | None = Field(
+        default=None, description="Associated experiment run UUID if available"
+    )
+    rank: int | None = Field(
+        default=None, description="Leaderboard rank based strictly on validation score"
+    )
 
 
 class SelectionComparison(BaseModel):
@@ -47,7 +53,8 @@ class SelectionComparison(BaseModel):
         default=None, description="Winning model chosen strictly on validation metrics"
     )
     leaderboard: list[ModelEvaluationEntry] = Field(
-        default_factory=list, description="All evaluated and missing/failed model entries ordered by rank"
+        default_factory=list,
+        description="All evaluated and missing/failed model entries ordered by rank",
     )
     summary_notes: str = Field(
         default="", description="Operational notes or warnings about this forecast configuration"
@@ -65,5 +72,9 @@ class BenchmarkSelectionReport(BaseModel):
     )
 
     total_runs_evaluated: int = Field(default=0, description="Total run artifacts evaluated")
-    successful_runs: int = Field(default=0, description="Total runs with complete validation metrics")
-    failed_or_missing_runs: int = Field(default=0, description="Runs that failed or models with missing runs")
+    successful_runs: int = Field(
+        default=0, description="Total runs with complete validation metrics"
+    )
+    failed_or_missing_runs: int = Field(
+        default=0, description="Runs that failed or models with missing runs"
+    )

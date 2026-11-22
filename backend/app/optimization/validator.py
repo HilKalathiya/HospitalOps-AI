@@ -72,7 +72,9 @@ class SolutionValidator:
 
         integrality_ok = max_int_viol <= tolerance
         if not integrality_ok:
-            details.append(f"Integrality violation detected: max fractional part is {max_int_viol:.6f}")
+            details.append(
+                f"Integrality violation detected: max fractional part is {max_int_viol:.6f}"
+            )
 
         # 2. Non-negativity check
         min_val = float(np.min(x_sol))
@@ -119,7 +121,9 @@ class SolutionValidator:
                         f"{period_equip:.1f} > {avail}"
                     )
 
-        is_valid = integrality_ok and non_neg_ok and surge_ok and equip_ok and (max_violation <= tolerance)
+        is_valid = (
+            integrality_ok and non_neg_ok and surge_ok and equip_ok and (max_violation <= tolerance)
+        )
         if is_valid:
             details.append("All constraints and integrality bounds verified successfully.")
 
@@ -151,14 +155,20 @@ class SolutionValidator:
         for t in range(horizon):
             period_surge = sum(round(x_sol[var_map.idx_surge(d, t)]) for d in range(num_depts))
             if abs(period_surge - params.max_surge_beds) <= tolerance:
-                binding.append(f"Surge Bed Capacity fully exhausted at Step {t+1} ({period_surge}/{params.max_surge_beds} beds)")
+                binding.append(
+                    f"Surge Bed Capacity fully exhausted at Step {t+1} ({period_surge}/{params.max_surge_beds} beds)"
+                )
 
         # 2. Resource pool inventory binding
         for r, res in enumerate(params.resource_requirements):
             avail = res.available_inventory
             for t in range(horizon):
-                period_equip = sum(round(x_sol[var_map.idx_equip(r, d, t)]) for d in range(num_depts))
+                period_equip = sum(
+                    round(x_sol[var_map.idx_equip(r, d, t)]) for d in range(num_depts)
+                )
                 if abs(period_equip - avail) <= tolerance and avail > 0:
-                    binding.append(f"Resource Inventory for '{res.resource_type}' fully utilized at Step {t+1} ({period_equip}/{avail} units)")
+                    binding.append(
+                        f"Resource Inventory for '{res.resource_type}' fully utilized at Step {t+1} ({period_equip}/{avail} units)"
+                    )
 
         return binding

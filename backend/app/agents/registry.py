@@ -64,7 +64,9 @@ class ToolRegistry:
 
     def get_authorized_tools(self, permissions: list[str]) -> list[AgentTool]:
         """Filter registered tools to those authorized by user permissions."""
-        return [t for t in self._tools.values() if t.required_permission in permissions and t.enabled]
+        return [
+            t for t in self._tools.values() if t.required_permission in permissions and t.enabled
+        ]
 
     def discover_tools(
         self,
@@ -147,7 +149,9 @@ class ToolRegistry:
         authorized = self.get_authorized_tools(user_permissions)
         return [tool.to_openai_tool() for tool in authorized]
 
-    def check_version_compatibility(self, tool_name: str, requested_version: str) -> tuple[bool, str]:
+    def check_version_compatibility(
+        self, tool_name: str, requested_version: str
+    ) -> tuple[bool, str]:
         """
         Check if a requested tool contract version is compatible with the registered implementation.
         """
