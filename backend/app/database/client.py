@@ -443,6 +443,21 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── agent_traces ──────────────────────────────────────────────────────────
+    # trace_id: unique multi-agent execution trace identifier.
+    # parent_execution_id: lookup trace by orchestrator execution ID.
+    # user_id + created_at: user audit query.
+    await db["agent_traces"].create_indexes(
+        [
+            IndexModel([("trace_id", ASCENDING)], unique=True, name="agent_traces_id_unique"),
+            IndexModel([("parent_execution_id", ASCENDING)], name="agent_traces_parent_exec"),
+            IndexModel(
+                [("user_id", ASCENDING), ("created_at", DESCENDING)],
+                name="agent_traces_user_created",
+            ),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 

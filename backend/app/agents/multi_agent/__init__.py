@@ -5,6 +5,7 @@ Provides typed contracts, specialist definitions, domain specialists,
 and deterministic registry primitives for multi-agent decision intelligence.
 """
 
+from app.agents.multi_agent.aggregator import MultiAgentAggregator
 from app.agents.multi_agent.contracts import (
     STANDARD_SPECIALISTS,
     AggregatedSpecialistResult,
@@ -21,6 +22,7 @@ from app.agents.multi_agent.contracts import (
     SpecialistId,
     SpecialistResult,
 )
+from app.agents.multi_agent.coordinator import MultiAgentCoordinator
 from app.agents.multi_agent.registry import SpecialistRegistry
 from app.agents.multi_agent.specialists import (
     BaseSpecialist,
@@ -29,6 +31,7 @@ from app.agents.multi_agent.specialists import (
     OptimizationSpecialist,
     SimulationSpecialist,
 )
+from app.agents.multi_agent.tracer import MultiAgentExecutionTracker
 
 __all__ = [
     "STANDARD_SPECIALISTS",
@@ -36,9 +39,12 @@ __all__ = [
     "AggregationStatus",
     "DelegationPlan",
     "DelegationRequest",
+    "MultiAgentAggregator",
+    "MultiAgentCoordinator",
     "MultiAgentErrorCode",
     "MultiAgentEventType",
     "MultiAgentExecutionTrace",
+    "MultiAgentExecutionTracker",
     "MultiAgentTraceEvent",
     "SpecialistDefinition",
     "SpecialistDomain",

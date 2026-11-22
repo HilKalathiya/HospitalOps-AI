@@ -1,7 +1,7 @@
 # ADR-018: Multi-Agent Coordination & Specialized Decision Agents Architecture
 
 ## Status
-**Proposed & Accepted (Architecture, Contracts & Specialist Implementations Completed in Chunks 5.6.1 & 5.6.2; Coordinator & Aggregator Runtime Planned in Chunks 5.6.3–5.6.5)**
+**Accepted & Implemented (Architecture, Contracts, Specialists, Coordinator, Aggregator & Execution Tracking Completed in Chunks 5.6.1–5.6.3; Endpoints & UI Planned in Chunk 5.6.4)**
 
 ---
 
@@ -193,6 +193,6 @@ Every multi-agent execution generates an auditable trace (`MultiAgentExecutionTr
 The full implementation of Chunk 5.6 is partitioned into controlled sub-tasks:
 1. **Chunk 5.6.1 (Completed):** Multi-Agent Architecture, Typed Contracts (`contracts.py`), and Contract-Level Tests.
 2. **Chunk 5.6.2 (Completed):** Specialist Agent Implementations (`ForecastingSpecialist`, `SimulationSpecialist`, `OptimizationSpecialist`, `KnowledgeSpecialist`) and Specialist Registry (`registry.py`).
-3. **Chunk 5.6.3 (Next):** Multi-Agent Coordinator Runtime, Concurrency Throttling, and Aggregator Implementation.
-4. **Chunk 5.6.4:** Primary Agent Delegation Integration, REST API Endpoints, and Frontend Transparency UI.
+3. **Chunk 5.6.3 (Completed):** Multi-Agent Coordinator Runtime (`MultiAgentCoordinator`), Bounded Concurrency Semaphore, Evidence Aggregator (`MultiAgentAggregator`), Conflict & Inconsistency Detection, Execution Telemetry & Audit Persistence (`MultiAgentExecutionTracker`, `AgentTraceRepository`).
+4. **Chunk 5.6.4 (Next):** Primary Agent Delegation Integration, REST API Endpoints, and Frontend Transparency UI.
 5. **Chunk 5.6.5:** End-to-End Multi-Agent Verification, Regression Suite, and Documentation Finalization.
