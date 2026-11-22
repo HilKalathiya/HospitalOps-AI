@@ -356,6 +356,41 @@ class DelegationPlan(HospitalOpsBaseModel):
         return self
 
 
+class DelegationDecision(HospitalOpsBaseModel):
+    """
+    Contract representing the primary agent planner's decision whether and how
+    to delegate an operational inquiry to domain specialists (Chunk 5.6.4).
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        use_enum_values=True,
+        validate_assignment=True,
+        extra="forbid",
+    )
+
+    should_delegate: bool = Field(
+        default=False,
+        description="Whether this operational request requires specialist delegation",
+    )
+    delegation_mode: str = Field(
+        default="NONE",
+        description="Delegation mode: 'NONE', 'SINGLE_SPECIALIST', or 'MULTI_SPECIALIST'",
+    )
+    selected_specialists: list[SpecialistId] = Field(
+        default_factory=list,
+        description="List of selected specialist identifiers",
+    )
+    delegation_plan: DelegationPlan | None = Field(
+        default=None,
+        description="Validated delegation plan if delegation is selected",
+    )
+    reasoning: str = Field(
+        default="",
+        description="Operational rationale for delegation or non-delegation",
+    )
+
+
 # ==============================================================================
 # 4. SPECIALIST RESULT & AGGREGATION CONTRACTS
 # ==============================================================================

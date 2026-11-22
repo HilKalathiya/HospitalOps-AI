@@ -153,6 +153,19 @@ class AgentEvidenceCollector:
         self._total_chars += len(evidence.summary)
         return evidence
 
+    def add_existing_evidence(self, evidence: AgentEvidence) -> None:
+        """
+        Record an already-instantiated AgentEvidence artifact (e.g. from multi-agent coordination).
+        Enforces character budget clamping.
+        """
+        item_len = len(evidence.summary)
+        if self._total_chars + item_len > self.max_chars:
+            allowed = max(100, self.max_chars - self._total_chars)
+            evidence.summary = evidence.summary[:allowed] + "... [Evidence truncated due to context budget]"
+
+        self._items.append(evidence)
+        self._total_chars += len(evidence.summary)
+
     def get_by_category(self, category: EvidenceCategory) -> list[AgentEvidence]:
         return [item for item in self._items if item.category == category]
 

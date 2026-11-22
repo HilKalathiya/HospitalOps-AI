@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import uuid
 from typing import Any
 
 from app.agents.context_builder import AgentContextBuilder
@@ -21,6 +22,12 @@ from app.agents.contracts import (
     PlannerDecision,
 )
 from app.agents.evidence import AgentEvidenceCollector
+from app.agents.multi_agent.contracts import (
+    DelegationDecision,
+    DelegationPlan,
+    DelegationRequest,
+    SpecialistId,
+)
 from app.agents.tools.base import AgentTool
 from app.knowledge.generation.provider import LLMMessage, LLMProvider, MockLLMProvider
 
@@ -743,3 +750,229 @@ class AgentPlanner:
                 "Clinical staff and operational leadership retain final authority over implementation.",
             ],
         )
+
+    def plan_delegation(
+        self,
+        task: str,
+        task_plan: AgentTaskPlan,
+        available_specialists: list[SpecialistId],
+        user_permissions: list[str] | None = None,
+        parent_execution_id: str = "",
+        conversation_context: AgentConversationContext | None = None,
+    ) -> DelegationDecision:
+        """
+        Evaluate operational inquiry to determine whether and which domain specialists
+        should be invoked (Chunk 5.6.4).
+        """
+        if not task_plan.requires_tools or task_plan.task_type in (
+            "UNSUPPORTED",
+            "GENERAL",
+            "SUMMARY",
+        ):
+            return DelegationDecision(
+                should_delegate=False,
+                delegation_mode="NONE",
+                reasoning="Task does not require domain specialist delegation.",
+            )
+
+        task_lower = task.lower()
+        active_specialists: list[SpecialistId] = []
+
+        # 1. Forecasting domain detection
+        is_forecast = (
+            task_plan.task_type == "FORECAST"
+            or "get_existing_forecast" in task_plan.candidate_tool_ids
+            or any(
+                kw in task_lower
+                for kw in [
+                    "forecast",
+                    "icu occupancy",
+                    "census forecast",
+                    "census trend",
+                    "predict",
+                    "trajectory",
+                    "projected demand",
+                    "weekly icu",
+                ]
+            )
+            or ("project" in task_lower and "simulation" not in task_lower)
+            or (
+                "admissions" in task_lower
+                and not any(
+                    s in task_lower
+                    for s in [
+                        "admissions increase",
+                        "increase by",
+                        "what happens if",
+                        "surge by",
+                    ]
+                )
+            )
+        )
+        if is_forecast and SpecialistId.FORECASTING in available_specialists:
+            if SpecialistId.FORECASTING not in active_specialists:
+                active_specialists.append(SpecialistId.FORECASTING)
+
+        # 2. Simulation domain detection
+        is_simulation = (
+            task_plan.task_type == "SIMULATION"
+            or "get_simulation_result" in task_plan.candidate_tool_ids
+            or any(
+                kw in task_lower
+                for kw in [
+                    "simulation",
+                    "simulate",
+                    "what-if",
+                    "what if",
+                    "scenario",
+                    "admissions increase",
+                    "increase by",
+                    "surge by",
+                    "capacity change",
+                    "bottleneck",
+                    "stress scenario",
+                ]
+            )
+        )
+        if is_simulation and SpecialistId.SIMULATION in available_specialists:
+            if SpecialistId.SIMULATION not in active_specialists:
+                active_specialists.append(SpecialistId.SIMULATION)
+
+        # 3. Optimization domain detection
+        is_optimization = (
+            task_plan.task_type == "OPTIMIZATION"
+            or "get_optimization_explanation" in task_plan.candidate_tool_ids
+            or any(
+                kw in task_lower
+                for kw in [
+                    "optimization",
+                    "optimize",
+                    "optimizer",
+                    "reallocation",
+                    "reallocate",
+                    "surge beds",
+                    "ventilator",
+                    "binding constraint",
+                    "slack",
+                    "milp",
+                    "mip",
+                    "allocation plan",
+                    "allocation options",
+                    "equipment allocation",
+                ]
+            )
+            or ("allocation" in task_lower and "resource" in task_lower)
+        )
+        if is_optimization and SpecialistId.OPTIMIZATION in available_specialists:
+            if SpecialistId.OPTIMIZATION not in active_specialists:
+                active_specialists.append(SpecialistId.OPTIMIZATION)
+
+        # 4. Knowledge domain detection
+        is_knowledge = (
+            task_plan.task_type == "KNOWLEDGE"
+            or any(
+                t in task_plan.candidate_tool_ids
+                for t in ["search_hospital_knowledge", "answer_from_hospital_knowledge"]
+            )
+            or any(
+                kw in task_lower
+                for kw in [
+                    "policy",
+                    "protocol",
+                    "sop",
+                    "guideline",
+                    "guidance",
+                    "code yellow",
+                    "overflow",
+                    "transfer criteria",
+                    "procedure",
+                    "governance",
+                    "manual",
+                    "standard operating",
+                ]
+            )
+        )
+        if is_knowledge and SpecialistId.KNOWLEDGE in available_specialists:
+            if SpecialistId.KNOWLEDGE not in active_specialists:
+                active_specialists.append(SpecialistId.KNOWLEDGE)
+
+        # Filter strictly to max 4 specialists
+        selected = active_specialists[:4]
+
+        if not selected:
+            return DelegationDecision(
+                should_delegate=False,
+                delegation_mode="NONE",
+                reasoning="Inquiry does not require any available specialist.",
+            )
+
+        mode = "SINGLE_SPECIALIST" if len(selected) == 1 else "MULTI_SPECIALIST"
+
+        # Build delegation requests
+        exec_id = parent_execution_id or f"exec_{uuid.uuid4().hex[:8]}"
+        delegations: list[DelegationRequest] = []
+        for spec_id in selected:
+            desc = self._build_specialist_task_description(spec_id, task)
+            del_id = f"del_{spec_id.value[:4]}_{uuid.uuid4().hex[:6]}"
+            evidence_ids = (
+                list(conversation_context.referenced_evidence_ids)
+                if conversation_context
+                else []
+            )
+            delegations.append(
+                DelegationRequest(
+                    parent_execution_id=exec_id,
+                    delegation_id=del_id,
+                    target_specialist_id=spec_id,
+                    task_description=desc,
+                    context_evidence_ids=evidence_ids,
+                    timeout_seconds=20.0,
+                    max_evidence_items=5,
+                    max_output_chars=3000,
+                )
+            )
+
+        try:
+            plan = DelegationPlan(
+                parent_execution_id=exec_id,
+                delegations=delegations,
+                max_depth=1,
+                total_timeout_seconds=30.0,
+                dependencies={},
+            )
+            return DelegationDecision(
+                should_delegate=True,
+                delegation_mode=mode,
+                selected_specialists=selected,
+                delegation_plan=plan,
+                reasoning=(
+                    f"Selected {len(delegations)} specialist(s) under {mode} mode: "
+                    f"{[s.value for s in selected]}."
+                ),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to construct valid DelegationPlan: %s. Falling back to non-delegated.",
+                exc,
+            )
+            return DelegationDecision(
+                should_delegate=False,
+                delegation_mode="NONE",
+                reasoning=f"Delegation planning validation failed: {exc}",
+            )
+
+    def _build_specialist_task_description(
+        self,
+        specialist_id: SpecialistId,
+        user_task: str,
+    ) -> str:
+        """Formulate a specific, bounded operational analytical inquiry for a specialist."""
+        prefix_map = {
+            SpecialistId.FORECASTING: "Analyze admissions and ICU capacity demand forecasts with verified prediction intervals for",
+            SpecialistId.SIMULATION: "Evaluate what-if surge simulation parameters, shortage days, and capacity bottlenecks for",
+            SpecialistId.OPTIMIZATION: "Explain resource optimization bed and equipment allocations, binding constraints, and trade-offs for",
+            SpecialistId.KNOWLEDGE: "Retrieve authoritative hospital operational policies, capacity SOPs, and clinical protocols for",
+        }
+        prefix = prefix_map.get(specialist_id, "Investigate operational requirements for")
+        clean_task = user_task.strip()
+        return f"{prefix}: {clean_task[:400]}"

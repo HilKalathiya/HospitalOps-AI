@@ -180,6 +180,10 @@ class AgentRunOptions(HospitalOpsBaseModel):
         default=45.0, ge=5.0, le=60.0, description="Execution timeout limit"
     )
     temperature: float = Field(default=0.0, ge=0.0, le=1.0, description="Sampling temperature")
+    enable_delegation: bool | None = Field(
+        default=None,
+        description="Explicitly enable (True) or disable (False) multi-agent delegation, or auto-decide (None)",
+    )
 
 
 class AgentRunRequest(HospitalOpsBaseModel):
@@ -307,6 +311,12 @@ class AgentRunResponse(HospitalOpsBaseModel):
     requires_human_review: bool = Field(
         default=True, description="Enforces human oversight requirement"
     )
+    multi_agent_trace: Any | None = Field(
+        default=None, description="Multi-agent execution trace if delegation was performed (Chunk 5.6)"
+    )
+    aggregated_result: Any | None = Field(
+        default=None, description="Aggregated specialist result if delegation was performed (Chunk 5.6)"
+    )
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -391,5 +401,8 @@ class AgentExecutionTrace(HospitalOpsBaseModel):
     task_plan: AgentTaskPlan | None = None
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
+    multi_agent_trace_id: str | None = Field(
+        default=None, description="Linked multi-agent execution trace ID if delegated (Chunk 5.6)"
+    )
     stop_reason: StopReason = StopReason.SUFFICIENT_EVIDENCE
     status: AgentExecutionStatus = AgentExecutionStatus.COMPLETED

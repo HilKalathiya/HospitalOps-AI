@@ -8,6 +8,7 @@ to the centralized AgentOrchestrator.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from app.agents.contracts import (
     AgentHealthResponse,
@@ -19,6 +20,11 @@ from app.agents.planner import AgentPlanner
 from app.agents.registry import AgentRegistry, ToolRegistry
 from app.knowledge.generation.provider import LLMProvider
 from app.models.user import UserDocument
+
+if TYPE_CHECKING:
+    from app.agents.multi_agent.coordinator import MultiAgentCoordinator
+    from app.agents.multi_agent.registry import SpecialistRegistry
+    from app.repositories.agent_traces import AgentTraceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +42,10 @@ class AgentRuntime:
         tool_registry: ToolRegistry,
         agent_registry: AgentRegistry,
         provider: LLMProvider,
+        specialist_registry: SpecialistRegistry | None = None,
+        multi_agent_coordinator: MultiAgentCoordinator | None = None,
+        trace_repository: AgentTraceRepository | None = None,
+        enable_multi_agent: bool | None = None,
     ) -> None:
         self.tool_registry = tool_registry
         self.agent_registry = agent_registry
@@ -44,8 +54,14 @@ class AgentRuntime:
             tool_registry=tool_registry,
             agent_registry=agent_registry,
             provider=provider,
+            specialist_registry=specialist_registry,
+            multi_agent_coordinator=multi_agent_coordinator,
+            trace_repository=trace_repository,
+            enable_multi_agent=enable_multi_agent,
         )
         self.planner: AgentPlanner = self.orchestrator.planner
+        self.specialist_registry = self.orchestrator.specialist_registry
+        self.multi_agent_coordinator = self.orchestrator.multi_agent_coordinator
 
     async def check_health(self) -> AgentHealthResponse:
         """Inspect agent framework and provider readiness."""

@@ -92,6 +92,7 @@ class AgentResponseGenerator:
         is_partial: bool = False,
         stop_reason_notes: str | None = None,
         conversation_context: AgentConversationContext | None = None,
+        conflicts: list[str] | None = None,
     ) -> GroundedResponseResult:
         """
         Synthesize the final answer from collected evidence and conversation context.
@@ -116,6 +117,10 @@ class AgentResponseGenerator:
         limitations: list[str] = []
         if is_partial and stop_reason_notes:
             limitations.append(f"Partial Execution: {stop_reason_notes}")
+
+        if conflicts:
+            for conflict in conflicts:
+                limitations.append(f"Domain Inconsistency: {conflict}")
 
         # Check domain composition in evidence to add relevant domain caveats
         if evidence_collector.get_by_category(EvidenceCategory.FORECAST):
@@ -146,6 +151,7 @@ class AgentResponseGenerator:
                 limitations,
                 is_partial,
                 conversation_context,
+                conflicts,
             )
 
         # Real LLM generation
@@ -202,6 +208,7 @@ class AgentResponseGenerator:
         limitations: list[str],
         is_partial: bool,
         conversation_context: AgentConversationContext | None = None,
+        conflicts: list[str] | None = None,
     ) -> GroundedResponseResult:
         """Deterministic synthesis for tests and mock environments."""
         evidence_items = evidence_collector.items
@@ -251,6 +258,10 @@ class AgentResponseGenerator:
 
         summaries = [f"• [{str(ev.category)}] {ev.summary}" for ev in evidence_items]
         combined = "\n\n".join(summaries)
+
+        if conflicts:
+            conflict_lines = "\n".join(f"• Inconsistency: {c}" for c in conflicts)
+            combined += f"\n\nCross-Domain Inconsistencies:\n{conflict_lines}"
 
         answer = (
             f"Operational Analysis for: '{task}'\n\n"

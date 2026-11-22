@@ -980,4 +980,62 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - All 62 multi-agent tests passing (contracts, specialists, runtime).
      - Full backend regression suite: 373 passed, 10 skipped, 0 failures.
      - `python -m ruff check backend`: 0 lint errors.
-* **Next Planned Work:** Milestone 5, Chunk 5.6.4 (Primary Agent Delegation Integration, REST API Endpoints, and Frontend Transparency UI).
+* **Next Planned Work:** Milestone 5, Chunk 5.6.4 (Primary Agent Delegation Integration) — Completed.
+
+---
+
+## 26. Completed Workstream: Milestone 5, Chunk 5.6.4 (Primary Agent Integration with Multi-Agent Coordination)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Primary Agent Delegation Decision & Planning (`backend/app/agents/planner.py`):**
+     - Implemented `AgentPlanner.plan_delegation(...)`:
+       - Analyzes operational query requirements, task type, and candidate tools.
+       - Returns typed `DelegationDecision` (`NONE`, `SINGLE_SPECIALIST`, `MULTI_SPECIALIST`).
+       - Enforces maximum 4 specialists ceiling and prevents duplicate specialist selection.
+       - Constructs bounded `DelegationPlan` with `max_depth = 1` and explicit timeouts.
+       - Generates bounded, domain-specific analytical inquiries via `_build_specialist_task_description`.
+  2. **Orchestrator Execution Lifecycle Integration (`backend/app/agents/orchestrator.py`):**
+     - Integrated `AgentOrchestrator` with `MultiAgentCoordinator`, `MultiAgentAggregator`, and `MultiAgentExecutionTracker`.
+     - Supports optional per-request delegation control via `options.enable_delegation` (`None` = auto-decide, `False` = bypass, `True` = force delegation).
+     - Derives permissions strictly from authenticated server-side user context (`ToolContext`), preventing client-side spoofing.
+     - Preserves clinical safety guard: clinical diagnosis, treatment, or prescribing inquiries are rejected at Step 3 (`OUT_OF_SCOPE`) before any delegation or planning.
+     - Seamless fallback: when delegation is not required or disabled, falls through cleanly to the existing single-agent sequential tool calling loop.
+  3. **Evidence Ingestion & Response Synthesis (`backend/app/agents/evidence.py`, `backend/app/agents/response_generator.py`):**
+     - Added `AgentEvidenceCollector.add_existing_evidence(...)` with character budget clamping.
+     - Preserves epistemic classification (`OBSERVED_DATA`, `FORECAST`, `SIMULATION`, `OPTIMIZATION`, `KNOWLEDGE_POLICY`), provenance records, and document citations from specialists.
+     - Updated response generation to format cross-domain inconsistencies and contradictions detected by `MultiAgentAggregator`.
+     - Strict non-negotiable healthcare safety boundary: `requires_human_review = True` on all responses.
+  4. **Runtime & Dependency Wiring (`backend/app/agents/runtime.py`, `backend/app/api/dependencies.py`):**
+     - Updated `AgentRuntime` and FastAPI dependencies to wire `SpecialistRegistry` (all 4 specialists), `AgentTraceRepository`, and `MultiAgentCoordinator`.
+  5. **Standardized Tool Error Code Mapping:**
+     - Implemented `_map_multi_agent_error_code` converting `MultiAgentErrorCode` (`EXECUTION_TIMEOUT`, `PERMISSION_DENIED`, `SPECIALIST_NOT_FOUND`, `SPECIALIST_DISABLED`, `POLICY_VIOLATION`) into `ToolErrorCode` for `ToolCallRecord` audit integrity.
+  6. **Comprehensive 20-Scenario Integration Suite (`backend/tests/test_agent_multi_agent_integration.py`):**
+     - Covered all 20 required integration scenarios:
+       1. `test_normal_request_does_not_trigger_delegation`
+       2. `test_forecast_only_request_selects_forecasting_specialist`
+       3. `test_policy_only_request_selects_knowledge_specialist`
+       4. `test_multi_domain_request_selects_multiple_appropriate_specialists`
+       5. `test_irrelevant_specialists_are_not_invoked`
+       6. `test_more_than_four_specialists_cannot_be_selected`
+       7. `test_duplicate_specialist_selection_rejected`
+       8. `test_unknown_specialist_cannot_execute`
+       9. `test_client_permissions_cannot_override_server_permissions`
+       10. `test_clinical_request_rejected_by_safety_boundary`
+       11. `test_one_specialist_failure_preserves_successful_results`
+       12. `test_all_specialist_failure_represented_accurately`
+       13. `test_aggregated_evidence_reaches_response_generator`
+       14. `test_evidence_provenance_and_epistemic_labels_survive`
+       15. `test_forecast_simulation_optimization_outputs_distinct`
+       16. `test_trace_records_linked_to_parent_and_user`
+       17. `test_parent_cancellation_propagates_to_specialists`
+       18. `test_coordinator_timeout_handled_safely`
+       19. `test_trace_persistence_failure_does_not_fabricate_success`
+       20. `test_existing_non_delegated_agent_behavior_unchanged`
+  7. **Full Verification & Zero Regressions:**
+     - All 20 integration tests passed.
+     - All 176 agent and multi-agent tests passed (contracts, specialists, runtime, integration, orchestrator, sessions, memory, tools).
+     - Full backend regression suite: 405 passed, 10 skipped, 0 failures.
+     - `python -m ruff check backend`: 0 lint errors.
+     - `git diff --check`: clean.
+* **Next Planned Work:** Milestone 5, Chunk 5.6.5 (Multi-Agent REST API Endpoints, Telemetry Inspection & Frontend Decision UI).

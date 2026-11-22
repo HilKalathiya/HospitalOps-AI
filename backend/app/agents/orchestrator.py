@@ -15,11 +15,12 @@ Coordinates:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
 from collections import OrderedDict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.agents.contracts import (
     AgentExecutionStatus,
@@ -30,9 +31,24 @@ from app.agents.contracts import (
     ProvenanceItem,
     StopReason,
     ToolCallRecord,
+    ToolErrorCode,
 )
 from app.agents.evidence import AgentEvidenceCollector
 from app.agents.lifecycle import OrchestrationState, OrchestrationStateTracker
+from app.agents.multi_agent.aggregator import MultiAgentAggregator
+from app.agents.multi_agent.contracts import (
+    AggregationStatus,
+    SpecialistExecutionStatus,
+)
+from app.agents.multi_agent.coordinator import MultiAgentCoordinator
+from app.agents.multi_agent.registry import SpecialistRegistry
+from app.agents.multi_agent.specialists import (
+    ForecastingSpecialist,
+    KnowledgeSpecialist,
+    OptimizationSpecialist,
+    SimulationSpecialist,
+)
+from app.agents.multi_agent.tracer import MultiAgentExecutionTracker
 from app.agents.planner import AgentPlanner
 from app.agents.policies import DISCLAIMER_TEXT, AgentPolicyEnforcer
 from app.agents.registry import AgentRegistry, ToolRegistry
@@ -45,7 +61,30 @@ from app.knowledge.generation.provider import LLMProvider
 from app.models.base import utc_now
 from app.models.user import UserDocument
 
+if TYPE_CHECKING:
+    from app.repositories.agent_traces import AgentTraceRepository
+
 logger = logging.getLogger(__name__)
+
+
+def _enum_str(val: Any) -> str:
+    """Safely return string representation of enum or str."""
+    return val.value if hasattr(val, "value") else str(val)
+
+
+def _map_multi_agent_error_code(code: Any) -> ToolErrorCode | None:
+    """Map MultiAgentErrorCode to corresponding standardized ToolErrorCode."""
+    if not code:
+        return None
+    val = code.value if hasattr(code, "value") else str(code)
+    mapping = {
+        "EXECUTION_TIMEOUT": ToolErrorCode.EXECUTION_TIMEOUT,
+        "PERMISSION_DENIED": ToolErrorCode.PERMISSION_DENIED,
+        "SPECIALIST_NOT_FOUND": ToolErrorCode.UNKNOWN_TOOL,
+        "SPECIALIST_DISABLED": ToolErrorCode.TOOL_DISABLED,
+        "POLICY_VIOLATION": ToolErrorCode.APPROVAL_REQUIRED,
+    }
+    return mapping.get(val, ToolErrorCode.EXECUTION_FAILED)
 
 # Bounded in-memory store for recent execution traces (last 100 runs)
 _MAX_STORED_TRACES = 100
@@ -76,6 +115,10 @@ class AgentOrchestrator:
         tool_registry: ToolRegistry,
         agent_registry: AgentRegistry,
         provider: LLMProvider,
+        specialist_registry: SpecialistRegistry | None = None,
+        multi_agent_coordinator: MultiAgentCoordinator | None = None,
+        trace_repository: AgentTraceRepository | None = None,
+        enable_multi_agent: bool | None = None,
     ) -> None:
         self.tool_registry = tool_registry
         self.agent_registry = agent_registry
@@ -83,6 +126,70 @@ class AgentOrchestrator:
         self.planner = AgentPlanner(provider=provider, tools=tool_registry.list_all())
         self.coordinator = ToolExecutionCoordinator(registry=tool_registry)
         self.response_generator = AgentResponseGenerator(provider=provider)
+        self.trace_repository = trace_repository
+
+        # Multi-agent coordination setup (Chunk 5.6.4)
+        if enable_multi_agent is not None:
+            self.enable_multi_agent = enable_multi_agent
+        else:
+            self.enable_multi_agent = (
+                specialist_registry is not None or multi_agent_coordinator is not None
+            )
+
+        if specialist_registry is not None:
+            self.specialist_registry: SpecialistRegistry | None = specialist_registry
+        elif self.enable_multi_agent:
+            self.specialist_registry = self._build_default_specialist_registry(tool_registry)
+        else:
+            self.specialist_registry = None
+
+        if multi_agent_coordinator is not None:
+            self.multi_agent_coordinator: MultiAgentCoordinator | None = multi_agent_coordinator
+        elif self.specialist_registry is not None and self.specialist_registry.registered_count() > 0:
+            tracker = MultiAgentExecutionTracker(trace_repository=trace_repository)
+            self.multi_agent_coordinator = MultiAgentCoordinator(
+                registry=self.specialist_registry,
+                tracker=tracker,
+                aggregator=MultiAgentAggregator(),
+            )
+        else:
+            self.multi_agent_coordinator = None
+
+    def _build_default_specialist_registry(
+        self, tool_registry: ToolRegistry
+    ) -> SpecialistRegistry:
+        """Instantiate available domain specialists from registered tools."""
+        registry = SpecialistRegistry()
+
+        forecast_tool = tool_registry.get("get_existing_forecast")
+        if forecast_tool:
+            try:
+                registry.register(ForecastingSpecialist(tool=forecast_tool))  # type: ignore[arg-type]
+            except Exception as exc:
+                logger.debug("Could not register default ForecastingSpecialist: %s", exc)
+
+        sim_tool = tool_registry.get("get_simulation_result")
+        if sim_tool:
+            try:
+                registry.register(SimulationSpecialist(tool=sim_tool))  # type: ignore[arg-type]
+            except Exception as exc:
+                logger.debug("Could not register default SimulationSpecialist: %s", exc)
+
+        opt_tool = tool_registry.get("get_optimization_explanation")
+        if opt_tool:
+            try:
+                registry.register(OptimizationSpecialist(tool=opt_tool))  # type: ignore[arg-type]
+            except Exception as exc:
+                logger.debug("Could not register default OptimizationSpecialist: %s", exc)
+
+        knowledge_tool = tool_registry.get("search_hospital_knowledge")
+        if knowledge_tool:
+            try:
+                registry.register(KnowledgeSpecialist(tool=knowledge_tool))  # type: ignore[arg-type]
+            except Exception as exc:
+                logger.debug("Could not register default KnowledgeSpecialist: %s", exc)
+
+        return registry
 
     async def execute(
         self,
@@ -247,7 +354,257 @@ class AgentOrchestrator:
                 session_id=request.session_id,
             )
 
-        # 6. SEQUENTIAL ORCHESTRATION LOOP
+        # 6. EVALUATE MULTI-AGENT SPECIALIST DELEGATION (Chunk 5.6.4)
+        eval_multi_agent = False
+        if request.options.enable_delegation is False:
+            eval_multi_agent = False
+        elif request.options.enable_delegation is True:
+            eval_multi_agent = True
+            if self.specialist_registry is None:
+                self.specialist_registry = self._build_default_specialist_registry(self.tool_registry)
+            if self.multi_agent_coordinator is None and self.specialist_registry.registered_count() > 0:
+                tracker = MultiAgentExecutionTracker(trace_repository=self.trace_repository)
+                self.multi_agent_coordinator = MultiAgentCoordinator(
+                    registry=self.specialist_registry,
+                    tracker=tracker,
+                    aggregator=MultiAgentAggregator(),
+                )
+        else:
+            eval_multi_agent = self.enable_multi_agent and (self.multi_agent_coordinator is not None)
+
+        if eval_multi_agent and self.multi_agent_coordinator is not None:
+            available_spec_ids = (
+                [
+                    s.specialist_id
+                    for s in self.specialist_registry.list_specialists(include_disabled=False)
+                ]
+                if self.specialist_registry
+                else []
+            )
+            delegation_decision = self.planner.plan_delegation(
+                task=request.task,
+                task_plan=task_plan,
+                available_specialists=available_spec_ids,
+                user_permissions=user_permissions,
+                parent_execution_id=run_id,
+                conversation_context=request.conversation_context,
+            )
+
+            if (
+                delegation_decision.should_delegate
+                and delegation_decision.delegation_plan is not None
+            ):
+                plan = delegation_decision.delegation_plan
+                logger.info(
+                    "Executing multi-agent delegation | run_id=%s mode=%s specialists=%s",
+                    run_id,
+                    delegation_decision.delegation_mode,
+                    [_enum_str(s) for s in delegation_decision.selected_specialists],
+                )
+                tracker.transition_to(
+                    OrchestrationState.PLANNING,
+                    reason="Formulated multi-agent specialist delegation plan.",
+                    metadata={
+                        "mode": delegation_decision.delegation_mode,
+                        "specialists": [
+                            _enum_str(s) for s in delegation_decision.selected_specialists
+                        ],
+                    },
+                )
+                tracker.transition_to(
+                    OrchestrationState.TOOL_SELECTION,
+                    reason=f"Selected {len(delegation_decision.selected_specialists)} domain specialists for delegation.",
+                    metadata={
+                        "specialists": [
+                            _enum_str(s) for s in delegation_decision.selected_specialists
+                        ]
+                    },
+                )
+                tracker.transition_to(
+                    OrchestrationState.TOOL_EXECUTION,
+                    reason="Dispatching delegation plan to MultiAgentCoordinator.",
+                )
+
+                try:
+                    agg_result = await self.multi_agent_coordinator.coordinate(
+                        plan=plan,
+                        context=tool_context,
+                        timeout_override=timeout_seconds,
+                    )
+                except asyncio.CancelledError:
+                    logger.warning("Multi-agent coordination cancelled by caller | run_id=%s", run_id)
+                    tracker.transition_to(
+                        OrchestrationState.CANCELLED, reason="Execution cancelled by caller."
+                    )
+                    raise
+                except Exception as exc:
+                    logger.error(
+                        "Multi-agent coordinator failure | run_id=%s error=%s", run_id, exc
+                    )
+                    tracker.transition_to(
+                        OrchestrationState.FAILED,
+                        reason=f"Multi-agent coordinator error: {exc}",
+                    )
+                    duration_ms = (time.perf_counter() - start_time) * 1000
+                    return self._build_completed_response(
+                        run_id=run_id,
+                        agent_meta=agent_meta,
+                        final_answer=f"Multi-agent coordination failed: {exc}",
+                        citations=[],
+                        provenance_items=[],
+                        evidence_collector=evidence_collector,
+                        tool_trace=[],
+                        tracker=tracker,
+                        task_plan=task_plan,
+                        stop_reason=StopReason.PROVIDER_UNAVAILABLE,
+                        duration_ms=duration_ms,
+                        steps_count=1,
+                        tool_calls_count=0,
+                        limitations=[
+                            "Multi-agent coordinator encountered an internal error.",
+                            DISCLAIMER_TEXT,
+                        ],
+                        current_user=current_user,
+                        session_id=request.session_id,
+                    )
+
+                # Ingest evidence into collector
+                for ev in agg_result.aggregated_evidence:
+                    evidence_collector.add_existing_evidence(ev)
+                provenance_items.extend(agg_result.all_provenance)
+                citations.extend(agg_result.all_citations)
+
+                for res in agg_result.specialist_results:
+                    task_desc = next(
+                        (
+                            d.task_description
+                            for d in plan.delegations
+                            if d.delegation_id == res.delegation_id
+                        ),
+                        "",
+                    )
+                    tool_trace.append(
+                        ToolCallRecord(
+                            call_id=res.delegation_id,
+                            tool_name=(
+                                res.specialist_id.value
+                                if hasattr(res.specialist_id, "value")
+                                else str(res.specialist_id)
+                            ),
+                            step_index=len(tool_trace) + 1,
+                            arguments={"task_description": task_desc},
+                            status=(
+                                "SUCCESS"
+                                if res.status == SpecialistExecutionStatus.COMPLETED
+                                else "FAILED"
+                            ),
+                            duration_ms=res.duration_ms,
+                            output_summary=res.summary,
+                            error_message=res.error_message,
+                            error_code=_map_multi_agent_error_code(res.error_code),
+                            provenance_ids=[p.id for p in res.provenance],
+                        )
+                    )
+
+                tracker.transition_to(
+                    OrchestrationState.EVIDENCE_REVIEW,
+                    reason="Reviewed aggregated multi-agent evidence.",
+                    metadata={
+                        "status": (
+                            agg_result.status.value
+                            if hasattr(agg_result.status, "value")
+                            else str(agg_result.status)
+                        ),
+                        "successful": [
+                            _enum_str(s)
+                            for s in agg_result.successful_contributors
+                        ],
+                        "unsuccessful": [
+                            _enum_str(s)
+                            for s in agg_result.unsuccessful_contributors
+                        ],
+                    },
+                )
+
+                # State: RESPONSE_GENERATION
+                tracker.transition_to(
+                    OrchestrationState.RESPONSE_GENERATION,
+                    reason="Synthesizing final response from aggregated specialist evidence.",
+                    metadata={
+                        "evidence_count": evidence_collector.count,
+                        "is_partial": agg_result.is_partial_result,
+                    },
+                )
+
+                is_partial = agg_result.is_partial_result
+                unsuccessful_names = [
+                    _enum_str(s)
+                    for s in agg_result.unsuccessful_contributors
+                ]
+                stop_notes = (
+                    f"Specialists failed or timed out: {unsuccessful_names}"
+                    if is_partial
+                    else None
+                )
+
+                synth_result = await self.response_generator.generate_response(
+                    task=request.task,
+                    task_plan=task_plan,
+                    evidence_collector=evidence_collector,
+                    citations=citations,
+                    is_partial=is_partial,
+                    stop_reason_notes=stop_notes,
+                    conversation_context=request.conversation_context,
+                    conflicts=agg_result.conflicts_or_inconsistencies,
+                )
+
+                # Resolve stop reason and state
+                if agg_result.status == AggregationStatus.FAILED:
+                    stop_reason = StopReason.TOOL_FAILURE
+                    final_state = OrchestrationState.FAILED
+                elif is_partial:
+                    stop_reason = StopReason.SUFFICIENT_EVIDENCE
+                    final_state = OrchestrationState.COMPLETED
+                elif not synth_result.evidence_sufficient:
+                    stop_reason = StopReason.SUFFICIENT_EVIDENCE
+                    final_state = OrchestrationState.INSUFFICIENT_EVIDENCE
+                else:
+                    stop_reason = StopReason.FINAL_ANSWER_READY
+                    final_state = OrchestrationState.COMPLETED
+
+                tracker.transition_to(
+                    final_state,
+                    reason=(
+                        f"Multi-agent coordination finished with status "
+                        f"{agg_result.status.value if hasattr(agg_result.status, 'value') else str(agg_result.status)}."
+                    ),
+                )
+                duration_ms = (time.perf_counter() - start_time) * 1000
+
+                return self._build_completed_response(
+                    run_id=run_id,
+                    agent_meta=agent_meta,
+                    final_answer=synth_result.answer,
+                    citations=synth_result.citations,
+                    provenance_items=provenance_items,
+                    evidence_collector=evidence_collector,
+                    tool_trace=tool_trace,
+                    tracker=tracker,
+                    task_plan=task_plan,
+                    stop_reason=stop_reason,
+                    duration_ms=duration_ms,
+                    steps_count=len(plan.delegations),
+                    tool_calls_count=sum(
+                        r.tool_calls_count for r in agg_result.specialist_results
+                    ),
+                    limitations=synth_result.limitations,
+                    current_user=current_user,
+                    session_id=request.session_id,
+                    multi_agent_trace=self.multi_agent_coordinator.tracker.current_trace,
+                    aggregated_result=agg_result,
+                )
+
+        # 7. SEQUENTIAL ORCHESTRATION LOOP
         step_count = 0
         tool_calls_count = 0
         stop_reason = StopReason.SUFFICIENT_EVIDENCE
@@ -453,6 +810,8 @@ class AgentOrchestrator:
         limitations: list[str],
         current_user: UserDocument,
         session_id: str | None = None,
+        multi_agent_trace: Any | None = None,
+        aggregated_result: Any | None = None,
     ) -> AgentRunResponse:
         # Deduplicate provenance
         seen_prov: set[str] = set()
@@ -507,6 +866,8 @@ class AgentOrchestrator:
             ),
             limitations=limitations,
             requires_human_review=True,
+            multi_agent_trace=multi_agent_trace,
+            aggregated_result=aggregated_result,
             created_at=utc_now(),
         )
 
@@ -523,6 +884,7 @@ class AgentOrchestrator:
             task_plan=task_plan,
             tool_calls=tool_trace,
             evidence_ids=[ev.evidence_id for ev in evidence_collector.items],
+            multi_agent_trace_id=multi_agent_trace.trace_id if hasattr(multi_agent_trace, "trace_id") else None,
             stop_reason=stop_reason,
             status=exec_status,
         )

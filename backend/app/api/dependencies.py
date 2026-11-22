@@ -300,13 +300,32 @@ def get_knowledge_service(
     return KnowledgeService(knowledge_repo=knowledge_repo, audit_repo=audit_repo)
 
 
+def get_optional_agent_trace_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> Any | None:
+    from app.repositories.agent_traces import AgentTraceRepository
+
+    return AgentTraceRepository(db) if db is not None else None
+
+
 def get_agent_runtime(
     knowledge_service: Annotated[KnowledgeService, Depends(get_knowledge_service)],
     forecast_service: Annotated[ForecastService, Depends(get_forecast_service)],
     simulation_service: Annotated[SimulationService, Depends(get_simulation_service)],
     optimization_service: Annotated[OptimizationService, Depends(get_optimization_service)],
+    trace_repo: Annotated[Any, Depends(get_optional_agent_trace_repository)] = None,
 ):
     from app.agents import AgentRegistry, AgentRuntime, ToolRegistry
+    from app.agents.multi_agent.aggregator import MultiAgentAggregator
+    from app.agents.multi_agent.coordinator import MultiAgentCoordinator
+    from app.agents.multi_agent.registry import SpecialistRegistry
+    from app.agents.multi_agent.specialists import (
+        ForecastingSpecialist,
+        KnowledgeSpecialist,
+        OptimizationSpecialist,
+        SimulationSpecialist,
+    )
+    from app.agents.multi_agent.tracer import MultiAgentExecutionTracker
     from app.agents.tools import (
         AnswerFromHospitalKnowledgeTool,
         GetExistingForecastTool,
@@ -327,10 +346,27 @@ def get_agent_runtime(
     agent_registry = AgentRegistry(tool_registry)
     provider = create_default_llm_provider(get_settings())
 
+    specialist_registry = SpecialistRegistry()
+    specialist_registry.register(ForecastingSpecialist(forecast_service=forecast_service))
+    specialist_registry.register(SimulationSpecialist(simulation_service=simulation_service))
+    specialist_registry.register(OptimizationSpecialist(optimization_service=optimization_service))
+    specialist_registry.register(KnowledgeSpecialist(knowledge_service=knowledge_service))
+
+    tracker = MultiAgentExecutionTracker(trace_repository=trace_repo)
+    coordinator = MultiAgentCoordinator(
+        registry=specialist_registry,
+        tracker=tracker,
+        aggregator=MultiAgentAggregator(),
+    )
+
     return AgentRuntime(
         tool_registry=tool_registry,
         agent_registry=agent_registry,
         provider=provider,
+        specialist_registry=specialist_registry,
+        multi_agent_coordinator=coordinator,
+        trace_repository=trace_repo,
+        enable_multi_agent=True,
     )
 
 
