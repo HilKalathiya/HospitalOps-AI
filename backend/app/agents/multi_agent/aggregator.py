@@ -62,6 +62,9 @@ class MultiAgentAggregator:
     Synthesizes and cross-references multi-agent operational evidence.
     """
 
+    def __init__(self, max_evidence_items: int = 20) -> None:
+        self.max_evidence_items = max(1, max_evidence_items)
+
     def aggregate(
         self,
         parent_execution_id: str,
@@ -158,6 +161,16 @@ class MultiAgentAggregator:
                         all_citations.append(cite)
             else:
                 unsuccessful_contributors.append(res.specialist_id)
+
+        # Clamp aggregated evidence to maximum configured budget
+        if len(aggregated_evidence) > self.max_evidence_items:
+            logger.info(
+                "Clamping aggregated evidence from %d to budget %d",
+                len(aggregated_evidence),
+                self.max_evidence_items,
+            )
+            aggregated_evidence = aggregated_evidence[: self.max_evidence_items]
+            all_evidence_ids = all_evidence_ids[: self.max_evidence_items]
 
         # Detect cross-specialist contradictions
         conflicts = self._detect_inconsistencies(results)

@@ -455,6 +455,14 @@ async def init_indexes() -> None:
                 [("user_id", ASCENDING), ("created_at", DESCENDING)],
                 name="agent_traces_user_created",
             ),
+            IndexModel(
+                [("trace_id", ASCENDING), ("user_id", ASCENDING)],
+                name="agent_traces_id_user",
+            ),
+            IndexModel(
+                [("parent_execution_id", ASCENDING), ("user_id", ASCENDING)],
+                name="agent_traces_parent_user",
+            ),
         ]
     )
 

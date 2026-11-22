@@ -159,9 +159,15 @@ Every multi-agent execution generates an auditable trace (`MultiAgentExecutionTr
 - `SPECIALIST_COMPLETED`
 - `SPECIALIST_FAILED`
 - `SPECIALIST_TIMED_OUT`
+- `SPECIALIST_CANCELLED`
+- `SPECIALIST_SKIPPED`
 - `AGGREGATION_COMPLETED`
 
-**Privacy & Security Compliance:** Hidden raw LLM chain-of-thought and sensitive internal prompts are explicitly omitted from persistent trace events.
+**Privacy, Security & Multi-Tenancy Compliance:**
+- **Telemetry Sanitization:** Hidden raw LLM chain-of-thought, sensitive internal system prompts, passwords, tokens, API keys, and patient identifiers / PHI (`ssn`, `mrn`, `hadm_id`, `patient_name`, regex SSN, and Bearer tokens) are scrubbed before persistence via `_sanitize_telemetry`.
+- **Multi-Tenant Ownership Scoping:** `AgentTraceRepository` enforces user ownership filtering (`user_id` query parameter on `get_by_trace_id_and_user` and `get_by_parent_execution_id_and_user`), backed by compound MongoDB indexes (`[("trace_id", 1), ("user_id", 1)]` and `[("parent_execution_id", 1), ("user_id", 1)]`).
+- **Resilience:** Audit persistence failures are logged server-side as non-fatal errors to prevent cascading coordination aborts.
+- **Topological DAG Safety & Cancellation Propagation:** Pre-flight cycle detection prohibits deadlocks in prerequisite graphs. External cancellation gracefully cancels and awaits all running child specialist tasks, preventing background execution leaks.
 
 ---
 

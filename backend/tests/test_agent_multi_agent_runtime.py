@@ -192,15 +192,20 @@ class MockSpecialist(BaseSpecialist):
 
 
 def test_telemetry_sanitization() -> None:
-    """Verify sensitive keys are scrubbed from trace telemetry."""
+    """Verify sensitive keys, PHI/MIMIC identifiers, and pattern values are scrubbed."""
     dirty_data = {
         "user_id": "usr_123",
         "auth_token": "bearer_super_secret_token",
         "db_password": "plain_password",
+        "patient_name": "John Doe",
+        "mrn": "MRN-987654",
+        "hadm_id": "21984712",
         "nested": {
             "api_key": "sk-12345",
             "system_prompt": "You are a secret agent...",
             "normal_field": "public_data",
+            "clinical_notes": "Patient SSN is 000-12-3456 in notes",
+            "log_line": "Found header Bearer secret_api_jwt_token_here in logs",
         },
         "list_data": [
             {"cookie": "session_cookie_val", "safe": 123},
@@ -213,9 +218,16 @@ def test_telemetry_sanitization() -> None:
     assert sanitized["user_id"] == "usr_123"
     assert sanitized["auth_token"] == "[REDACTED]"
     assert sanitized["db_password"] == "[REDACTED]"
+    assert sanitized["patient_name"] == "[REDACTED]"
+    assert sanitized["mrn"] == "[REDACTED]"
+    assert sanitized["hadm_id"] == "[REDACTED]"
     assert sanitized["nested"]["api_key"] == "[REDACTED]"
     assert sanitized["nested"]["system_prompt"] == "[REDACTED]"
     assert sanitized["nested"]["normal_field"] == "public_data"
+    assert "000-12-3456" not in sanitized["nested"]["clinical_notes"]
+    assert "[REDACTED_SSN]" in sanitized["nested"]["clinical_notes"]
+    assert "secret_api_jwt_token_here" not in sanitized["nested"]["log_line"]
+    assert "[REDACTED_TOKEN]" in sanitized["nested"]["log_line"]
     assert sanitized["list_data"][0]["cookie"] == "[REDACTED]"
     assert sanitized["list_data"][0]["safe"] == 123
     assert sanitized["list_data"][1] == "regular_string"
@@ -864,3 +876,393 @@ async def test_coordinator_recursion_depth_enforcement() -> None:
     context = _get_tool_context()
     with pytest.raises(ValueError, match="Delegation depth violation"):
         await coordinator.coordinate(plan, context)
+
+
+# ── 4. TARGETED AUDIT & HARDENING TESTS ──────────────────────────────────────
+
+
+def test_coordinator_rejects_more_than_four_specialists() -> None:
+    """Verify DelegationPlan rejects plan with > 4 delegations."""
+    delegations = [
+        DelegationRequest(
+            parent_execution_id="parent_5_spec",
+            delegation_id=f"del_{i}",
+            target_specialist_id=SpecialistId.FORECASTING,
+            task_description=f"Task {i} description",
+        )
+        for i in range(5)
+    ]
+    with pytest.raises(ValueError, match="exceeds maximum allowed specialists"):
+        DelegationPlan(
+            parent_execution_id="parent_5_spec",
+            delegations=delegations,
+        )
+
+
+def test_coordinator_rejects_duplicate_specialists() -> None:
+    """Verify DelegationPlan and coordinator reject duplicate target specialists."""
+    del1 = DelegationRequest(
+        parent_execution_id="parent_dup",
+        delegation_id="del_f1",
+        target_specialist_id=SpecialistId.FORECASTING,
+        task_description="Task 1 description",
+    )
+    del2 = DelegationRequest(
+        parent_execution_id="parent_dup",
+        delegation_id="del_f2",
+        target_specialist_id=SpecialistId.FORECASTING,
+        task_description="Task 2 description",
+    )
+    with pytest.raises(ValueError, match="Duplicate specialist delegations"):
+        DelegationPlan(
+            parent_execution_id="parent_dup",
+            delegations=[del1, del2],
+        )
+
+
+def test_coordinator_rejects_cyclic_dependency() -> None:
+    """Verify cyclic dependency in delegation graph is rejected fast."""
+    del_a = DelegationRequest(
+        parent_execution_id="parent_cycle",
+        delegation_id="del_a",
+        target_specialist_id=SpecialistId.FORECASTING,
+        task_description="Forecasting task description",
+    )
+    del_b = DelegationRequest(
+        parent_execution_id="parent_cycle",
+        delegation_id="del_b",
+        target_specialist_id=SpecialistId.SIMULATION,
+        task_description="Simulation task description",
+    )
+    with pytest.raises(ValueError, match="Cyclic dependency detected"):
+        DelegationPlan(
+            parent_execution_id="parent_cycle",
+            delegations=[del_a, del_b],
+            dependencies={"del_a": ["del_b"], "del_b": ["del_a"]},
+        )
+
+
+@pytest.mark.asyncio
+async def test_coordinator_enforces_max_concurrency_limit() -> None:
+    """Verify coordinator concurrency semaphore restricts simultaneously running tasks."""
+    active_count = 0
+    max_observed = 0
+    lock = asyncio.Lock()
+
+    class ConcurrencySpecialist(BaseSpecialist):
+        async def _execute_domain(self, request: DelegationRequest, context: ToolContext) -> SpecialistResult:
+            nonlocal active_count, max_observed
+            async with lock:
+                active_count += 1
+                if active_count > max_observed:
+                    max_observed = active_count
+            await asyncio.sleep(0.04)
+            async with lock:
+                active_count -= 1
+            return SpecialistResult(
+                specialist_id=self.specialist_id,
+                delegation_id=request.delegation_id,
+                status=SpecialistExecutionStatus.COMPLETED,
+                summary="Done successfully",
+                epistemic_category=EvidenceCategory.FORECAST,
+            )
+
+    registry = SpecialistRegistry()
+    registry.register(ConcurrencySpecialist(SpecialistId.FORECASTING, SpecialistDomain.FORECASTING))
+    registry.register(ConcurrencySpecialist(SpecialistId.SIMULATION, SpecialistDomain.SIMULATION))
+    registry.register(ConcurrencySpecialist(SpecialistId.OPTIMIZATION, SpecialistDomain.OPTIMIZATION))
+    registry.register(ConcurrencySpecialist(SpecialistId.KNOWLEDGE, SpecialistDomain.KNOWLEDGE))
+
+    coordinator = MultiAgentCoordinator(registry=registry, max_concurrency=2)
+    plan = DelegationPlan(
+        parent_execution_id="parent_conc",
+        delegations=[
+            DelegationRequest(parent_execution_id="parent_conc", delegation_id="del_c1", target_specialist_id=SpecialistId.FORECASTING, task_description="Task 1 description"),
+            DelegationRequest(parent_execution_id="parent_conc", delegation_id="del_c2", target_specialist_id=SpecialistId.SIMULATION, task_description="Task 2 description"),
+            DelegationRequest(parent_execution_id="parent_conc", delegation_id="del_c3", target_specialist_id=SpecialistId.OPTIMIZATION, task_description="Task 3 description"),
+            DelegationRequest(parent_execution_id="parent_conc", delegation_id="del_c4", target_specialist_id=SpecialistId.KNOWLEDGE, task_description="Task 4 description"),
+        ],
+    )
+    result = await coordinator.coordinate(plan, _get_tool_context())
+    assert result.status == AggregationStatus.COMPLETED
+    assert max_observed <= 2
+
+
+@pytest.mark.asyncio
+async def test_coordinator_server_side_permission_rejection() -> None:
+    """Verify specialist execution handles permission rejection gracefully."""
+    registry = SpecialistRegistry()
+    registry.register(MockSpecialist(SpecialistId.FORECASTING, SpecialistDomain.FORECASTING))
+
+    coordinator = MultiAgentCoordinator(registry=registry)
+    plan = DelegationPlan(
+        parent_execution_id="parent_perm",
+        delegations=[
+            DelegationRequest(parent_execution_id="parent_perm", delegation_id="del_p", target_specialist_id=SpecialistId.FORECASTING, task_description="Forecasting query"),
+        ],
+    )
+    # Pass context with NO permissions
+    unauthorized_context = ToolContext(
+        user=_get_test_user(),
+        permissions=[],
+        department_id="icu",
+        run_id="run_unauth",
+    )
+    res = await coordinator.coordinate(plan, unauthorized_context)
+    assert res.status == AggregationStatus.FAILED
+    assert res.specialist_results[0].status == SpecialistExecutionStatus.FAILED
+    assert res.specialist_results[0].error_code == MultiAgentErrorCode.PERMISSION_DENIED
+
+
+@pytest.mark.asyncio
+async def test_coordinator_cancellation_propagation_to_children() -> None:
+    """Verify external cancellation cancels child tasks and raises CancelledError."""
+    child_cancelled = False
+
+    class LongRunningSpecialist(BaseSpecialist):
+        async def _execute_domain(self, request: DelegationRequest, context: ToolContext) -> SpecialistResult:
+            nonlocal child_cancelled
+            try:
+                await asyncio.sleep(10.0)
+            except asyncio.CancelledError:
+                child_cancelled = True
+                raise
+            return SpecialistResult(
+                specialist_id=self.specialist_id,
+                delegation_id=request.delegation_id,
+                status=SpecialistExecutionStatus.COMPLETED,
+                summary="Done",
+                epistemic_category=EvidenceCategory.FORECAST,
+            )
+
+    registry = SpecialistRegistry()
+    registry.register(LongRunningSpecialist(SpecialistId.FORECASTING, SpecialistDomain.FORECASTING))
+
+    coordinator = MultiAgentCoordinator(registry=registry)
+    plan = DelegationPlan(
+        parent_execution_id="parent_cancel",
+        delegations=[
+            DelegationRequest(parent_execution_id="parent_cancel", delegation_id="del_c", target_specialist_id=SpecialistId.FORECASTING, task_description="Long task"),
+        ],
+    )
+
+    task = asyncio.create_task(coordinator.coordinate(plan, _get_tool_context()))
+    await asyncio.sleep(0.03)
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert child_cancelled is True
+
+
+@pytest.mark.asyncio
+async def test_coordinator_resilience_to_trace_persistence_failure() -> None:
+    """Verify trace repository persistence exceptions do not abort coordination."""
+    mock_repo = MagicMock(spec=AgentTraceRepository)
+    mock_repo.save_trace = AsyncMock(side_effect=RuntimeError("DB write connection timed out"))
+
+    tracker = MultiAgentExecutionTracker(trace_repository=mock_repo)
+    registry = SpecialistRegistry()
+    registry.register(MockSpecialist(SpecialistId.FORECASTING, SpecialistDomain.FORECASTING))
+
+    coordinator = MultiAgentCoordinator(registry=registry, tracker=tracker)
+    plan = DelegationPlan(
+        parent_execution_id="parent_db_err",
+        delegations=[
+            DelegationRequest(parent_execution_id="parent_db_err", delegation_id="del_1", target_specialist_id=SpecialistId.FORECASTING, task_description="Forecasting task persistence test"),
+        ],
+    )
+
+    res = await coordinator.coordinate(plan, _get_tool_context())
+    assert res.status == AggregationStatus.COMPLETED
+    assert mock_repo.save_trace.called
+
+
+@pytest.mark.asyncio
+async def test_trace_repository_cross_user_isolation() -> None:
+    """Verify AgentTraceRepository enforces user ownership scoping and prevents cross-user leaks."""
+    mock_collection = AsyncMock()
+    mock_db = MagicMock()
+    mock_db.__getitem__.return_value = mock_collection
+    repo = AgentTraceRepository(mock_db)
+
+    # When querying with mismatched user, find_one returns None
+    mock_collection.find_one.return_value = None
+
+    res1 = await repo.get_by_trace_id_and_user("trace_123", "attacker_user")
+    assert res1 is None
+    call_query_1 = mock_collection.find_one.call_args[0][0]
+    assert call_query_1 == {"trace_id": "trace_123", "user_id": "attacker_user"}
+
+    res2 = await repo.get_by_parent_execution_id_and_user("parent_456", "attacker_user")
+    assert res2 is None
+    call_query_2 = mock_collection.find_one.call_args[0][0]
+    assert call_query_2 == {"parent_execution_id": "parent_456", "user_id": "attacker_user"}
+
+
+def test_aggregator_duplicate_evidence_deduplication() -> None:
+    """Verify aggregator deduplicates evidence IDs and identical provenance/citations."""
+    aggregator = MultiAgentAggregator()
+
+    common_evidence = AgentEvidence(
+        evidence_id="ev_shared_100",
+        tool_id="common_tool",
+        category=EvidenceCategory.FORECAST,
+        summary="Shared evidence between specialists",
+    )
+    common_provenance = ProvenanceItem(
+        id="prov_shared_200",
+        category=ProvenanceCategory.FORECAST,
+        label="Shared source record",
+    )
+    common_citation = CitationReference(
+        citation_id="S1",
+        document_id="doc_surge_policy",
+        document_title="Surge Capacity SOP",
+        document_version=1,
+        chunk_id="chunk_1",
+        source_reference="Surge Policy Sec 1",
+    )
+
+    res_a = SpecialistResult(
+        specialist_id=SpecialistId.FORECASTING,
+        delegation_id="del_a",
+        status=SpecialistExecutionStatus.COMPLETED,
+        summary="Specialist A summary",
+        evidence=[common_evidence],
+        evidence_ids=["ev_shared_100"],
+        provenance=[common_provenance],
+        citations=[common_citation],
+        epistemic_category=EvidenceCategory.FORECAST,
+    )
+    res_b = SpecialistResult(
+        specialist_id=SpecialistId.SIMULATION,
+        delegation_id="del_b",
+        status=SpecialistExecutionStatus.COMPLETED,
+        summary="Specialist B summary",
+        evidence=[common_evidence],
+        evidence_ids=["ev_shared_100"],
+        provenance=[common_provenance],
+        citations=[common_citation],
+        epistemic_category=EvidenceCategory.SIMULATION,
+    )
+
+    agg = aggregator.aggregate(
+        parent_execution_id="parent_dedup",
+        plan_id="plan_dedup",
+        results=[res_a, res_b],
+    )
+
+    assert len(agg.aggregated_evidence) == 1
+    assert agg.aggregated_evidence[0].evidence_id == "ev_shared_100"
+    assert agg.all_evidence_ids == ["ev_shared_100"]
+    assert len(agg.all_provenance) == 1
+    assert agg.all_provenance[0].id == "prov_shared_200"
+    assert len(agg.all_citations) == 1
+    assert agg.all_citations[0].document_id == "doc_surge_policy"
+
+
+def test_aggregator_output_budget_clamping() -> None:
+    """Verify aggregator clamps total evidence items to max_evidence_items budget."""
+    aggregator = MultiAgentAggregator(max_evidence_items=3)
+
+    evidence_items = [
+        AgentEvidence(
+            evidence_id=f"ev_item_{i}",
+            tool_id="test_tool",
+            category=EvidenceCategory.FORECAST,
+            summary=f"Evidence item {i}",
+        )
+        for i in range(10)
+    ]
+
+    res = SpecialistResult(
+        specialist_id=SpecialistId.FORECASTING,
+        delegation_id="del_budget",
+        status=SpecialistExecutionStatus.COMPLETED,
+        summary="Budget test",
+        evidence=evidence_items,
+        evidence_ids=[e.evidence_id for e in evidence_items],
+        epistemic_category=EvidenceCategory.FORECAST,
+    )
+
+    agg = aggregator.aggregate(
+        parent_execution_id="parent_budget",
+        plan_id="plan_budget",
+        results=[res],
+    )
+
+    assert len(agg.aggregated_evidence) == 3
+    assert len(agg.all_evidence_ids) == 3
+
+
+@pytest.mark.asyncio
+async def test_coordinator_three_specialists_with_one_partial_failure() -> None:
+    """Verify 3-specialist delegation with 1 failure produces PARTIAL_SUCCESS."""
+    registry = SpecialistRegistry()
+    registry.register(MockSpecialist(SpecialistId.FORECASTING, SpecialistDomain.FORECASTING))
+    registry.register(MockSpecialist(SpecialistId.SIMULATION, SpecialistDomain.SIMULATION, should_fail=True))
+    registry.register(MockSpecialist(SpecialistId.KNOWLEDGE, SpecialistDomain.KNOWLEDGE))
+
+    coordinator = MultiAgentCoordinator(registry=registry)
+    plan = DelegationPlan(
+        parent_execution_id="parent_3spec",
+        delegations=[
+            DelegationRequest(parent_execution_id="parent_3spec", delegation_id="del_f", target_specialist_id=SpecialistId.FORECASTING, task_description="Forecast admissions"),
+            DelegationRequest(parent_execution_id="parent_3spec", delegation_id="del_s", target_specialist_id=SpecialistId.SIMULATION, task_description="Simulate surge scenario"),
+            DelegationRequest(parent_execution_id="parent_3spec", delegation_id="del_k", target_specialist_id=SpecialistId.KNOWLEDGE, task_description="Knowledge lookup for policy"),
+        ],
+    )
+
+    res = await coordinator.coordinate(plan, _get_tool_context())
+    assert res.status == AggregationStatus.PARTIAL_SUCCESS
+    assert res.is_partial_result is True
+    assert set(res.successful_contributors) == {SpecialistId.FORECASTING, SpecialistId.KNOWLEDGE}
+    assert res.unsuccessful_contributors == [SpecialistId.SIMULATION]
+    assert res.requires_human_review is True
+
+
+@pytest.mark.asyncio
+async def test_coordinator_no_operational_state_mutation() -> None:
+    """Verify coordination and aggregation never invoke write/mutation operations on operational collections."""
+    mock_db = MagicMock()
+    mock_trace_coll = AsyncMock()
+    mock_op_coll = AsyncMock()
+
+    def get_collection(name: str):
+        if name == "agent_traces":
+            return mock_trace_coll
+        return mock_op_coll
+
+    mock_db.__getitem__.side_effect = get_collection
+    repo = AgentTraceRepository(mock_db)
+    tracker = MultiAgentExecutionTracker(trace_repository=repo)
+
+    registry = SpecialistRegistry()
+    registry.register(MockSpecialist(SpecialistId.FORECASTING, SpecialistDomain.FORECASTING))
+    registry.register(MockSpecialist(SpecialistId.OPTIMIZATION, SpecialistDomain.OPTIMIZATION))
+
+    coordinator = MultiAgentCoordinator(registry=registry, tracker=tracker)
+    plan = DelegationPlan(
+        parent_execution_id="parent_no_mutation",
+        delegations=[
+            DelegationRequest(parent_execution_id="parent_no_mutation", delegation_id="d_f", target_specialist_id=SpecialistId.FORECASTING, task_description="Forecast"),
+            DelegationRequest(parent_execution_id="parent_no_mutation", delegation_id="d_o", target_specialist_id=SpecialistId.OPTIMIZATION, task_description="Optimize"),
+        ],
+    )
+
+    res = await coordinator.coordinate(plan, _get_tool_context())
+    assert res.status == AggregationStatus.COMPLETED
+
+    # Verify no mutation methods were called on operational collections
+    assert mock_op_coll.insert_one.call_count == 0
+    assert mock_op_coll.insert_many.call_count == 0
+    assert mock_op_coll.update_one.call_count == 0
+    assert mock_op_coll.update_many.call_count == 0
+    assert mock_op_coll.delete_one.call_count == 0
+    assert mock_op_coll.delete_many.call_count == 0
+    assert mock_op_coll.replace_one.call_count == 0
+
+    # Only trace audit repository may persist the execution trace
+    assert mock_trace_coll.replace_one.call_count == 1

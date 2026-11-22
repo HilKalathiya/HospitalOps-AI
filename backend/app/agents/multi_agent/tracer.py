@@ -8,6 +8,7 @@ and optional persistence for MultiAgentExecutionTrace entities.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 from app.agents.multi_agent.contracts import (
@@ -39,7 +40,18 @@ SENSITIVE_KEY_SUBSTRINGS = (
     "cookie",
     "system_prompt",
     "chain_of_thought",
+    "ssn",
+    "mrn",
+    "hadm_id",
+    "patient_id",
+    "patient_name",
+    "phi",
+    "mimic",
+    "subject_id",
 )
+
+SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+BEARER_REGEX = re.compile(r"bearer\s+[a-zA-Z0-9_\-\.]+", re.IGNORECASE)
 
 
 def _enum_val(v: Any) -> str:
@@ -47,25 +59,31 @@ def _enum_val(v: Any) -> str:
     return v.value if hasattr(v, "value") else str(v)
 
 
+def _sanitize_value(value: Any) -> Any:
+    """Recursively scrub sensitive patterns from values."""
+    if isinstance(value, str):
+        v = SSN_REGEX.sub("[REDACTED_SSN]", value)
+        v = BEARER_REGEX.sub("Bearer [REDACTED_TOKEN]", v)
+        return v
+    elif isinstance(value, dict):
+        return _sanitize_telemetry(value)
+    elif isinstance(value, list):
+        return [_sanitize_value(item) for item in value]
+    return value
+
+
 def _sanitize_telemetry(data: dict[str, Any]) -> dict[str, Any]:
     """
     Recursively sanitize event details to prevent leakage of credentials,
-    hidden system prompts, or raw chain-of-thought tokens.
+    hidden system prompts, raw chain-of-thought tokens, or patient identifiers (PHI).
     """
     sanitized: dict[str, Any] = {}
     for key, value in data.items():
         lower_key = key.lower()
         if any(sens in lower_key for sens in SENSITIVE_KEY_SUBSTRINGS):
             sanitized[key] = "[REDACTED]"
-        elif isinstance(value, dict):
-            sanitized[key] = _sanitize_telemetry(value)
-        elif isinstance(value, list):
-            sanitized[key] = [
-                _sanitize_telemetry(item) if isinstance(item, dict) else item
-                for item in value
-            ]
         else:
-            sanitized[key] = value
+            sanitized[key] = _sanitize_value(value)
     return sanitized
 
 

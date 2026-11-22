@@ -333,6 +333,26 @@ class DelegationPlan(HospitalOpsBaseModel):
                     raise ValueError(
                         f"Delegation '{dep_id}' cannot declare a dependency on itself."
                     )
+
+        # Detect cycles in the dependency graph
+        visited: dict[str, int] = {node: 0 for node in valid_delegation_ids}
+
+        def _has_cycle(u: str) -> bool:
+            visited[u] = 1
+            for v in self.dependencies.get(u, []):
+                if visited.get(v, 0) == 1:
+                    return True
+                if visited.get(v, 0) == 0 and _has_cycle(v):
+                    return True
+            visited[u] = 2
+            return False
+
+        for node in valid_delegation_ids:
+            if visited[node] == 0 and _has_cycle(node):
+                raise ValueError(
+                    f"Cyclic dependency detected in delegation plan dependencies: {self.dependencies}."
+                )
+
         return self
 
 

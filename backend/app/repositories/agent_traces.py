@@ -50,23 +50,49 @@ class AgentTraceRepository(BaseRepository):
         )
         return trace
 
-    async def get_by_trace_id(self, trace_id: str) -> MultiAgentExecutionTrace | None:
-        """Retrieve a multi-agent execution trace by unique trace_id."""
-        doc = await self.collection.find_one({"trace_id": trace_id})
+    async def get_by_trace_id(
+        self, trace_id: str, user_id: str | None = None
+    ) -> MultiAgentExecutionTrace | None:
+        """
+        Retrieve a multi-agent execution trace by unique trace_id.
+        If user_id is provided, enforces authenticated ownership scoping.
+        """
+        query: dict[str, Any] = {"trace_id": trace_id}
+        if user_id:
+            query["user_id"] = user_id
+        doc = await self.collection.find_one(query)
         if not doc:
             return None
         doc.pop("_id", None)
         return MultiAgentExecutionTrace.model_validate(doc)
 
-    async def get_by_parent_execution_id(
-        self, parent_execution_id: str
+    async def get_by_trace_id_and_user(
+        self, trace_id: str, user_id: str
     ) -> MultiAgentExecutionTrace | None:
-        """Retrieve a multi-agent execution trace by parent_execution_id."""
-        doc = await self.collection.find_one({"parent_execution_id": parent_execution_id})
+        """Retrieve a multi-agent execution trace enforcing strict user ownership."""
+        return await self.get_by_trace_id(trace_id, user_id=user_id)
+
+    async def get_by_parent_execution_id(
+        self, parent_execution_id: str, user_id: str | None = None
+    ) -> MultiAgentExecutionTrace | None:
+        """
+        Retrieve a multi-agent execution trace by parent_execution_id.
+        If user_id is provided, enforces authenticated ownership scoping.
+        """
+        query: dict[str, Any] = {"parent_execution_id": parent_execution_id}
+        if user_id:
+            query["user_id"] = user_id
+        doc = await self.collection.find_one(query)
         if not doc:
             return None
         doc.pop("_id", None)
         return MultiAgentExecutionTrace.model_validate(doc)
+
+    async def get_by_parent_execution_id_and_user(
+        self, parent_execution_id: str, user_id: str
+    ) -> MultiAgentExecutionTrace | None:
+        """Retrieve a trace by parent_execution_id enforcing strict user ownership."""
+        return await self.get_by_parent_execution_id(parent_execution_id, user_id=user_id)
 
     async def list_user_traces(
         self,

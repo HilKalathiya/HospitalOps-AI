@@ -44,6 +44,44 @@ def _enum_val(v: Any) -> str:
     return v.value if hasattr(v, "value") else str(v)
 
 
+def _validate_dependency_graph(
+    dependencies: dict[str, list[str]],
+    delegation_ids: set[str],
+) -> None:
+    """
+    Validate that dependencies form a valid Directed Acyclic Graph (DAG) with known nodes.
+    Rejects self-dependencies, unknown delegation references, and dependency cycles.
+    """
+    for dep_id, prereqs in dependencies.items():
+        if dep_id not in delegation_ids:
+            raise ValueError(f"Dependency references unknown delegation ID '{dep_id}'.")
+        for prereq in prereqs:
+            if prereq not in delegation_ids:
+                raise ValueError(
+                    f"Prerequisite '{prereq}' for delegation '{dep_id}' is not in plan."
+                )
+            if prereq == dep_id:
+                raise ValueError(f"Delegation '{dep_id}' cannot declare a dependency on itself.")
+
+    visited: dict[str, int] = {node: 0 for node in delegation_ids}
+
+    def _has_cycle(u: str) -> bool:
+        visited[u] = 1
+        for v in dependencies.get(u, []):
+            if visited.get(v, 0) == 1:
+                return True
+            if visited.get(v, 0) == 0 and _has_cycle(v):
+                return True
+        visited[u] = 2
+        return False
+
+    for node in delegation_ids:
+        if visited[node] == 0 and _has_cycle(node):
+            raise ValueError(
+                f"Cyclic dependency detected in delegation plan dependencies: {dependencies}."
+            )
+
+
 class MultiAgentCoordinator:
     """
     Supervisor coordination engine executing domain specialist tasks.
@@ -87,6 +125,20 @@ class MultiAgentCoordinator:
             raise ValueError(
                 f"Delegation depth violation: max_depth must be strictly 1, got {plan.max_depth}."
             )
+
+        if not (1 <= len(plan.delegations) <= 4):
+            raise ValueError(
+                f"Delegation count violation: plan must specify between 1 and 4 specialists, got {len(plan.delegations)}."
+            )
+
+        spec_ids = [d.target_specialist_id for d in plan.delegations]
+        if len(spec_ids) != len(set(spec_ids)):
+            raise ValueError(
+                "Duplicate specialist delegations detected in plan: each specialist may only be invoked once."
+            )
+
+        valid_ids = {d.delegation_id for d in plan.delegations}
+        _validate_dependency_graph(plan.dependencies, valid_ids)
 
         user_id = str(
             getattr(context.user, "user_id", None)
@@ -325,6 +377,17 @@ class MultiAgentCoordinator:
                         delegation_id=req.delegation_id,
                         specialist_id=req.target_specialist_id,
                     )
+        except asyncio.CancelledError:
+            logger.warning(
+                "Multi-agent coordination cancelled externally | parent_id=%s plan_id=%s",
+                plan.parent_execution_id,
+                plan.plan_id,
+            )
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
 
         # 5. Assemble results in original plan order
         ordered_results = [results_by_id[d.delegation_id] for d in plan.delegations]
