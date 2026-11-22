@@ -81,6 +81,11 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.3** | **Agent Orchestration Engine** | ✅ Complete | Controlled lifecycle state machine (14 states), structured task planning, safe tool coordinator with loop prevention, evidence collector with domain classification, citation verification, execution trace API, 17/17 tests passed (277 total) |
 | | **5.4** | **Agent State Management & Conversation Continuity** | ✅ Complete | Persistent session scoping (agent_sessions), chronological message turns (agent_messages), bounded context reconstruction with token budgeting, multi-turn conversational continuity, 10/10 tests passed (287 total) |
 | | **5.5** | **Agent Memory & Cross-Session Intelligence** | ✅ Complete | User-approved persistent operational memory (agent_memories), deterministic healthcare safety & anti-injection validation, candidate extraction, approval/supersession lifecycle, dedicated preferences workspace, 24/24 tests passed (311 total) |
+| | **5.6.1** | **Multi-Agent Architecture & Contracts** | ✅ Complete | Supervisor-and-specialist architecture, Pydantic contracts for delegation/results/traces, strict depth=1 and 4-specialist bounds, extra="forbid", 26/26 tests passed (337 total) |
+| | **5.6.2** | **Specialist Agent Implementations** | ⬜ Planned | 4 domain specialists (Forecasting, Simulation, Optimization, Knowledge) & static registry |
+| | **5.6.3** | **Multi-Agent Coordinator & Aggregator** | ⬜ Planned | Concurrency throttling, timeouts, partial failure handling, cross-domain conflict detection |
+| | **5.6.4** | **Multi-Agent API & UI Workspace** | ⬜ Planned | REST endpoints, trace inspection, React transparency panel & specialist result cards |
+| | **5.6.5** | **Multi-Agent End-to-End Verification** | ⬜ Planned | Comprehensive regression, integration testing, and audit validation |
 
 ---
 
@@ -852,4 +857,37 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `python -m ruff check backend`: 0 lint errors.
      - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
      - `npm --prefix frontend run build`: Clean production build in 5.70s.
-* **Next Planned Work:** Milestone 5, Chunk 5.6 (Multi-Agent Coordination & Specialized Decision Agents).
+* **Next Planned Work:** Milestone 5, Chunk 5.6.1 (Multi-Agent Architecture & Contracts) — Completed.
+
+---
+
+## 23. Completed Workstream: Milestone 5, Chunk 5.6.1 (Multi-Agent Architecture & Contracts)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Supervisor-and-Specialist Architecture Design:**
+     - Established hierarchical multi-agent architecture where the Hospital Operations Analyst Agent acts as the sole user-facing supervisor.
+     - Four deterministic domain specialists: Forecasting (`forecasting_specialist`), Simulation (`simulation_specialist`), Optimization (`optimization_specialist`), and Knowledge (`knowledge_specialist`).
+     - Bounded delegation flow: User Request -> Session Context -> Primary Analyst -> Validated Delegation Plan -> Multi-Agent Coordinator -> Selected Specialists -> Structured Results -> Aggregator -> Final Response.
+  2. **Typed Pydantic v2 Multi-Agent Contracts (`backend/app/agents/multi_agent/contracts.py`):**
+     - `SpecialistId` & `SpecialistDomain`: Authoritative string enums for deterministic specialist registry.
+     - `SpecialistDefinition`: Identity and capability descriptors with RBAC mapping and allowed tool IDs (`extra="forbid"`).
+     - `STANDARD_SPECIALISTS`: Static registry definitions for all 4 domain specialists.
+     - `DelegationRequest`: Bounded task delegation contract ($5 \le \text{chars} \le 1500$, $1.0 \le t \le 45.0\text{s}$, evidence limits, `extra="forbid"`).
+     - `DelegationPlan`: Multi-agent delegation specification enforcing $\le 4$ specialists, unique targets, strict `max_depth = 1` (no recursive agent spawning), total timeout bounds ($5.0 \le t \le 60.0\text{s}$), and DAG dependency validation (`extra="forbid"`).
+     - `SpecialistExecutionStatus` & `MultiAgentErrorCode`: Standardized lifecycle and failure classifications.
+     - `SpecialistResult`: Domain result contract encapsulating `AgentEvidence`, `ProvenanceItem`, `CitationReference`, epistemic categories, and duration telemetry (`extra="forbid"`).
+     - `AggregatedSpecialistResult`: Cross-specialist synthesis contract capturing successful and unsuccessful contributors, detected contradictions, combined evidence, and partial-result resilience without synthetic confidence metrics.
+     - `MultiAgentTraceEvent` & `MultiAgentExecutionTrace`: Structured audit contracts omitting raw LLM chain-of-thought to prevent prompt leakage.
+  3. **Healthcare Safety & Epistemic Boundaries:**
+     - Reused foundational `EvidenceCategory` classifications (`OBSERVED_DATA`, `FORECAST`, `SIMULATION`, `OPTIMIZATION`, `KNOWLEDGE_POLICY`).
+     - Strictly prohibited relabeling hypothetical or projected evidence as observed facts.
+     - Preserved clinical safety filter (`ClinicalSafetyPolicy`), zero-PHI quarantine, and read-only operational guarantees.
+  4. **Architectural Decision Record:**
+     - Created `docs/decisions/ADR-018-multi-agent-coordination.md`.
+  5. **Verification & Testing:**
+     - Created 26 contract-level tests in `backend/tests/test_agent_multi_agent_contracts.py`.
+     - Validated specialist coverage, request bounds, depth=1 enforcement, max 4 specialists, duplicate rejection, timeout alignment, dependency checks, failure handling, timestamp sequences, arbitrary confidence score rejection, partial failure tolerance, trace auditing, and roundtrip JSON serialization.
+     - All 26 contract tests passed.
+     - `python -m ruff check backend`: 0 lint errors.
+* **Next Planned Work:** Milestone 5, Chunk 5.6.2 (Specialist Agent Implementations & Registry).
