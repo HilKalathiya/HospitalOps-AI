@@ -217,6 +217,15 @@ class AgentConversationTurn(HospitalOpsBaseModel):
     timestamp: datetime = Field(default_factory=utc_now)
 
 
+class AgentMemoryItem(HospitalOpsBaseModel):
+    """Retrieved user preference or operational context item (Chunk 5.5)."""
+
+    memory_id: str = Field(description="Memory identifier")
+    category: str = Field(description="Domain category")
+    key: str = Field(description="Lookup key")
+    summary: str = Field(description="Summary of preference")
+
+
 class AgentConversationContext(HospitalOpsBaseModel):
     """Bounded context reconstructed from session history to provide conversational continuity."""
 
@@ -238,6 +247,10 @@ class AgentConversationContext(HospitalOpsBaseModel):
     )
     prior_optimization_references: list[str] = Field(
         default_factory=list, description="Historical optimization identifiers"
+    )
+    approved_memories: list[AgentMemoryItem] = Field(
+        default_factory=list,
+        description="Approved user operational preferences and cross-session context (Chunk 5.5)",
     )
     context_budget_used_chars: int = Field(default=0, ge=0)
     is_truncated: bool = Field(

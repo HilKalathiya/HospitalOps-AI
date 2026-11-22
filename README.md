@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 27 build steps shipped. All 277 backend tests pass, and the frontend production build is clean. The next step is multi-agent coordination and specialized decision agents (Milestone 5, Chunk 5.4).
+**Status:** 29 build steps shipped. All 311 backend tests pass, and the frontend production build is clean. The next step is multi-agent coordination and specialized decision agents (Milestone 5, Chunk 5.6).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -26,6 +26,8 @@ A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_
 | **Agentic AI & Operations Analyst** | First bounded autonomous agent (`hospital_operations_analyst`) with 5 read-only tools across Knowledge, Forecasts, Simulations, and Optimizations, clinical scope guardrails, duplicate-call loop prevention, and interactive Agent Workbench (`/agents`) |
 | **Tool Schemas & Contracts** | Standardized, typed machine-readable tool contracts with dual pre/post Pydantic validation, Draft 2020-12 JSON Schema generation, OpenAI function calling export, semver tracking, permission-filtered tool discovery, and interactive UI schema inspector (`AgentToolsModal`) |
 | **Agent Orchestration Engine** | Controlled sequential orchestration lifecycle (14 state tracker), structured task planning, safe tool coordinator with loop prevention, evidence collector with domain classification, citation verification, and execution trace API (`/api/v1/agents/traces/{id}`) |
+| **Agent State Management** | Persistent session scoping (`agent_sessions`), chronological message turns (`agent_messages`), bounded context reconstruction with token budgeting, and multi-turn conversational continuity |
+| **Agent Memory & Preferences** | User-approved persistent operational memory (`agent_memories`), deterministic healthcare safety & anti-injection validation, candidate extraction, approval/supersession lifecycle, and dedicated preferences workspace (`AgentMemoryModal`) |
 | **Planned** | Multi-agent coordination, specialized cross-functional workflows, and human-in-the-loop operational committee orchestration |
 
 Everything is advisory. The system never writes to live bed, patient, admission or equipment records.
@@ -62,7 +64,9 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 5.1 | First Agent: Hospital Operations Analyst Agent | ✅ Complete |
 | 5.2 | Tool Schemas & Standardized Tool Contracts | ✅ Complete |
 | 5.3 | Agent Orchestration Engine | ✅ Complete |
-| 5.4 | Multi-Agent Coordination & Specialized Decision Agents | ⬜ Planned |
+| 5.4 | Agent State Management & Conversation Continuity | ✅ Complete |
+| 5.5 | Agent Memory & Cross-Session Intelligence | ✅ Complete |
+| 5.6 | Multi-Agent Coordination & Specialized Decision Agents | ⬜ Planned |
 
 </details>
 

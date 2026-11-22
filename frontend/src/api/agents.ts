@@ -11,6 +11,10 @@ import { apiClient } from './client'
 import {
   AgentExecutionTrace,
   AgentHealthResponse,
+  AgentMemory,
+  AgentMemoryCandidate,
+  AgentMemoryCandidateCreate,
+  AgentMemoryUpdate,
   AgentMessage,
   AgentMetadata,
   AgentRunRequest,
@@ -18,6 +22,7 @@ import {
   AgentSession,
   AgentSessionCreate,
   AgentSessionUpdate,
+  MemoryCategory,
   SessionStatus,
   ToolDefinition,
 } from '../types/agents'
@@ -235,6 +240,113 @@ export const agentApi = {
       `/agents/sessions/${sessionId}/messages`,
       { content }
     )
+    return response.data
+  },
+
+  // ── Agent Memory & Preferences (Chunk 5.5) ───────────────────────────────────
+
+  /**
+   * List pending memory candidates awaiting user review and approval.
+   */
+  async listPendingMemories(params?: {
+    page?: number
+    page_size?: number
+  }): Promise<AgentMemoryCandidate[]> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.page_size) searchParams.set('page_size', String(params.page_size))
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    const response = await apiClient.get<ApiResponse<AgentMemoryCandidate[]>>(
+      `/agents/memories/pending${query}`
+    )
+    return response.data
+  },
+
+  /**
+   * Manually register an operational preference or context candidate.
+   */
+  async createMemoryCandidate(
+    payload: AgentMemoryCandidateCreate
+  ): Promise<AgentMemoryCandidate> {
+    const response = await apiClient.post<ApiResponse<AgentMemoryCandidate>>(
+      '/agents/memories/candidate',
+      payload
+    )
+    return response.data
+  },
+
+  /**
+   * Explicitly approve a memory candidate to ACTIVE status.
+   */
+  async approveMemory(memoryId: string): Promise<AgentMemory> {
+    const response = await apiClient.post<ApiResponse<AgentMemory>>(
+      `/agents/memories/${memoryId}/approve`
+    )
+    return response.data
+  },
+
+  /**
+   * Reject a pending memory candidate.
+   */
+  async rejectMemory(memoryId: string): Promise<AgentMemoryCandidate> {
+    const response = await apiClient.post<ApiResponse<AgentMemoryCandidate>>(
+      `/agents/memories/${memoryId}/reject`
+    )
+    return response.data
+  },
+
+  /**
+   * List approved active agent memories.
+   */
+  async listActiveMemories(params?: {
+    category?: MemoryCategory
+    page?: number
+    page_size?: number
+  }): Promise<AgentMemory[]> {
+    const searchParams = new URLSearchParams()
+    if (params?.category) searchParams.set('category', params.category)
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.page_size) searchParams.set('page_size', String(params.page_size))
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    const response = await apiClient.get<ApiResponse<AgentMemory[]>>(
+      `/agents/memories${query}`
+    )
+    return response.data
+  },
+
+  /**
+   * Retrieve a specific active memory.
+   */
+  async getMemory(memoryId: string): Promise<AgentMemory> {
+    const response = await apiClient.get<ApiResponse<AgentMemory>>(
+      `/agents/memories/${memoryId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Update value or summary of an active memory.
+   */
+  async updateMemory(
+    memoryId: string,
+    payload: AgentMemoryUpdate
+  ): Promise<AgentMemory> {
+    const response = await apiClient.patch<ApiResponse<AgentMemory>>(
+      `/agents/memories/${memoryId}`,
+      payload
+    )
+    return response.data
+  },
+
+  /**
+   * Soft-delete an agent memory.
+   */
+  async deleteMemory(
+    memoryId: string
+  ): Promise<{ memory_id: string; status: string }> {
+    const response = await apiClient.delete<
+      ApiResponse<{ memory_id: string; status: string }>
+    >(`/agents/memories/${memoryId}`)
     return response.data
   },
 }

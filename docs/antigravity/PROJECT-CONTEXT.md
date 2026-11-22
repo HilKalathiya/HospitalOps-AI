@@ -79,6 +79,8 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | **M5: Agentic AI** | **5.1** | **First Agent: Hospital Operations Analyst Agent** | ✅ Complete | Autonomous decision intelligence agent (hospital_operations_analyst), 5 read-only domain tools, clinical scope guard, bounded lifecycle, execution trace, 16/16 tests passed (245 total) |
 | | **5.2** | **Tool Schemas & Standardized Tool Contracts** | ✅ Complete | Standardized Pydantic v2 schemas, Draft 2020-12 JSON Schema generation, OpenAI function calling export, semver tracking, permission-filtered tool discovery, interactive UI schema inspector, 15/15 tests passed (260 total) |
 | | **5.3** | **Agent Orchestration Engine** | ✅ Complete | Controlled lifecycle state machine (14 states), structured task planning, safe tool coordinator with loop prevention, evidence collector with domain classification, citation verification, execution trace API, 17/17 tests passed (277 total) |
+| | **5.4** | **Agent State Management & Conversation Continuity** | ✅ Complete | Persistent session scoping (agent_sessions), chronological message turns (agent_messages), bounded context reconstruction with token budgeting, multi-turn conversational continuity, 10/10 tests passed (287 total) |
+| | **5.5** | **Agent Memory & Cross-Session Intelligence** | ✅ Complete | User-approved persistent operational memory (agent_memories), deterministic healthcare safety & anti-injection validation, candidate extraction, approval/supersession lifecycle, dedicated preferences workspace, 24/24 tests passed (311 total) |
 
 ---
 
@@ -797,4 +799,57 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - `python -m ruff check backend`: 0 lint errors.
      - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
      - `npm --prefix frontend run build`: Clean production build in 6.67s.
-* **Next Planned Work:** Milestone 5, Chunk 5.5 (Multi-Agent Coordination & Specialized Decision Agents).
+* **Next Planned Work:** Milestone 5, Chunk 5.5 (Agent Memory & Cross-Session Intelligence) — Completed.
+
+---
+
+## 22. Completed Workstream: Milestone 5, Chunk 5.5 (Agent Memory & Cross-Session Intelligence)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Persistent Memory Persistence & Lifecycles (`agent_memories`):**
+     - Implemented `AgentMemoryDocument` capturing `memory_id`, `user_id`, `agent_id`, `category` (`USER_PREFERENCE`, `WORKFLOW_PREFERENCE`, `EXPLICIT_USER_CONTEXT`), `key`, `value`, `summary`, `status` (`PENDING_APPROVAL`, `ACTIVE`, `SUPERSEDED`, `EXPIRED`, `REJECTED`, `DELETED`), provenance IDs, timestamps, and concurrency version.
+     - MongoDB compound indexes: `(memory_id)`, `(user_id, status, category)`, `(user_id, status, last_used_at DESC)`, `(user_id, agent_id, key)`, `(expires_at)`.
+     - `AgentMemoryRepository` with strict user ownership scoping and atomic status transitions.
+  2. **Deterministic Safety Policy Boundary (`AgentMemoryPolicy`):**
+     - Enforces zero PHI/patient-level identifiers (`scan_privacy_and_access`: SSN, MRN, MIMIC hadm/subject/stay IDs, phone, DOB).
+     - Enforces non-clinical operational boundary (`is_clinical_query`: rejects diagnosis, medication prescriptions, drug dosages, intubation, treatment regimens).
+     - Credential/secret scanning (Bearer tokens, JWTs, API keys, passwords).
+     - Anti-injection scanning (ignore previous instructions, developer mode, system prompt spoofing).
+     - Privilege escalation scanning (role is admin, bypass rbac, elevate permission).
+     - Sizing bounds (key: 2-100 chars, value: 2-2000 chars, summary: 2-500 chars).
+  3. **Memory Extraction Engine (`AgentMemoryExtractor`):**
+     - Recognizes preference cues ("remember that I prefer...", "always include...", "for future reports...", "in our hospital, our standard...") via compiled regex heuristics and optional structured LLM extraction.
+     - Rejects unsafe phrases and standard operational inquiries (zero hallucinated candidates).
+  4. **Memory Service & Lifecycle Management (`AgentMemoryService`):**
+     - Explicit consent workflow: candidates are created in `PENDING_APPROVAL`.
+     - Approval re-validates safety policies, detects conflicting active keys, supersedes older active versions, and sets status to `ACTIVE`.
+     - Rejection and soft-deletion transitions (`REJECTED`, `DELETED`).
+     - Bounded retrieval (`max_memories=5`, `max_chars=1500`) with keyword relevance scoring and recency prioritization. Asynchronously updates `last_used_at`.
+     - Non-blocking post-response extraction hook in `AgentStateManager.execute_in_session`.
+  5. **Context Builder & Prompt Integration:**
+     - `AgentContextBuilder` injects retrieved approved memories into `AgentConversationContext`.
+     - Formats prompt section `### Approved User Preferences & Operational Context` with clear warnings that stored preferences represent reporting conventions and never override live operational data.
+  6. **REST API Endpoints (`/api/v1/agents/memories`):**
+     - `GET /api/v1/agents/memories/pending`: List pending memory candidates (`agents.read`).
+     - `POST /api/v1/agents/memories/candidate`: Manually register a candidate (`agents.run`).
+     - `POST /api/v1/agents/memories/{id}/approve`: Approve candidate to `ACTIVE` (`agents.run`).
+     - `POST /api/v1/agents/memories/{id}/reject`: Reject candidate (`agents.run`).
+     - `GET /api/v1/agents/memories`: List approved active memories with filtering and pagination (`agents.read`).
+     - `GET /api/v1/agents/memories/{id}`: Inspect memory details (`agents.read`).
+     - `PATCH /api/v1/agents/memories/{id}`: Edit memory content with policy re-validation (`agents.run`).
+     - `DELETE /api/v1/agents/memories/{id}`: Soft-delete memory (`agents.run`).
+  7. **Frontend Memory & Preferences Workspace:**
+     - `AgentMemoryModal.tsx`: Dual-tab modal for reviewing pending candidates with 1-click Approve/Reject, and managing active preferences with inline creation, editing, and deletion.
+     - `AgentHeader.tsx`: Added "Memory" button displaying an indicator badge for pending candidates awaiting review.
+     - `AgentWorkbench.tsx`: Wired modal state, pending count polling, and automatic refresh on conversational turns.
+  8. **Architecture Decision Record:**
+     - Created `docs/decisions/ADR-017-agent-memory-and-cross-session-intelligence.md`.
+  9. **Verification & Testing:**
+     - 24 unit and API tests in `backend/tests/test_agent_memory.py` covering policy validation (PHI, clinical, secrets, injection, RBAC claims), candidate extraction, approval/supersession/rejection/deletion lifecycle, user isolation, bounded retrieval, prompt formatting, and REST API endpoints.
+     - 82/82 agent tests passed across all suites (`test_agents.py`, `test_agent_tools.py`, `test_agent_orchestrator.py`, `test_agent_sessions.py`, `test_agent_memory.py`).
+     - Full backend regression suite: 311 passed, 10 skipped, 0 failures.
+     - `python -m ruff check backend`: 0 lint errors.
+     - `npm --prefix frontend run lint`: 0 lint errors, 0 warnings.
+     - `npm --prefix frontend run build`: Clean production build in 5.70s.
+* **Next Planned Work:** Milestone 5, Chunk 5.6 (Multi-Agent Coordination & Specialized Decision Agents).

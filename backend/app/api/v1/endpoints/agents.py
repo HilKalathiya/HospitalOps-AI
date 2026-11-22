@@ -34,16 +34,25 @@ from app.agents.contracts import (
     ToolCategory,
     ToolDefinition,
 )
+from app.agents.memory.service import AgentMemoryService
 from app.agents.orchestrator import get_stored_trace
 from app.agents.runtime import AgentRuntime
 from app.agents.state_manager import AgentStateManager
 from app.api.dependencies import (
+    get_agent_memory_service,
     get_agent_runtime,
     get_agent_state_manager,
     require_permission,
 )
 from app.core.request_context import get_request_id
 from app.core.security import get_permissions_for_role
+from app.models.agent_memory import (
+    AgentMemoryCandidateCreate,
+    AgentMemoryCandidateResponse,
+    AgentMemoryResponse,
+    AgentMemoryUpdate,
+    MemoryCategory,
+)
 from app.models.agent_message import (
     AgentMessageCreate,
     AgentMessageResponse,
@@ -460,6 +469,325 @@ async def get_tool_detail(
 
     definition = tool.get_definition(include_schemas=True)
     return SuccessResponse(data=definition)
+
+
+# ── Agent Memory & Preferences (Chunk 5.5) ────────────────────────────────────
+
+
+@router.get(
+    "/memories/pending",
+    response_model=SuccessResponse[list[AgentMemoryCandidateResponse]],
+    status_code=status.HTTP_200_OK,
+    summary="List pending memory candidates awaiting user review (Chunk 5.5)",
+)
+async def list_pending_memory_candidates(
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.read"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 20,
+) -> SuccessResponse[list[AgentMemoryCandidateResponse]]:
+    """
+    Retrieve user memory candidates awaiting explicit review and consent.
+    Strictly scoped to the authenticated caller.
+    """
+    skip = (page - 1) * page_size
+    candidates, total = await memory_service.list_pending_candidates(
+        user_id=current_user.user_id, skip=skip, limit=page_size
+    )
+    items = [
+        AgentMemoryCandidateResponse(
+            memory_id=c.memory_id,
+            user_id=c.user_id,
+            agent_id=c.agent_id,
+            category=c.category,
+            key=c.key,
+            value=c.value,
+            summary=c.summary,
+            status=c.status,
+            source_session_id=c.source_session_id,
+            source_message_ids=c.source_message_ids,
+            created_at=c.created_at,
+            metadata=c.metadata,
+        )
+        for c in candidates
+    ]
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+    pagination = PaginationMeta(
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=total_pages,
+    )
+    return SuccessResponse(
+        data=items,
+        meta=ResponseMeta(request_id=get_request_id(), pagination=pagination),
+    )
+
+
+@router.post(
+    "/memories/candidate",
+    response_model=SuccessResponse[AgentMemoryCandidateResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Manually propose a memory candidate (Chunk 5.5)",
+)
+async def create_memory_candidate(
+    payload: AgentMemoryCandidateCreate,
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.run"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+) -> SuccessResponse[AgentMemoryCandidateResponse]:
+    """
+    Manually register an operational preference or context candidate.
+    Enforces policy validation and places candidate in PENDING_APPROVAL.
+    """
+    candidate = await memory_service.create_candidate(
+        current_user=current_user,
+        payload=payload,
+    )
+    res = AgentMemoryCandidateResponse(
+        memory_id=candidate.memory_id,
+        user_id=candidate.user_id,
+        agent_id=candidate.agent_id,
+        category=candidate.category,
+        key=candidate.key,
+        value=candidate.value,
+        summary=candidate.summary,
+        status=candidate.status,
+        source_session_id=candidate.source_session_id,
+        source_message_ids=candidate.source_message_ids,
+        created_at=candidate.created_at,
+        metadata=candidate.metadata,
+    )
+    return SuccessResponse(data=res)
+
+
+@router.post(
+    "/memories/{memory_id}/approve",
+    response_model=SuccessResponse[AgentMemoryResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Approve memory candidate to ACTIVE status (Chunk 5.5)",
+)
+async def approve_memory(
+    memory_id: Annotated[str, Path(description="Memory identifier")],
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.run"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+) -> SuccessResponse[AgentMemoryResponse]:
+    """
+    Explicitly approve and activate a pending memory candidate.
+    Re-validates healthcare and anti-injection policies, supersedes conflicting keys,
+    and enables the memory for subsequent conversational turns.
+    """
+    approved = await memory_service.approve_candidate(
+        memory_id=memory_id,
+        current_user=current_user,
+    )
+    res = AgentMemoryResponse(
+        memory_id=approved.memory_id,
+        user_id=approved.user_id,
+        agent_id=approved.agent_id,
+        category=approved.category,
+        key=approved.key,
+        value=approved.value,
+        summary=approved.summary,
+        status=approved.status,
+        source_session_id=approved.source_session_id,
+        created_at=approved.created_at,
+        updated_at=approved.updated_at,
+        last_used_at=approved.last_used_at,
+        expires_at=approved.expires_at,
+        version=approved.version,
+        metadata=approved.metadata,
+    )
+    return SuccessResponse(data=res)
+
+
+@router.post(
+    "/memories/{memory_id}/reject",
+    response_model=SuccessResponse[AgentMemoryCandidateResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Reject pending memory candidate (Chunk 5.5)",
+)
+async def reject_memory(
+    memory_id: Annotated[str, Path(description="Memory identifier")],
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.run"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+) -> SuccessResponse[AgentMemoryCandidateResponse]:
+    """
+    Reject a pending memory candidate. Status transitions to REJECTED.
+    """
+    rejected = await memory_service.reject_candidate(
+        memory_id=memory_id,
+        current_user=current_user,
+    )
+    res = AgentMemoryCandidateResponse(
+        memory_id=rejected.memory_id,
+        user_id=rejected.user_id,
+        agent_id=rejected.agent_id,
+        category=rejected.category,
+        key=rejected.key,
+        value=rejected.value,
+        summary=rejected.summary,
+        status=rejected.status,
+        source_session_id=rejected.source_session_id,
+        source_message_ids=rejected.source_message_ids,
+        created_at=rejected.created_at,
+        metadata=rejected.metadata,
+    )
+    return SuccessResponse(data=res)
+
+
+@router.get(
+    "/memories",
+    response_model=SuccessResponse[list[AgentMemoryResponse]],
+    status_code=status.HTTP_200_OK,
+    summary="List approved active agent memories (Chunk 5.5)",
+)
+async def list_active_memories(
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.read"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+    category: Annotated[MemoryCategory | None, Query(description="Filter by category")] = None,
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 50,
+) -> SuccessResponse[list[AgentMemoryResponse]]:
+    """
+    List user-approved persistent memories currently active and injected into context.
+    """
+    skip = (page - 1) * page_size
+    memories, total = await memory_service.list_active_memories(
+        user_id=current_user.user_id,
+        category=category,
+        skip=skip,
+        limit=page_size,
+    )
+    items = [
+        AgentMemoryResponse(
+            memory_id=m.memory_id,
+            user_id=m.user_id,
+            agent_id=m.agent_id,
+            category=m.category,
+            key=m.key,
+            value=m.value,
+            summary=m.summary,
+            status=m.status,
+            source_session_id=m.source_session_id,
+            created_at=m.created_at,
+            updated_at=m.updated_at,
+            last_used_at=m.last_used_at,
+            expires_at=m.expires_at,
+            version=m.version,
+            metadata=m.metadata,
+        )
+        for m in memories
+    ]
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+    pagination = PaginationMeta(
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=total_pages,
+    )
+    return SuccessResponse(
+        data=items,
+        meta=ResponseMeta(request_id=get_request_id(), pagination=pagination),
+    )
+
+
+@router.get(
+    "/memories/{memory_id}",
+    response_model=SuccessResponse[AgentMemoryResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get details of specific memory (Chunk 5.5)",
+)
+async def get_memory_detail(
+    memory_id: Annotated[str, Path(description="Memory identifier")],
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.read"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+) -> SuccessResponse[AgentMemoryResponse]:
+    """
+    Retrieve specific memory enforcing authenticated ownership.
+    """
+    mem = await memory_service.get_memory(memory_id=memory_id, current_user=current_user)
+    res = AgentMemoryResponse(
+        memory_id=mem.memory_id,
+        user_id=mem.user_id,
+        agent_id=mem.agent_id,
+        category=mem.category,
+        key=mem.key,
+        value=mem.value,
+        summary=mem.summary,
+        status=mem.status,
+        source_session_id=mem.source_session_id,
+        created_at=mem.created_at,
+        updated_at=mem.updated_at,
+        last_used_at=mem.last_used_at,
+        expires_at=mem.expires_at,
+        version=mem.version,
+        metadata=mem.metadata,
+    )
+    return SuccessResponse(data=res)
+
+
+@router.patch(
+    "/memories/{memory_id}",
+    response_model=SuccessResponse[AgentMemoryResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Update content of active memory (Chunk 5.5)",
+)
+async def update_memory(
+    memory_id: Annotated[str, Path(description="Memory identifier")],
+    payload: AgentMemoryUpdate,
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.run"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+) -> SuccessResponse[AgentMemoryResponse]:
+    """
+    Modify value or summary of an active approved memory.
+    Enforces healthcare safety and anti-injection policies on updated content.
+    """
+    updated = await memory_service.update_memory(
+        memory_id=memory_id,
+        current_user=current_user,
+        payload=payload,
+    )
+    res = AgentMemoryResponse(
+        memory_id=updated.memory_id,
+        user_id=updated.user_id,
+        agent_id=updated.agent_id,
+        category=updated.category,
+        key=updated.key,
+        value=updated.value,
+        summary=updated.summary,
+        status=updated.status,
+        source_session_id=updated.source_session_id,
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
+        last_used_at=updated.last_used_at,
+        expires_at=updated.expires_at,
+        version=updated.version,
+        metadata=updated.metadata,
+    )
+    return SuccessResponse(data=res)
+
+
+@router.delete(
+    "/memories/{memory_id}",
+    response_model=SuccessResponse[dict[str, str]],
+    status_code=status.HTTP_200_OK,
+    summary="Soft-delete agent memory (Chunk 5.5)",
+)
+async def delete_memory(
+    memory_id: Annotated[str, Path(description="Memory identifier")],
+    current_user: Annotated[UserDocument, Depends(require_permission("agents.run"))],
+    memory_service: Annotated[AgentMemoryService, Depends(get_agent_memory_service)],
+) -> SuccessResponse[dict[str, str]]:
+    """
+    Soft-delete memory, setting its status to DELETED so it is no longer retrieved.
+    """
+    deleted = await memory_service.delete_memory(memory_id=memory_id, current_user=current_user)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Memory '{memory_id}' could not be deleted.",
+        )
+    return SuccessResponse(data={"memory_id": memory_id, "status": "DELETED"})
 
 
 @router.get(

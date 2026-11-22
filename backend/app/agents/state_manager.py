@@ -9,13 +9,22 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
 from app.agents.context_builder import AgentContextBuilder
-from app.agents.contracts import AgentRunOptions, AgentRunRequest, AgentRunResponse
+from app.agents.contracts import (
+    AgentMemoryItem,
+    AgentRunOptions,
+    AgentRunRequest,
+    AgentRunResponse,
+)
 from app.agents.orchestrator import AgentOrchestrator
 from app.core.security import get_permissions_for_role
+
+if TYPE_CHECKING:
+    from app.agents.memory.service import AgentMemoryService
 from app.models.agent_message import (
     AgentMessageDocument,
     MessageRole,
@@ -51,11 +60,13 @@ class AgentStateManager:
         message_repo: AgentMessageRepository,
         orchestrator: AgentOrchestrator,
         context_builder: AgentContextBuilder | None = None,
+        memory_service: AgentMemoryService | None = None,
     ) -> None:
         self.session_repo = session_repo
         self.message_repo = message_repo
         self.orchestrator = orchestrator
         self.context_builder = context_builder or AgentContextBuilder()
+        self.memory_service = memory_service
 
     async def create_session(
         self,
@@ -293,11 +304,31 @@ class AgentStateManager:
                 session_id=session_id, user_id=current_user.user_id, title=auto_title
             )
 
-        # 4. Context Reconstruction
+        # 4. Context Reconstruction (with Approved User Memories - Chunk 5.5)
         recent_messages = await self.message_repo.get_recent_messages(
             session_id=session_id, limit=20
         )
         user_perms = get_permissions_for_role(current_user.role)
+
+        approved_mem_items: list[AgentMemoryItem] = []
+        if self.memory_service:
+            try:
+                retrieved_mems = await self.memory_service.retrieve_relevant_memories(
+                    user_id=current_user.user_id,
+                    agent_id=session.agent_id,
+                    task=task_clean,
+                )
+                approved_mem_items = [
+                    AgentMemoryItem(
+                        memory_id=m.memory_id,
+                        category=m.category.value if hasattr(m.category, "value") else str(m.category),
+                        key=m.key,
+                        summary=m.summary,
+                    )
+                    for m in retrieved_mems
+                ]
+            except Exception as mem_err:
+                logger.warning("Failed to retrieve user memories for session context: %s", mem_err)
 
         conv_context = self.context_builder.build_context(
             session_id=session_id,
@@ -305,6 +336,7 @@ class AgentStateManager:
             recent_messages=recent_messages,
             current_user_permissions=user_perms,
             latest_execution_id=session.latest_execution_id,
+            approved_memories=approved_mem_items,
         )
 
         # 5. Build Request & Invoke Chunk 5.3 Orchestration Engine
@@ -358,5 +390,19 @@ class AgentStateManager:
             latest_execution_id=resp.run_id,
             increment_messages=1,
         )
+
+        # 8. Non-Blocking Memory Candidate Extraction (Chunk 5.5)
+        if self.memory_service:
+            try:
+                await self.memory_service.extract_and_store_candidates(
+                    session_id=session_id,
+                    user_id=current_user.user_id,
+                    agent_id=session.agent_id,
+                    user_message=task_clean,
+                    assistant_message=resp.final_answer,
+                    message_id=user_msg_id,
+                )
+            except Exception as extract_err:
+                logger.warning("Agent memory candidate extraction failed (non-blocking): %s", extract_err)
 
         return resp

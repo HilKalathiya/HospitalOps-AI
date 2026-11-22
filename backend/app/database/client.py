@@ -414,6 +414,35 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── agent_memories ────────────────────────────────────────────────────────
+    # memory_id: unique memory identifier.
+    # user_id + status + category: query user's memories by status and domain.
+    # user_id + status + last_used_at: recency ordering for context retrieval.
+    # user_id + agent_id + key: deduplication and supersession lookups.
+    # expires_at: TTL / expiration cleanup.
+    await db["agent_memories"].create_indexes(
+        [
+            IndexModel([("memory_id", ASCENDING)], unique=True, name="agent_memories_id_unique"),
+            IndexModel(
+                [("user_id", ASCENDING), ("status", ASCENDING), ("category", ASCENDING)],
+                name="agent_memories_user_status_cat",
+            ),
+            IndexModel(
+                [("user_id", ASCENDING), ("status", ASCENDING), ("last_used_at", DESCENDING)],
+                name="agent_memories_user_status_last_used",
+            ),
+            IndexModel(
+                [("user_id", ASCENDING), ("agent_id", ASCENDING), ("key", ASCENDING)],
+                name="agent_memories_user_agent_key",
+            ),
+            IndexModel(
+                [("expires_at", ASCENDING)],
+                sparse=True,
+                name="agent_memories_expires_at",
+            ),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 

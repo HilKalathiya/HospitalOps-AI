@@ -27,6 +27,7 @@ from app.database.client import get_database
 from app.database.redis_client import get_redis
 from app.models.user import Role, UserDocument
 from app.repositories.admissions import AdmissionsRepository
+from app.repositories.agent_memories import AgentMemoryRepository
 from app.repositories.agent_messages import AgentMessageRepository
 from app.repositories.agent_sessions import AgentSessionRepository
 from app.repositories.audit_logs import AuditLogsRepository
@@ -345,6 +346,25 @@ def get_optional_agent_message_repository(
     return AgentMessageRepository(db) if db is not None else None
 
 
+def get_optional_agent_memory_repository(
+    db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
+) -> AgentMemoryRepository | None:
+    return AgentMemoryRepository(db) if db is not None else None
+
+
+def get_agent_memory_service(
+    memory_repo: Annotated[
+        AgentMemoryRepository | None, Depends(get_optional_agent_memory_repository)
+    ] = None,
+    runtime: Annotated[Any, Depends(get_agent_runtime)] = None,
+):
+    from app.agents.memory.extractor import AgentMemoryExtractor
+    from app.agents.memory.service import AgentMemoryService
+
+    extractor = AgentMemoryExtractor(provider=runtime.provider if runtime else None)
+    return AgentMemoryService(memory_repo=memory_repo, extractor=extractor)  # type: ignore[arg-type]
+
+
 def get_agent_state_manager(
     runtime: Annotated[Any, Depends(get_agent_runtime)],
     session_repo: Annotated[
@@ -353,6 +373,7 @@ def get_agent_state_manager(
     message_repo: Annotated[
         AgentMessageRepository | None, Depends(get_optional_agent_message_repository)
     ] = None,
+    memory_service: Annotated[Any, Depends(get_agent_memory_service)] = None,
 ):
     from app.agents.state_manager import AgentStateManager
 
@@ -360,6 +381,7 @@ def get_agent_state_manager(
         session_repo=session_repo,  # type: ignore[arg-type]
         message_repo=message_repo,  # type: ignore[arg-type]
         orchestrator=runtime.orchestrator,
+        memory_service=memory_service,
     )
 
 

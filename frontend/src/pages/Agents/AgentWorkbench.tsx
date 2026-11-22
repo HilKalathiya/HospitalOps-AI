@@ -16,6 +16,7 @@ import { AgentTaskPlanPanel } from '../../components/agents/AgentTaskPlanPanel'
 import { AgentExecutionTimeline } from '../../components/agents/AgentExecutionTimeline'
 import { AgentProvenanceCards } from '../../components/agents/AgentProvenanceCards'
 import { AgentToolsModal } from '../../components/agents/AgentToolsModal'
+import { AgentMemoryModal } from '../../components/agents/AgentMemoryModal'
 import { AgentSessionSidebar } from '../../components/agents/AgentSessionSidebar'
 import { AgentConversationStream } from '../../components/agents/AgentConversationStream'
 
@@ -36,6 +37,10 @@ export const AgentWorkbench: React.FC = () => {
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'ALL' | SessionStatus>('ACTIVE')
   const [showInspector, setShowInspector] = useState(false)
+
+  // Memory & Preferences state (Chunk 5.5)
+  const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false)
+  const [pendingMemoriesCount, setPendingMemoriesCount] = useState(0)
 
   // 1. Fetch Health Telemetry
   useEffect(() => {
@@ -92,6 +97,20 @@ export const AgentWorkbench: React.FC = () => {
       setMessages([])
     }
   }, [])
+
+  // 3b. Fetch Pending Memories Count (Chunk 5.5)
+  const loadPendingMemoriesCount = useCallback(async () => {
+    try {
+      const pending = await agentApi.listPendingMemories()
+      setPendingMemoriesCount(pending.length)
+    } catch {
+      // Graceful fallback
+    }
+  }, [])
+
+  useEffect(() => {
+    loadPendingMemoriesCount()
+  }, [loadPendingMemoriesCount])
 
   useEffect(() => {
     if (activeSession) {
@@ -212,6 +231,9 @@ export const AgentWorkbench: React.FC = () => {
       setSessions(updatedSessions)
       const curr = updatedSessions.find((s) => s.session_id === targetSessionId)
       if (curr) setActiveSession(curr)
+
+      // Refresh memory candidates count (Chunk 5.5)
+      loadPendingMemoriesCount()
     } catch (err: unknown) {
       console.error('Agent conversational execution failed:', err)
       const msg =
@@ -244,6 +266,8 @@ export const AgentWorkbench: React.FC = () => {
         health={health}
         isLoadingHealth={isLoadingHealth}
         onOpenToolsModal={() => setIsToolsModalOpen(true)}
+        pendingMemoriesCount={pendingMemoriesCount}
+        onOpenMemoryModal={() => setIsMemoryModalOpen(true)}
       />
 
       {/* Error Alert */}
@@ -350,6 +374,13 @@ export const AgentWorkbench: React.FC = () => {
       <AgentToolsModal
         isOpen={isToolsModalOpen}
         onClose={() => setIsToolsModalOpen(false)}
+      />
+
+      {/* Operational Memory & Preferences Modal (Chunk 5.5) */}
+      <AgentMemoryModal
+        isOpen={isMemoryModalOpen}
+        onClose={() => setIsMemoryModalOpen(false)}
+        onMemoriesUpdated={loadPendingMemoriesCount}
       />
     </div>
   )

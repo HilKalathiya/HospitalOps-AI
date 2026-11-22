@@ -285,6 +285,70 @@ export interface AgentHealthResponse {
   agent_version: string
 }
 
+// ── Agent Memory & Preferences (Chunk 5.5) ───────────────────────────────────
+
+export type MemoryCategory =
+  | 'USER_PREFERENCE'
+  | 'WORKFLOW_PREFERENCE'
+  | 'EXPLICIT_USER_CONTEXT'
+
+export type MemoryStatus =
+  | 'PENDING_APPROVAL'
+  | 'ACTIVE'
+  | 'SUPERSEDED'
+  | 'EXPIRED'
+  | 'REJECTED'
+  | 'DELETED'
+
+export interface AgentMemory {
+  memory_id: string
+  user_id: string
+  agent_id: string
+  category: MemoryCategory
+  key: string
+  value: string
+  summary: string
+  status: MemoryStatus
+  source_session_id?: string | null
+  created_at: string
+  updated_at: string
+  last_used_at?: string | null
+  expires_at?: string | null
+  version: number
+  metadata?: Record<string, unknown>
+}
+
+export interface AgentMemoryCandidate {
+  memory_id: string
+  user_id: string
+  agent_id: string
+  category: MemoryCategory
+  key: string
+  value: string
+  summary: string
+  status: MemoryStatus
+  source_session_id?: string | null
+  source_message_ids?: string[]
+  created_at: string
+  metadata?: Record<string, unknown>
+}
+
+export interface AgentMemoryCandidateCreate {
+  category: MemoryCategory
+  key: string
+  value: string
+  summary: string
+  source_session_id?: string
+  source_message_ids?: string[]
+  metadata?: Record<string, unknown>
+}
+
+export interface AgentMemoryUpdate {
+  value?: string
+  summary?: string
+  metadata?: Record<string, unknown>
+}
+
 export interface SuggestedTaskItem {
   id: string
   category: 'Knowledge' | 'Comparative' | 'Forecast' | 'Simulation' | 'Optimization'
