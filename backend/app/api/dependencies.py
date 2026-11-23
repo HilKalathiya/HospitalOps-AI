@@ -25,6 +25,7 @@ from app.data_ingestion.repositories import (
 )
 from app.database.client import get_database
 from app.database.redis_client import get_redis
+from app.events.service import OperationalEventService
 from app.models.user import Role, UserDocument
 from app.repositories.admissions import AdmissionsRepository
 from app.repositories.agent_memories import AgentMemoryRepository
@@ -33,6 +34,7 @@ from app.repositories.agent_sessions import AgentSessionRepository
 from app.repositories.audit_logs import AuditLogsRepository
 from app.repositories.beds import BedsRepository
 from app.repositories.departments import DepartmentsRepository
+from app.repositories.events import OperationalEventRepository
 from app.repositories.knowledge import KnowledgeRepository
 from app.repositories.optimizations import OptimizationsRepository
 from app.repositories.patients import PatientsRepository
@@ -111,6 +113,18 @@ def get_historical_capacity_repository(
     db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
 ) -> HistoricalHospitalCapacityRepository:
     return HistoricalHospitalCapacityRepository(db)
+
+
+def get_event_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> OperationalEventRepository:
+    return OperationalEventRepository(db)
+
+
+def get_event_service(
+    repo: Annotated[OperationalEventRepository, Depends(get_event_repository)],
+) -> OperationalEventService:
+    return OperationalEventService(repo)
 
 
 def get_auth_service(

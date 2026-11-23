@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     agents,
     auth,
     beds,
+    events,
     forecast,
     health,
     knowledge,
@@ -112,4 +113,16 @@ v1_router.include_router(
     multi_agent.router,
     prefix="/agents/multi-agent",
     tags=["multi-agent"],
+)
+
+v1_router.include_router(
+    events.router,
+    prefix="/events",
+    tags=["events"],
+)
+
+v1_router.include_router(
+    events.router,
+    prefix="/event",
+    tags=["events"],
 )

@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 34 build steps shipped. All 443 backend tests pass (including 110 multi-agent contract, specialist, runtime, integration, API, and E2E acceptance tests), 30 frontend unit tests pass, and the production build is clean. Milestone 5 (Chunk 5.6: Multi-Agent Coordination System) is fully completed and verified.
+**Status:** 35 build steps shipped. All 473 backend tests pass (including 30 event-driven architecture and 110 multi-agent tests), 30 frontend unit tests pass, and the production build is clean. Milestone 6, Chunk 6.1 (Event-Driven Architecture & Event System) is fully completed and verified.
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -73,6 +73,7 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 5.6.5 | Multi-Agent REST API & Security Layer | ✅ Complete |
 | 5.6.6 | Multi-Agent Decision UI & Transparency Panel | ✅ Complete |
 | 5.6.7 | Multi-Agent End-to-End Verification & Final Acceptance | ✅ Complete |
+| 6.1 | Event-Driven Architecture & Event System | ✅ Complete |
 
 </details>
 

@@ -88,6 +88,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.6.5** | **Multi-Agent REST API & Security Layer** | ✅ Complete | Secured FastAPI endpoints (/coordinate, /traces/{id}, /specialists), strict server-side RBAC, anti-IDOR 404 trace concealment, bounded cache isolation, sanitization of nested trace payloads, 30/30 tests passed (435 total) |
 | | **5.6.6** | **Multi-Agent UI Decision Cockpit & Transparency Panel** | ✅ Complete | Dedicated Multi-Agent Transparency Workspace (/agents/transparency), supervisor coordination cockpit, 4 domain specialist execution cards, epistemic evidence explorer, contradiction inspector, interactive trace modal, 30/30 frontend tests passed |
 | | **5.6.7** | **Multi-Agent End-to-End Verification & Final Acceptance** | ✅ Complete | Complete 12-step pipeline verification (Scenarios A-H), 8/8 E2E integration tests, 110/110 multi-agent backend tests, 30/30 frontend tests, 0 lint errors, clean build, 3-viewport browser verification |
+| **M6: Real-Time & Event Intelligence** | **6.1** | **Event-Driven Architecture & Event System** | ✅ Complete | OperationalEvent envelope, 15 typed events catalog, deterministic SHA-256 idempotency, append-only MongoDB store, 30/30 tests pass, ADR-019 |
 
 ---
 
@@ -1138,4 +1139,39 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Platform remains strictly non-clinical operational decision-support.
      - `requires_human_review = True` enforced on all operational outputs and plans.
      - Zero write or clinical mutation capabilities across all specialist and supervisor tools.
-* **Next Planned Work:** Milestone 6 (Production Hardening, Deployment & Continuous Operations).
+* **Next Planned Work:** Milestone 6, Chunk 6.1 (Event-Driven Architecture & Event System) — Completed.
+
+---
+
+## 30. Completed Workstream: Milestone 6, Chunk 6.1 (Event-Driven Architecture & Event System)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Strict Envelope & Typed Taxonomy Contracts (`backend/app/events/contracts.py`, `taxonomy.py`):**
+     - Common Pydantic v2 `OperationalEvent` envelope with `extra="forbid"`, payload size limit (64 KB), anti-PII/PHI regex scanning (rejecting SSN patterns and clinical diagnostic keys), and future timestamp skew enforcement (max 5 minutes).
+     - 15 typed payloads across 5 domains (Capacity/Operations, Forecasting, Simulation, Optimization, Agent Execution).
+     - Deterministic SHA-256 canonical JSON payload hashing (`compute_payload_hash`) ensuring consistent hashing across environments.
+     - Documented, extensible catalog (`EVENT_TAXONOMY_CATALOG`) accessible via code and REST API.
+  2. **Decoupled Publishing Abstraction (`backend/app/events/publisher.py`, `service.py`):**
+     - `EventPublisher` abstract base class and `OperationalEventPublisher` concrete implementation.
+     - `OperationalEventService` domain service with pre-flight facility scoping, audit tracking, and typed domain helper methods (`publish_capacity_updated`, `publish_forecast_completed`, etc.).
+  3. **MongoDB Event Persistence & Idempotency Store (`backend/app/repositories/events.py`):**
+     - Collection `operational_events` with unique index on `event_id` and multi-tenant compound indexes (`facility_id + occurred_at`, `facility_id + event_type + occurred_at`, `facility_id + category + occurred_at`, `entity_type + entity_id`, `correlation_id`).
+     - Atomic idempotency duplicate handling: returns `(existing_event, True)` on identical payload hash; raises `EventConflictError` on conflicting payload hash under duplicate ID.
+     - In-memory offline fallback preserving full query filtering and idempotency semantics when MongoDB is not connected.
+     - Strict append-only invariant: zero update or delete methods implemented.
+  4. **Secured REST API (`backend/app/api/v1/endpoints/events.py`):**
+     - `POST /api/v1/events/publish`: Authenticated publication with anti-IDOR facility validation (`events.publish`).
+     - `GET /api/v1/events/`: Multi-tenant filtered, paginated query endpoint with stable descending order (`events.read`).
+     - `GET /api/v1/events/{event_id}`: Single event lookup with facility isolation (`events.read`).
+     - `GET /api/v1/events/taxonomy/catalog`: Public/authenticated catalog metadata inspection (`events.read`).
+  5. **Verification & Testing (`backend/tests/test_events_*.py`):**
+     - 30 comprehensive tests across 3 suites:
+       - `test_events_contracts.py` (12 tests): Envelope validation, category mapping, skew limits, payload size, PII detection, hash determinism.
+       - `test_events_persistence.py` (8 tests): Save/retrieve, duplicate idempotency, payload conflict detection, facility scoping, pagination, append-only invariant.
+       - `test_events_api.py` (10 tests): API authorization, RBAC permissions, facility spoofing prevention, query filters, catalog discovery, service helpers.
+     - 100% pass rate (30/30 passed).
+     - Python linter: `ruff check` clean (0 errors, 0 warnings).
+  6. **Architecture Documentation:**
+     - Created `docs/decisions/ADR-019-event-driven-architecture.md`.
+* **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine).

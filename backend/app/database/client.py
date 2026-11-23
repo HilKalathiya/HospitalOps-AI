@@ -466,6 +466,36 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── operational_events ────────────────────────────────────────────────────
+    # event_id: unique event identifier for idempotency.
+    # facility_id + occurred_at: scoped time-series retrieval.
+    # event_type + occurred_at: query events by type over time.
+    # entity_type + entity_id + occurred_at: entity event lineage.
+    # correlation_id: trace multi-step execution chains.
+    await db["operational_events"].create_indexes(
+        [
+            IndexModel([("event_id", ASCENDING)], unique=True, name="operational_events_id_unique"),
+            IndexModel(
+                [("facility_id", ASCENDING), ("occurred_at", DESCENDING)],
+                name="operational_events_facility_occurred",
+            ),
+            IndexModel(
+                [("event_type", ASCENDING), ("occurred_at", DESCENDING)],
+                name="operational_events_type_occurred",
+            ),
+            IndexModel(
+                [("entity_type", ASCENDING), ("entity_id", ASCENDING), ("occurred_at", DESCENDING)],
+                name="operational_events_entity",
+            ),
+            IndexModel(
+                [("correlation_id", ASCENDING)],
+                sparse=True,
+                name="operational_events_correlation",
+            ),
+            IndexModel([("recorded_at", DESCENDING)], name="operational_events_recorded"),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 
