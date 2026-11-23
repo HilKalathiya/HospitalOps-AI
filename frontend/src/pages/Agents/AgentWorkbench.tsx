@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { AlertCircle, Sliders, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertCircle, Sliders, X, Layers, ArrowRight } from 'lucide-react'
 import { agentApi } from '../../api/agents'
 import {
   AgentHealthResponse,
@@ -261,6 +262,30 @@ export const AgentWorkbench: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Multi-Agent Transparency Workspace Banner */}
+      <div className="bg-[#1b1b1c] p-3 rounded-xl border border-line flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[#9ba8ff]/10 border border-[#9ba8ff]/25 flex items-center justify-center text-[#9ba8ff]">
+            <Layers className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-[#f0f0f1] block">
+              Multi-Agent Decision Cockpit & Transparency Workspace
+            </span>
+            <span className="text-[11px] text-[#929299]">
+              Inspect multi-specialist coordination, cross-domain evidence aggregation, and audit traces.
+            </span>
+          </div>
+        </div>
+        <Link
+          to="/agents/transparency"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#14151b] bg-[#9ba8ff] hover:bg-[#c0c7ff] transition-all shadow-xs"
+        >
+          <span>Open Multi-Agent Cockpit</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
       {/* Header with Title and Health Diagnostics */}
       <AgentHeader
         health={health}

@@ -86,7 +86,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.6.3** | **Multi-Agent Coordinator & Aggregator** | ✅ Complete | Bounded coordinator runtime, semaphore throttling, DAG cycle detection, child cancellation propagation, evidence aggregator with epistemic category preservation & output budget clamping, execution tracker with PHI sanitization, trace repository with multi-tenant isolation, 74/74 multi-agent tests passed (385 total) |
 | | **5.6.4** | **Primary Agent Multi-Agent Integration** | ✅ Complete | Primary HospitalOperationsAnalyst agent integration with MultiAgentCoordinator, controlled delegation planning, ToolContext forwarding, epistemic evidence synthesis, 20/20 tests passed (405 total) |
 | | **5.6.5** | **Multi-Agent REST API & Security Layer** | ✅ Complete | Secured FastAPI endpoints (/coordinate, /traces/{id}, /specialists), strict server-side RBAC, anti-IDOR 404 trace concealment, bounded cache isolation, sanitization of nested trace payloads, 30/30 tests passed (435 total) |
-| | **5.6.6** | **Multi-Agent UI Decision Cockpit & Transparency Panel** | ⬜ Planned | React decision cockpit, specialist execution cards, conflict inspector, and interactive trace tree |
+| | **5.6.6** | **Multi-Agent UI Decision Cockpit & Transparency Panel** | ✅ Complete | Dedicated Multi-Agent Transparency Workspace (/agents/transparency), supervisor coordination cockpit, 4 domain specialist execution cards, epistemic evidence explorer, contradiction inspector, interactive trace modal, 20/20 frontend tests passed |
 
 ---
 
@@ -1039,4 +1039,69 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Full backend regression suite: 405 passed, 10 skipped, 0 failures.
      - `python -m ruff check backend`: 0 lint errors.
      - `git diff --check`: clean.
-* **Next Planned Work:** Milestone 5, Chunk 5.6.5 (Multi-Agent REST API Endpoints, Telemetry Inspection & Frontend Decision UI).
+* **Next Planned Work:** Milestone 5, Chunk 5.6.5 (Multi-Agent REST API & Security Layer) — Completed.
+
+---
+
+## 27. Completed Workstream: Milestone 5, Chunk 5.6.5 (Multi-Agent REST API & Security Layer)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Secured FastAPI Multi-Agent Router (`backend/app/api/v1/endpoints/multi_agent.py`):**
+     - Exposed production endpoints under `/api/v1/agent/multi-agent/` and `/api/v1/agents/multi-agent/`:
+       - `POST /coordinate`: Dispatches operational inquiries to the supervisor-and-specialist architecture, supporting optional per-query delegation preferences (`enable_delegation`).
+       - `GET /traces/{trace_id}`: Retrieves full execution trace trees with paginated event histories.
+       - `GET /specialists`: Returns the registered domain specialist catalogue with capabilities and permission requirements.
+  2. **Zero-Trust Security & Anti-IDOR Protections (`backend/app/repositories/agent_traces.py`):**
+     - Enforces strict tenant/user isolation: users can only query traces originating from their own authenticated user ID.
+     - Anti-IDOR 404 concealment: unowned or cross-tenant trace queries return HTTP 404 Not Found rather than 403 Forbidden to prevent user enumeration and trace existence probing.
+     - User-scoped cache isolation: in-memory cache keys structured as `{user_id}:{trace_id}` with LRU eviction and memory bounds.
+  3. **Data Sanitization & Telemetry Hygiene:**
+     - Deep nested sanitization scrubs credentials, authorization tokens, raw database strings, and potential patient identifiers from all serialized trace events and payloads.
+  4. **Comprehensive Test Suite (`backend/tests/test_agent_multi_agent_api.py`):**
+     - 30 tests covering authentication, RBAC, anti-IDOR concealment, sanitization, concurrency, pagination, and error envelopes.
+     - Full backend regression suite: 435 passed, 10 skipped, 0 failures.
+* **Next Planned Work:** Milestone 5, Chunk 5.6.6 (Multi-Agent Transparency Workspace) — Completed.
+
+---
+
+## 28. Completed Workstream: Milestone 5, Chunk 5.6.6 (Multi-Agent Transparency Workspace)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Dedicated Cockpit Route & Deep-Linking (`frontend/src/pages/Agents/MultiAgentTransparencyWorkspace.tsx`):**
+     - Primary route `/agents/transparency` with route aliases `/agents/multi-agent` and `/agent/multi-agent`.
+     - Integrated in global navigation sidebar (`Layers` icon) under Workspace Nav and linked from `AgentWorkbench.tsx`.
+  2. **Multi-Agent Inquiry Composer (`frontend/src/components/multiAgent/MultiAgentInquiryPanel.tsx`):**
+     - Multiline query input with strict character boundary validation ($3 \le \text{len} \le 1000$).
+     - Delegation mode preference selector: Auto (`null`), Force Delegation (`true`), Disable Delegation (`false`).
+     - Prominent non-clinical operational decision-support advisory notice.
+     - Starter operational scenarios chips ("48h ICU Surge", "Emergency Surge Bed Reallocation", etc.).
+  3. **Execution Overview Bar (`frontend/src/components/multiAgent/MultiAgentExecutionOverview.tsx`):**
+     - Status badges (`COMPLETED`, `PARTIAL`, `FAILED`, `REJECTED`), delegation mode badge, duration in ms, specialist execution counts, partial result warning banner.
+     - Parent run ID and trace audit ID with one-click clipboard copy.
+     - Direct trigger button to launch Execution Audit Trace Inspector modal.
+  4. **4 Domain Specialists Execution Cards (`frontend/src/components/multiAgent/SpecialistExecutionCards.tsx`):**
+     - Dedicated cards for Forecasting, Simulation, Optimization, and Knowledge specialists.
+     - Real-time status pills (`SUCCESS`, `TIMED_OUT`, `FAILED`, `CANCELLED`, `SKIPPED`), latency in ms, tool call counts, and domain findings summaries.
+  5. **Evidence & Provenance Explorer (`frontend/src/components/multiAgent/EvidenceProvenanceExplorer.tsx`):**
+     - Epistemic category breakdown (`OBSERVED_DATA`, `FORECAST`, `SIMULATION`, `OPTIMIZATION`, `KNOWLEDGE_POLICY`).
+     - Lineage provenance tracking with source specialist, confidence score, and timestamp.
+     - Document citation cards displaying `citation_marker` (`[S1]`), `section_title`, and `excerpt`.
+  6. **Contradiction & Disagreement Inspector (`frontend/src/components/multiAgent/ContradictionInspector.tsx`):**
+     - Surfaces cross-specialist metric conflicts and polarity contradictions with severity badges (`WARNING`, `INFO`).
+     - Harmonious empty state when no contradictions are detected.
+  7. **Execution Audit Trace Inspector Modal (`frontend/src/components/multiAgent/ExecutionTraceViewer.tsx`):**
+     - Interactive modal querying `GET /api/v1/agent/multi-agent/traces/{trace_id}`.
+     - Tabs: Chronological timeline of parent-child events with duration telemetry, Delegation Plan contract with depth/timeout bounds, and sanitized raw JSON view.
+  8. **Specialists Catalogue Modal (`frontend/src/components/multiAgent/SpecialistCatalogueModal.tsx`):**
+     - Modal querying `GET /api/v1/agent/multi-agent/specialists` displaying all 4 registered specialists, domain metadata, description, and available tool capabilities.
+  9. **Supervisor Synthesis Panel (`frontend/src/components/multiAgent/FinalAnswerPanel.tsx`):**
+     - Safe markdown rendering with citation pills, operational caveats & limitations list, copy synthesis button, and non-negotiable human review boundary notice (`requires_human_review = True`).
+  10. **Automated Verification:**
+      - Frontend test suite: 20/20 tests passed via `npm test` (`tests/multi_agent_transparency.test.mjs`).
+      - Frontend lint: 0 errors, 0 warnings (`npm run lint`).
+      - Frontend production build: compiled cleanly in 5.88s (`npm run build`).
+      - Full backend multi-agent suite: 102/102 tests passed.
+      - Full backend regression suite: 435 passed, 10 skipped.
+* **Next Planned Work:** Milestone 6 (Production Hardening, Deployment & Continuous Operations).
