@@ -52,6 +52,16 @@ class BaseSpecialist(ABC):
         return STANDARD_SPECIALISTS[self.specialist_id]
 
     @property
+    def display_name(self) -> str:
+        """User-facing display name."""
+        return self.definition.display_name
+
+    @property
+    def description(self) -> str:
+        """Operational scope and purpose."""
+        return self.definition.description
+
+    @property
     def enabled(self) -> bool:
         """Whether this specialist is active."""
         return self._enabled

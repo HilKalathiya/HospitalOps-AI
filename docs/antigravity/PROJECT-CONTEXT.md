@@ -84,8 +84,9 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.6.1** | **Multi-Agent Architecture & Contracts** | ✅ Complete | Supervisor-and-specialist architecture, Pydantic contracts for delegation/results/traces, strict depth=1 and 4-specialist bounds, extra="forbid", 26/26 tests passed (337 total) |
 | | **5.6.2** | **Specialist Agent Implementations** | ✅ Complete | 4 domain specialists (Forecasting, Simulation, Optimization, Knowledge), BaseSpecialist with RBAC & clinical guard, deterministic SpecialistRegistry, 22/22 tests passed (359 total) |
 | | **5.6.3** | **Multi-Agent Coordinator & Aggregator** | ✅ Complete | Bounded coordinator runtime, semaphore throttling, DAG cycle detection, child cancellation propagation, evidence aggregator with epistemic category preservation & output budget clamping, execution tracker with PHI sanitization, trace repository with multi-tenant isolation, 74/74 multi-agent tests passed (385 total) |
-| | **5.6.4** | **Multi-Agent API & UI Workspace** | ⬜ Planned | REST endpoints, trace inspection, React transparency panel & specialist result cards |
-| | **5.6.5** | **Multi-Agent End-to-End Verification** | ⬜ Planned | Comprehensive regression, integration testing, and audit validation |
+| | **5.6.4** | **Primary Agent Multi-Agent Integration** | ✅ Complete | Primary HospitalOperationsAnalyst agent integration with MultiAgentCoordinator, controlled delegation planning, ToolContext forwarding, epistemic evidence synthesis, 20/20 tests passed (405 total) |
+| | **5.6.5** | **Multi-Agent REST API & Security Layer** | ✅ Complete | Secured FastAPI endpoints (/coordinate, /traces/{id}, /specialists), strict server-side RBAC, anti-IDOR 404 trace concealment, sanitized telemetry, 22/22 tests passed (427 total) |
+| | **5.6.6** | **Multi-Agent UI Decision Cockpit & Transparency Panel** | ⬜ Planned | React decision cockpit, specialist execution cards, conflict inspector, and interactive trace tree |
 
 ---
 

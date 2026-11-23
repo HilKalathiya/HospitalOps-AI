@@ -15,6 +15,7 @@ from app.api.v1.endpoints import (
     forecast,
     health,
     knowledge,
+    multi_agent,
     optimization,
     patients,
     resources,
@@ -99,4 +100,16 @@ v1_router.include_router(
     agents.router,
     prefix="/agents",
     tags=["agents"],
+)
+
+v1_router.include_router(
+    multi_agent.router,
+    prefix="/agent/multi-agent",
+    tags=["multi-agent"],
+)
+
+v1_router.include_router(
+    multi_agent.router,
+    prefix="/agents/multi-agent",
+    tags=["multi-agent"],
 )

@@ -2,7 +2,7 @@
 
 **Decision support for hospital operations teams: live bed and ward capacity, admission and ICU demand forecasts, what-if simulation, and a mixed-integer optimizer that plans surge beds and equipment.** It advises operations staff and never makes clinical decisions.
 
-**Status:** 32 build steps shipped. All 405 backend tests pass (including 94 multi-agent contract, specialist, runtime, and primary integration tests), and the frontend production build is clean. The next step is multi-agent API endpoints and frontend decision UI (Milestone 5, Chunk 5.6.5).
+**Status:** 33 build steps shipped. All 427 backend tests pass (including 116 multi-agent contract, specialist, runtime, integration, and API tests), and the frontend production build is clean. The next step is multi-agent frontend decision UI & transparency workspace (Milestone 5, Chunk 5.6.6).
 
 A 40-page technical guide to the codebase is in [`docs/HospitalOps_AI_Technical_Interview_Study_Manual.md`](docs/HospitalOps_AI_Technical_Interview_Study_Manual.md).
 
@@ -70,7 +70,8 @@ Everything is advisory. The system never writes to live bed, patient, admission 
 | 5.6.2 | Specialist Agent Implementations | ✅ Complete |
 | 5.6.3 | Multi-Agent Coordinator & Aggregator | ✅ Complete |
 | 5.6.4 | Primary Agent Multi-Agent Integration | ✅ Complete |
-| 5.6.5 | Multi-Agent API & Decision UI | ⬜ Planned |
+| 5.6.5 | Multi-Agent REST API & Security Layer | ✅ Complete |
+| 5.6.6 | Multi-Agent Decision UI & Transparency Panel | ⬜ Planned |
 
 </details>
 

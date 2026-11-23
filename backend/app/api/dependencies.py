@@ -302,10 +302,16 @@ def get_knowledge_service(
 
 def get_optional_agent_trace_repository(
     db: Annotated[AsyncIOMotorDatabase | None, Depends(get_optional_database)] = None,  # type: ignore[type-arg]
-) -> Any | None:
+) -> Any:
     from app.repositories.agent_traces import AgentTraceRepository
 
-    return AgentTraceRepository(db) if db is not None else None
+    return AgentTraceRepository(db)
+
+
+def get_agent_trace_repository(
+    repo: Annotated[Any, Depends(get_optional_agent_trace_repository)],
+) -> Any:
+    return repo
 
 
 def get_agent_runtime(

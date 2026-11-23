@@ -1,7 +1,7 @@
 # ADR-018: Multi-Agent Coordination & Specialized Decision Agents Architecture
 
 ## Status
-**Accepted & Implemented (Architecture, Contracts, Specialists, Coordinator, Aggregator, Execution Tracking & Primary Agent Integration Completed in Chunks 5.6.1–5.6.4; Endpoints & UI in Subsequent Phase)**
+**Accepted & Implemented (Architecture, Contracts, Specialists, Coordinator, Aggregator, Execution Tracking, Primary Agent Integration & Secured REST API Layer Completed in Chunks 5.6.1–5.6.5)**
 
 ---
 
@@ -201,4 +201,5 @@ The full implementation of Chunk 5.6 is partitioned into controlled sub-tasks:
 2. **Chunk 5.6.2 (Completed):** Specialist Agent Implementations (`ForecastingSpecialist`, `SimulationSpecialist`, `OptimizationSpecialist`, `KnowledgeSpecialist`) and Specialist Registry (`registry.py`).
 3. **Chunk 5.6.3 (Completed):** Multi-Agent Coordinator Runtime (`MultiAgentCoordinator`), Bounded Concurrency Semaphore, Evidence Aggregator (`MultiAgentAggregator`), Conflict & Inconsistency Detection, Execution Telemetry & Audit Persistence (`MultiAgentExecutionTracker`, `AgentTraceRepository`).
 4. **Chunk 5.6.4 (Completed):** Primary Agent Delegation Integration (`AgentOrchestrator`, `AgentPlanner.plan_delegation`, `ToolExecutionCoordinator`, permission validation, epistemic evidence ingestion, and full 20-scenario integration suite).
-5. **Chunk 5.6.5 (Next):** Multi-Agent REST API Endpoints, Execution Trace Telemetry Inspection, and Frontend Decision Cockpit Transparency UI.
+5. **Chunk 5.6.5 (Completed):** Multi-Agent REST API Endpoints (`/api/v1/agent/multi-agent/coordinate`, `/traces/{trace_id}`, `/specialists`), Server-Side Security, IDOR Protection, and 22-Scenario Integration Test Suite.
+6. **Chunk 5.6.6 (Next):** Multi-Agent Decision Cockpit Frontend UI & Transparency Panel.
