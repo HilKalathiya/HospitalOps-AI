@@ -26,6 +26,7 @@ from app.agents.contracts import (
     AgentRunOptions,
     AgentRunRequest,
 )
+from app.agents.multi_agent.tracer import _sanitize_telemetry
 from app.agents.runtime import AgentRuntime
 from app.agents.state_manager import AgentStateManager
 from app.api.dependencies import (
@@ -220,8 +221,8 @@ async def get_multi_agent_trace(
     Ownership is checked strictly via authenticated server-side identity.
     Returns 404 for unauthorized access without disclosing whether the trace exists.
     """
-    trace = await trace_repo.get_by_trace_id(trace_id)
-    if not trace or trace.user_id != current_user.user_id:
+    trace = await trace_repo.get_by_trace_id_and_user(trace_id, current_user.user_id)
+    if not trace:
         logger.warning(
             "Trace access denied or not found | trace_id=%s caller_id=%s",
             trace_id,
@@ -236,12 +237,20 @@ async def get_multi_agent_trace(
     total_events = len(trace.events)
     paged_events = trace.events[offset : offset + limit]
 
+    # Defensive pre-serialization sanitization of event details
+    sanitized_events = [
+        event.model_copy(
+            update={"details": _sanitize_telemetry(event.details)}
+        )
+        for event in paged_events
+    ]
+
     response_data = MultiAgentTraceResponse(
         trace_id=trace.trace_id,
         parent_execution_id=trace.parent_execution_id,
         user_id=trace.user_id,
         plan=trace.plan,
-        events=paged_events,
+        events=sanitized_events,
         total_events=total_events,
         aggregated_result=trace.aggregated_result,
         total_duration_ms=round(trace.total_duration_ms, 2),

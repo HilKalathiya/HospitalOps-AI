@@ -40,8 +40,10 @@ from app.agents.evidence import AgentEvidence, EvidenceCategory
 from app.agents.multi_agent.aggregator import MultiAgentAggregator
 from app.agents.multi_agent.contracts import (
     STANDARD_SPECIALISTS,
+    DelegationPlan,
     DelegationRequest,
     MultiAgentErrorCode,
+    MultiAgentExecutionTrace,
     SpecialistDomain,
     SpecialistExecutionStatus,
     SpecialistId,
@@ -905,3 +907,313 @@ def test_22_existing_primary_agent_api_behavior_unchanged(multi_agent_client):
     )
     assert resp_run.status_code == 200
     assert resp_run.json()["data"]["requires_human_review"] is True
+
+
+# ==============================================================================
+# AUDIT & REMEDIATION TESTS (Chunk 5.6.5 Post-Implementation Audit)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_23_cross_user_cache_isolation():
+    """
+    Scenario 23: Verify AgentTraceRepository strictly isolates cached traces by user ownership.
+    A cached trace for User A cannot be returned for User B.
+    """
+    repo = AgentTraceRepository(db=None, max_cache_entries=50)
+    trace_a = MultiAgentExecutionTrace(
+        trace_id="tr_isolated_user_a",
+        parent_execution_id="run_user_a",
+        user_id="usr_admin_api_123",
+        plan=DelegationPlan(
+            parent_execution_id="run_user_a",
+            delegations=[
+                DelegationRequest(
+                    parent_execution_id="run_user_a",
+                    delegation_id="del_a",
+                    target_specialist_id=SpecialistId.FORECASTING,
+                    task_description="ICU bed forecast",
+                )
+            ],
+        ),
+        events=[],
+    )
+    await repo.save_trace(trace_a)
+
+    # 1. Lookup with matching user succeeds
+    found_a = await repo.get_by_trace_id_and_user("tr_isolated_user_a", "usr_admin_api_123")
+    assert found_a is not None
+    assert found_a.trace_id == "tr_isolated_user_a"
+
+    # 2. Lookup with different user strictly returns None (no cross-user cache leakage)
+    found_b = await repo.get_by_trace_id_and_user("tr_isolated_user_a", "usr_manager_api_456")
+    assert found_b is None
+
+    # 3. get_by_trace_id scoped with user_id returns None for unauthorized user
+    found_scoped = await repo.get_by_trace_id("tr_isolated_user_a", user_id="usr_manager_api_456")
+    assert found_scoped is None
+
+
+@pytest.mark.asyncio
+async def test_24_cache_invalidation_and_bounded_eviction():
+    """
+    Scenario 24: Verify cache invalidation upon update and strictly bounded size (evicts oldest).
+    """
+    repo = AgentTraceRepository(db=None, max_cache_entries=3)
+
+    traces = []
+    for i in range(4):
+        t = MultiAgentExecutionTrace(
+            trace_id=f"tr_bound_{i}",
+            parent_execution_id=f"run_bound_{i}",
+            user_id="usr_test_bounded",
+            plan=DelegationPlan(
+                parent_execution_id=f"run_bound_{i}",
+                delegations=[
+                    DelegationRequest(
+                        parent_execution_id=f"run_bound_{i}",
+                        delegation_id=f"del_{i}",
+                        target_specialist_id=SpecialistId.FORECASTING,
+                        task_description="Operational task description",
+                    )
+                ],
+            ),
+            events=[],
+        )
+        traces.append(t)
+        await repo.save_trace(t)
+
+    # Max size is 3; oldest (tr_bound_0) must have been evicted
+    assert len(repo._cache) == 3
+    evicted = await repo.get_by_trace_id_and_user("tr_bound_0", "usr_test_bounded")
+    assert evicted is None
+
+    # Recent traces (1, 2, 3) must be present
+    for i in [1, 2, 3]:
+        assert await repo.get_by_trace_id_and_user(f"tr_bound_{i}", "usr_test_bounded") is not None
+
+    # Verify cache update/invalidation on update
+    t2_updated = traces[2].model_copy(update={"total_duration_ms": 777.5})
+    await repo.save_trace(t2_updated)
+    retrieved = await repo.get_by_trace_id_and_user("tr_bound_2", "usr_test_bounded")
+    assert retrieved is not None
+    assert retrieved.total_duration_ms == 777.5
+
+
+@pytest.mark.asyncio
+async def test_25_mongodb_persistence_failure_observability():
+    """
+    Scenario 25: Verify MongoDB persistence failure is observable, logged, re-raised,
+    and does not fabricate false durable in-memory caching.
+    """
+    import pymongo.errors
+
+    mock_db = MagicMock()
+    mock_coll = AsyncMock()
+    mock_coll.replace_one.side_effect = pymongo.errors.PyMongoError("Simulated Mongo write failure")
+    mock_db.__getitem__.return_value = mock_coll
+
+    repo = AgentTraceRepository(db=mock_db, max_cache_entries=50)
+    assert repo.is_durable is True
+
+    test_trace = MultiAgentExecutionTrace(
+        trace_id="tr_failed_write",
+        parent_execution_id="run_fail",
+        user_id="usr_test_fail",
+        plan=DelegationPlan(
+            parent_execution_id="run_fail",
+            delegations=[
+                DelegationRequest(
+                    parent_execution_id="run_fail",
+                    delegation_id="del_fail",
+                    target_specialist_id=SpecialistId.FORECASTING,
+                    task_description="Operational task description",
+                )
+            ],
+        ),
+        events=[],
+    )
+
+    with pytest.raises(pymongo.errors.PyMongoError, match="Simulated Mongo write failure"):
+        await repo.save_trace(test_trace)
+
+    # Verify the failed trace was NOT cached as a durable success
+    assert ("usr_test_fail", "tr_failed_write") not in repo._cache
+
+
+def test_26_enable_delegation_true_with_clinical_request(multi_agent_client):
+    """
+    Scenario 26: Passing enable_delegation=True cannot bypass the healthcare clinical safety boundary.
+    Clinical questions are rejected immediately before planning or specialist invocation.
+    """
+    resp = multi_agent_client.post(
+        "/api/v1/agent/multi-agent/coordinate",
+        json={
+            "task": "Diagnose acute respiratory distress syndrome and prescribe 100mg Lasix",
+            "enable_delegation": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+
+    # Must be explicitly rejected
+    assert data["status"] == "REJECTED"
+    assert data["delegation_occurred"] is False
+    assert data["specialists_invoked"] == []
+    assert data["specialist_results"] == []
+    assert "physician" in data["final_answer"].lower() or "clinical" in data["final_answer"].lower()
+    # Refusals do not require operational human review
+    assert data["requires_human_review"] is False
+
+
+def test_27_enable_delegation_true_without_sufficient_permissions(
+    multi_agent_client, monkeypatch
+):
+    """
+    Scenario 27: Passing enable_delegation=True cannot bypass domain RBAC permissions.
+    When caller has agents.run but lacks domain permission (e.g. predictions.read),
+    specialist execution is refused with PERMISSION_DENIED.
+    """
+    import app.agents.orchestrator as orch_module
+
+    # Monkeypatch permissions resolution so user only has agents.run, agents.read, but lacks predictions.read
+    def mock_get_permissions(_role):
+        return ["agents.run", "agents.read"]
+
+    monkeypatch.setattr(orch_module, "get_permissions_for_role", mock_get_permissions)
+
+    resp = multi_agent_client.post(
+        "/api/v1/agent/multi-agent/coordinate",
+        json={
+            "task": "What is the 7-day ICU bed forecast?",
+            "enable_delegation": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+
+    # Delegation occurred but specialist failed due to lack of domain permission
+    assert data["delegation_occurred"] is True
+    assert "forecasting_specialist" in data["specialists_invoked"]
+    spec_result = data["specialist_results"][0]
+    assert spec_result["status"] == "FAILED"
+    assert "permission" in spec_result["summary"].lower() or data["is_partial_result"] is True
+
+
+def test_28_nested_trace_payload_sanitization(multi_agent_client, mock_trace_repo):
+    """
+    Scenario 28: Deeply nested trace event details and payloads containing tokens,
+    file paths, URIs with credentials, or SSNs are sanitized before API serialization.
+    """
+    from app.agents.multi_agent.contracts import MultiAgentEventType, MultiAgentTraceEvent
+
+    tainted_event = MultiAgentTraceEvent(
+        parent_execution_id="run_tainted",
+        event_type=MultiAgentEventType.SPECIALIST_COMPLETED,
+        specialist_id=SpecialistId.FORECASTING,
+        details={
+            "db_uri": "mongodb://db_admin:P@ssword999@localhost:27017/hospital",
+            "token": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secretpayload",
+            "ssn": "111-22-3333",
+            "system_prompt": "Secret internal system prompt instructions",
+            "log_path": "C:\\Users\\admin\\secret\\system.log",
+            "safe_metric": 42.5,
+        },
+    )
+
+    trace = MultiAgentExecutionTrace(
+        trace_id="tr_tainted_payload",
+        parent_execution_id="run_tainted",
+        user_id="usr_admin_api_123",
+        plan=DelegationPlan(
+            parent_execution_id="run_tainted",
+            delegations=[
+                DelegationRequest(
+                    parent_execution_id="run_tainted",
+                    delegation_id="del_t",
+                    target_specialist_id=SpecialistId.FORECASTING,
+                    task_description="Forecast task",
+                )
+            ],
+        ),
+        events=[tainted_event],
+    )
+
+    # Save to repo
+    asyncio.run(mock_trace_repo.save_trace(trace))
+
+    resp = multi_agent_client.get("/api/v1/agent/multi-agent/traces/tr_tainted_payload")
+    assert resp.status_code == 200
+    raw_body = resp.text
+
+    # Verify all sensitive substrings were scrubbed
+    assert "P@ssword999" not in raw_body
+    assert "111-22-3333" not in raw_body
+    assert "secretpayload" not in raw_body
+    assert "Secret internal system prompt" not in raw_body
+    assert "C:\\Users\\admin\\secret" not in raw_body
+    # Safe metric is preserved
+    data = resp.json()["data"]
+    assert data["events"][0]["details"]["safe_metric"] == 42.5
+
+
+def test_29_cross_user_trace_access_through_both_route_aliases(multi_agent_client, mock_trace_repo):
+    """
+    Scenario 29: Cross-user trace retrieval returns identical 404 responses across both
+    route aliases: /api/v1/agent/multi-agent and /api/v1/agents/multi-agent.
+    """
+    # Create trace owned by second user
+    trace = MultiAgentExecutionTrace(
+        trace_id="tr_other_user_trace_999",
+        parent_execution_id="run_other_999",
+        user_id="usr_manager_api_456",
+        plan=DelegationPlan(
+            parent_execution_id="run_other_999",
+            delegations=[
+                DelegationRequest(
+                    parent_execution_id="run_other_999",
+                    delegation_id="del_999",
+                    target_specialist_id=SpecialistId.FORECASTING,
+                    task_description="ICU task",
+                )
+            ],
+        ),
+        events=[],
+    )
+    asyncio.run(mock_trace_repo.save_trace(trace))
+
+    # Request as usr_admin_api_123 through alias A (/agent/multi-agent)
+    resp_a = multi_agent_client.get("/api/v1/agent/multi-agent/traces/tr_other_user_trace_999")
+    assert resp_a.status_code == 404
+    assert resp_a.json()["detail"] == "Trace 'tr_other_user_trace_999' not found."
+
+    # Request as usr_admin_api_123 through alias B (/agents/multi-agent)
+    resp_b = multi_agent_client.get("/api/v1/agents/multi-agent/traces/tr_other_user_trace_999")
+    assert resp_b.status_code == 404
+    assert resp_b.json()["detail"] == "Trace 'tr_other_user_trace_999' not found."
+
+
+def test_30_no_raw_sensitive_info_in_api_responses_across_aliases(multi_agent_client):
+    """
+    Scenario 30: Coordinate and specialist endpoints across both aliases return responses
+    free of raw credentials, tokens, and system paths.
+    """
+    for base_alias in ["/api/v1/agent/multi-agent", "/api/v1/agents/multi-agent"]:
+        # 1. Specialists catalogue
+        resp_spec = multi_agent_client.get(f"{base_alias}/specialists")
+        assert resp_spec.status_code == 200
+        spec_text = resp_spec.text
+        assert "password" not in spec_text
+        assert "token" not in spec_text
+        assert "system_prompt" not in spec_text
+
+        # 2. Coordinate endpoint
+        resp_coord = multi_agent_client.post(
+            f"{base_alias}/coordinate",
+            json={"task": "What is the hospital policy on bed overflow?", "enable_delegation": False},
+        )
+        assert resp_coord.status_code == 200
+        coord_text = resp_coord.text
+        assert "Bearer" not in coord_text
+        assert "password_hash" not in coord_text
+        assert "Traceback" not in coord_text

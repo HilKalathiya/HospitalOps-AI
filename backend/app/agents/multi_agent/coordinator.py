@@ -33,7 +33,7 @@ from app.agents.multi_agent.contracts import (
     SpecialistResult,
 )
 from app.agents.multi_agent.registry import SpecialistRegistry
-from app.agents.multi_agent.tracer import MultiAgentExecutionTracker
+from app.agents.multi_agent.tracer import MultiAgentExecutionTracker, _sanitize_value
 from app.agents.tools.base import ToolContext
 
 logger = logging.getLogger(__name__)
@@ -292,6 +292,10 @@ class MultiAgentCoordinator:
                     logger.exception(
                         "Unhandled exception executing specialist %s: %s", _enum_val(spec_id), exc
                     )
+                    raw_err = str(exc)
+                    safe_err = _sanitize_value(raw_err)
+                    if any(redacted in safe_err for redacted in ["[REDACTED", "Traceback", "File \""]):
+                        safe_err = "Specialist encountered an internal operational execution error."
                     res = SpecialistResult(
                         specialist_id=spec_id,
                         delegation_id=del_id,
@@ -299,7 +303,7 @@ class MultiAgentCoordinator:
                         summary=f"Specialist '{_enum_val(spec_id)}' encountered an internal execution error.",
                         epistemic_category=epistemic_cat,
                         error_code=MultiAgentErrorCode.SPECIALIST_FAILED,
-                        error_message=str(exc),
+                        error_message=safe_err,
                         duration_ms=dur_ms,
                     )
 

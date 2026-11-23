@@ -52,6 +52,10 @@ SENSITIVE_KEY_SUBSTRINGS = (
 
 SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 BEARER_REGEX = re.compile(r"bearer\s+[a-zA-Z0-9_\-\.]+", re.IGNORECASE)
+URI_CREDENTIAL_REGEX = re.compile(r"://([^:\s@]+):([^@\s]+)@", re.IGNORECASE)
+FILE_PATH_REGEX = re.compile(r"([A-Za-z]:\\[^:\s\(\)\'\"]+|/(?:home|Users|etc|var|root)/[^\s\(\)\'\"]+)")
+JWT_REGEX = re.compile(r"eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}")
+SECRET_ASSIGNMENT_REGEX = re.compile(r"(?i)\b(password|passwd|secret|api_key|token|credential)\s*[:=]\s*([^\s,;'\"]+)")
 
 
 def _enum_val(v: Any) -> str:
@@ -64,6 +68,10 @@ def _sanitize_value(value: Any) -> Any:
     if isinstance(value, str):
         v = SSN_REGEX.sub("[REDACTED_SSN]", value)
         v = BEARER_REGEX.sub("Bearer [REDACTED_TOKEN]", v)
+        v = JWT_REGEX.sub("[REDACTED_JWT]", v)
+        v = URI_CREDENTIAL_REGEX.sub(r"://\1:[REDACTED]@", v)
+        v = SECRET_ASSIGNMENT_REGEX.sub(r"\1=[REDACTED]", v)
+        v = FILE_PATH_REGEX.sub("[REDACTED_PATH]", v)
         return v
     elif isinstance(value, dict):
         return _sanitize_telemetry(value)
