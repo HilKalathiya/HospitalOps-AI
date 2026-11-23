@@ -213,15 +213,15 @@ export const ExecutionTraceViewer: React.FC<ExecutionTraceViewerProps> = ({
               {activeTab === 'timeline' && (
                 <div className="space-y-3">
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#929299]">
-                    Chronological Events ({trace.events.length})
+                    Chronological Events ({(trace.events || []).length})
                   </span>
 
                   <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-[1px] before:bg-line">
-                    {trace.events.map((evt, idx) => (
+                    {(trace.events || []).map((evt, idx) => (
                       <div key={evt.event_id || idx} className="relative group text-xs">
                         {/* Event icon marker */}
                         <div className="absolute -left-6 top-0.5 p-0.5 rounded-full bg-[#1d1d1f] border border-line">
-                          {getEventIcon(evt.event_type)}
+                          {getEventIcon(evt.event_type || '')}
                         </div>
 
                         {/* Event Body */}
@@ -229,7 +229,7 @@ export const ExecutionTraceViewer: React.FC<ExecutionTraceViewerProps> = ({
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-[#f0f0f1]">
-                                {evt.event_type.replace(/_/g, ' ')}
+                                {String(evt.event_type || 'EVENT').replace(/_/g, ' ')}
                               </span>
                               {evt.specialist_id && (
                                 <span className="px-1.5 py-0.5 rounded text-[10.5px] font-mono bg-[#9ba8ff]/10 text-[#9ba8ff] border border-[#9ba8ff]/20">
@@ -295,9 +295,9 @@ export const ExecutionTraceViewer: React.FC<ExecutionTraceViewerProps> = ({
 
                     <div className="space-y-2 pt-2 border-t border-line">
                       <span className="text-[11px] font-semibold text-[#929299]">
-                        Planned Specialist Inquiries ({trace.plan.delegations.length})
+                        Planned Specialist Inquiries ({(trace.plan?.delegations || []).length})
                       </span>
-                      {trace.plan.delegations.map((del) => (
+                      {(trace.plan?.delegations || []).map((del) => (
                         <div
                           key={del.delegation_id}
                           className="p-3 rounded bg-[#111112] border border-line space-y-1"

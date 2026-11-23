@@ -12,9 +12,9 @@ import { CitationReference } from '../../api/knowledge'
 import { ProvenanceItem } from '../../types/agents'
 
 interface EvidenceProvenanceExplorerProps {
-  evidenceCategories: EpistemicCategory[] | string[]
-  provenance: ProvenanceItem[]
-  sources: CitationReference[]
+  evidenceCategories?: EpistemicCategory[] | string[] | null
+  provenance?: ProvenanceItem[] | null
+  sources?: CitationReference[] | null
 }
 
 interface EpistemicCategoryBadge {
@@ -76,18 +76,22 @@ const CATEGORY_METADATA: Record<string, EpistemicCategoryBadge> = {
 }
 
 export const EvidenceProvenanceExplorer: React.FC<EvidenceProvenanceExplorerProps> = ({
-  evidenceCategories,
-  provenance,
-  sources,
+  evidenceCategories = [],
+  provenance = [],
+  sources = [],
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
 
-  const uniqueCategories = Array.from(new Set(evidenceCategories))
+  const safeProvenance = Array.isArray(provenance) ? provenance : []
+  const safeSources = Array.isArray(sources) ? sources : []
+  const safeCategories = Array.isArray(evidenceCategories) ? evidenceCategories : []
+
+  const uniqueCategories = Array.from(new Set(safeCategories))
 
   // Filter provenance items
   const filteredProvenance = selectedCategory === 'ALL'
-    ? provenance
-    : provenance.filter((p) => {
+    ? safeProvenance
+    : safeProvenance.filter((p) => {
         if (selectedCategory === 'KNOWLEDGE_POLICY') {
           return p.category === 'KNOWLEDGE'
         }
@@ -104,7 +108,7 @@ export const EvidenceProvenanceExplorer: React.FC<EvidenceProvenanceExplorerProp
             Evidence & Provenance Explorer
           </h3>
           <span className="text-xs text-[#929299]">
-            ({provenance.length} records, {sources.length} citations)
+            ({safeProvenance.length} records, {safeSources.length} citations)
           </span>
         </div>
 
@@ -119,7 +123,7 @@ export const EvidenceProvenanceExplorer: React.FC<EvidenceProvenanceExplorerProp
                 : 'bg-white/[0.04] text-[#929299] hover:text-[#f0f0f1] border border-line'
             }`}
           >
-            All Categories ({provenance.length})
+            All Categories ({safeProvenance.length})
           </button>
 
           {uniqueCategories.map((cat) => {
@@ -240,14 +244,14 @@ export const EvidenceProvenanceExplorer: React.FC<EvidenceProvenanceExplorerProp
       </div>
 
       {/* Document Citations if available */}
-      {sources.length > 0 && (
+      {safeSources.length > 0 && (
         <div className="space-y-2 pt-3 border-t border-line">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-[#929299]">
-            Authoritative Document Citations ({sources.length})
+            Authoritative Document Citations ({safeSources.length})
           </span>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {sources.map((src, idx) => (
+            {safeSources.map((src, idx) => (
               <div
                 key={`${src.citation_id || src.document_id}-${idx}`}
                 className="p-3 rounded-lg bg-[#171718] border border-line space-y-1.5 text-xs"

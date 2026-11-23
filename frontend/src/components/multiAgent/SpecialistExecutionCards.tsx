@@ -67,10 +67,12 @@ const SPECIALIST_THEMES: Record<string, SpecialistTheme> = {
 }
 
 export const SpecialistExecutionCards: React.FC<SpecialistExecutionCardsProps> = ({
-  specialistResults,
+  specialistResults = [],
   delegationOccurred,
 }) => {
-  if (!delegationOccurred || specialistResults.length === 0) {
+  const safeResults = Array.isArray(specialistResults) ? specialistResults : []
+
+  if (!delegationOccurred || safeResults.length === 0) {
     return (
       <div className="bg-[#1d1d1f] rounded-xl border border-line p-6 text-center">
         <div className="w-10 h-10 rounded-full bg-white/[0.04] border border-line mx-auto flex items-center justify-center text-[#929299] mb-3">
@@ -89,6 +91,7 @@ export const SpecialistExecutionCards: React.FC<SpecialistExecutionCardsProps> =
   const renderStatusBadge = (status: SpecialistExecutionStatus | string) => {
     switch (status) {
       case 'COMPLETED':
+      case 'SUCCESS':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold bg-[#8fd6b2]/10 text-[#8fd6b2] border border-[#8fd6b2]/25">
             <CheckCircle2 className="w-3 h-3" />
@@ -137,7 +140,7 @@ export const SpecialistExecutionCards: React.FC<SpecialistExecutionCardsProps> =
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[#929299]">
-          Specialist Execution Cards ({specialistResults.length})
+          Specialist Execution Cards ({safeResults.length})
         </h3>
         <span className="text-[11px] text-[#6f6f78]">
           Depth: 1 (Strictly Non-Recursive)
@@ -145,7 +148,7 @@ export const SpecialistExecutionCards: React.FC<SpecialistExecutionCardsProps> =
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {specialistResults.map((spec) => {
+        {safeResults.map((spec) => {
           const theme = SPECIALIST_THEMES[spec.specialist_id] || {
             displayName: spec.specialist_id,
             domain: 'Operational Domain',

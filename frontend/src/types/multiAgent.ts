@@ -30,6 +30,7 @@ export type SpecialistExecutionStatus =
   | 'PENDING'
   | 'RUNNING'
   | 'COMPLETED'
+  | 'SUCCESS'
   | 'FAILED'
   | 'TIMED_OUT'
   | 'CANCELLED'

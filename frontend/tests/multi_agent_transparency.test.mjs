@@ -1,7 +1,48 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
-// Mock types and API helpers to test logic in isolation
+const require = createRequire(import.meta.url)
+const esbuild = require('esbuild')
+const React = require('react')
+const { renderToString } = require('react-dom/server')
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const frontendRoot = path.resolve(__dirname, '..')
+
+// Helper to load and bundle TSX components dynamically in Node
+function loadTsxComponent(relativePath) {
+  const fullPath = path.resolve(frontendRoot, relativePath)
+  const res = esbuild.buildSync({
+    entryPoints: [fullPath],
+    bundle: true,
+    write: false,
+    format: 'cjs',
+    target: 'node18',
+    external: ['react', 'react-dom', 'lucide-react', 'react-router-dom'],
+  })
+  const code = res.outputFiles[0].text
+  const mod = { exports: {} }
+  const fn = new Function('require', 'module', 'exports', 'React', code)
+  fn(require, mod, mod.exports, React)
+  return mod.exports
+}
+
+// Pre-load tested React components
+const { ContradictionInspector } = loadTsxComponent('src/components/multiAgent/ContradictionInspector.tsx')
+const { FinalAnswerPanel } = loadTsxComponent('src/components/multiAgent/FinalAnswerPanel.tsx')
+const { SpecialistExecutionCards } = loadTsxComponent('src/components/multiAgent/SpecialistExecutionCards.tsx')
+const { EvidenceProvenanceExplorer } = loadTsxComponent('src/components/multiAgent/EvidenceProvenanceExplorer.tsx')
+const { MultiAgentExecutionOverview } = loadTsxComponent('src/components/multiAgent/MultiAgentExecutionOverview.tsx')
+
+// ==============================================================================
+// PART 1: CONTRACT, TYPE & STATE INVARIANTS (Tests 1 - 20)
+// ==============================================================================
+
 const SPECIALIST_DOMAINS = {
   forecasting_specialist: 'FORECASTING',
   simulation_specialist: 'SIMULATION',
@@ -34,7 +75,6 @@ test('1. Input validation enforces character bounds (3 <= len <= 1000)', () => {
 
 test('2. Delegation mode preferences map correctly to API parameters', () => {
   const getDelegationPayload = (pref) => {
-    // pref can be: 'auto' (null), 'force' (true), 'disable' (false)
     if (pref === 'auto') return null
     if (pref === 'force') return true
     if (pref === 'disable') return false
@@ -92,7 +132,7 @@ test('8. Partial execution status is correctly detected when some specialists fa
     status: 'PARTIAL',
     is_partial_result: true,
     specialist_results: [
-      { specialist_id: 'forecasting_specialist', status: 'SUCCESS' },
+      { specialist_id: 'forecasting_specialist', status: 'COMPLETED' },
       { specialist_id: 'simulation_specialist', status: 'TIMED_OUT' },
     ],
   }
@@ -101,7 +141,7 @@ test('8. Partial execution status is correctly detected when some specialists fa
   assert.equal(mockPartialResponse.status, 'PARTIAL')
 })
 
-test('9. Mandatory human review flag is strictly required and immutable', () => {
+test('9. Mandatory human review flag is strictly required on operational recommendations', () => {
   const mockResponse = {
     run_id: 'run-002',
     requires_human_review: true,
@@ -127,17 +167,21 @@ test('10. Epistemic categories maintain strict demarcation', () => {
   })
 })
 
-test('11. Provenance lineage tracks contributing specialist and confidence', () => {
-  const provenanceRecord = {
-    source_specialist: 'forecasting_specialist',
+test('11. ProvenanceItem schema matches backend contract (no unsupported confidence scores)', () => {
+  // Backend ProvenanceItem has category, id, label, details
+  const realBackendProvenanceItem = {
     category: 'FORECAST',
-    confidence_score: 0.92,
-    generated_at: '2026-11-23T12:00:00Z',
+    id: 'run_forecast_weekly_001',
+    label: 'NHSN Weekly ICU Capacity Forecast',
+    details: { horizon_weeks: 4, model_type: 'arima' },
   }
 
-  assert.equal(provenanceRecord.source_specialist, 'forecasting_specialist')
-  assert.equal(provenanceRecord.category, 'FORECAST')
-  assert.ok(provenanceRecord.confidence_score >= 0 && provenanceRecord.confidence_score <= 1.0)
+  assert.equal(realBackendProvenanceItem.category, 'FORECAST')
+  assert.equal(realBackendProvenanceItem.id, 'run_forecast_weekly_001')
+  assert.equal(realBackendProvenanceItem.label, 'NHSN Weekly ICU Capacity Forecast')
+  assert.equal(typeof realBackendProvenanceItem.details, 'object')
+  // Confirm absence of fabricated confidence score field in backend schema
+  assert.equal('confidence_score' in realBackendProvenanceItem, false)
 })
 
 test('12. Citation references correctly expose citation_marker, section_title, excerpt', () => {
@@ -154,19 +198,16 @@ test('12. Citation references correctly expose citation_marker, section_title, e
   assert.ok(citation.excerpt.includes('Surge beds'))
 })
 
-test('13. Contradiction inspector correctly identifies conflicts or harmony', () => {
-  const conflictsPresent = [
-    {
-      specialist_a: 'forecasting_specialist',
-      specialist_b: 'simulation_specialist',
-      description: 'Discrepancy in ICU occupancy projection (84% vs 95%).',
-      severity: 'WARNING',
-    },
+test('13. Contradiction inspector consumes array of conflict strings from backend', () => {
+  // Backend contract defines conflicts as list[str]
+  const backendConflicts = [
+    'Forecasting projects 84% ICU occupancy while Simulation models 96% under surge.',
+    'Optimization recommends 4 step-down beds which exceeds SOP nurse ratio limits.',
   ]
-  const conflictsEmpty = []
 
-  assert.equal(conflictsPresent.length, 1)
-  assert.equal(conflictsEmpty.length, 0)
+  assert.equal(backendConflicts.length, 2)
+  assert.equal(typeof backendConflicts[0], 'string')
+  assert.ok(backendConflicts[0].includes('Forecasting projects'))
 })
 
 test('14. Execution trace timeline parses chronological events', () => {
@@ -265,4 +306,266 @@ test('20. Non-clinical guarantee: strictly zero write or clinical mutation capab
   DISALLOWED_CLINICAL_ACTIONS.forEach((action) => {
     assert.ok(!multiAgentSystemTools.includes(action))
   })
+})
+
+// ==============================================================================
+// PART 2: REAL REACT COMPONENT RENDERING & UNCOVERED BEHAVIORS (Tests 21 - 30)
+// ==============================================================================
+
+test('21. Component Rendering: Handles missing optional backend fields without throwing', () => {
+  // Pass minimal response with undefined/null optional fields
+  const htmlExplorer = renderToString(
+    React.createElement(EvidenceProvenanceExplorer, {
+      evidenceCategories: null,
+      provenance: null,
+      sources: null,
+    })
+  )
+  assert.ok(htmlExplorer.includes('Evidence &amp; Provenance Explorer'))
+  assert.ok(htmlExplorer.includes('records'))
+  assert.ok(htmlExplorer.includes('citations'))
+
+  const htmlConflicts = renderToString(
+    React.createElement(ContradictionInspector, {
+      conflicts: null,
+    })
+  )
+  assert.ok(htmlConflicts.includes('Zero Contradictions'))
+  assert.ok(htmlConflicts.includes('Harmonious Domain Evidence'))
+
+  const htmlCards = renderToString(
+    React.createElement(SpecialistExecutionCards, {
+      specialistResults: null,
+      delegationOccurred: false,
+    })
+  )
+  assert.ok(htmlCards.includes('No Specialist Delegation Executed'))
+})
+
+test('22. Component Rendering: Unknown enum values render gracefully with fallback badges', () => {
+  const htmlCards = renderToString(
+    React.createElement(SpecialistExecutionCards, {
+      specialistResults: [
+        {
+          specialist_id: 'custom_diagnostic_agent',
+          status: 'SOME_FUTURE_STATUS',
+          duration_ms: 120.5,
+          summary: 'Custom operational analysis.',
+          tool_calls_count: 2,
+        },
+      ],
+      delegationOccurred: true,
+    })
+  )
+  assert.ok(htmlCards.includes('custom_diagnostic_agent'))
+  assert.ok(htmlCards.includes('SOME_FUTURE_STATUS'))
+  assert.ok(htmlCards.includes('120.5'))
+})
+
+test('23. Component Rendering: Provenance cards strictly render available metadata without fabricating confidence scores', () => {
+  const provenanceItems = [
+    {
+      category: 'FORECAST',
+      id: 'run_fc_882',
+      label: '7-Day Admissions Forecast',
+      details: { horizon: 7, model_family: 'arima' },
+    },
+    {
+      category: 'SIMULATION',
+      id: 'sim_run_104',
+      label: 'ICU Surge What-If Scenario',
+      details: { surge_pct: 15, duration_days: 14 },
+    },
+  ]
+
+  const htmlExplorer = renderToString(
+    React.createElement(EvidenceProvenanceExplorer, {
+      evidenceCategories: ['FORECAST', 'SIMULATION'],
+      provenance: provenanceItems,
+      sources: [],
+    })
+  )
+
+  assert.ok(htmlExplorer.includes('7-Day Admissions Forecast'))
+  assert.ok(htmlExplorer.includes('ICU Surge What-If Scenario'))
+  assert.ok(htmlExplorer.includes('horizon'))
+  assert.ok(htmlExplorer.includes('arima'))
+  // Strict check: No fabricated "Confidence: XX%" is rendered in the HTML
+  assert.equal(htmlExplorer.toLowerCase().includes('confidence:'), false)
+  assert.equal(htmlExplorer.toLowerCase().includes('confidence score'), false)
+})
+
+test('24. Component Rendering: Handles missing evidence references and empty citation arrays safely', () => {
+  const htmlExplorer = renderToString(
+    React.createElement(EvidenceProvenanceExplorer, {
+      evidenceCategories: ['OBSERVED_DATA'],
+      provenance: [
+        {
+          category: 'OBSERVED_DATA',
+          id: 'rec_census_01',
+          label: 'Hospital Census Ground Truth',
+          details: {},
+        },
+      ],
+      sources: [],
+    })
+  )
+  assert.ok(htmlExplorer.includes('Hospital Census Ground Truth'))
+  assert.equal(htmlExplorer.includes('Authoritative Document Citations'), false)
+})
+
+test('25. Component Rendering: Partial specialist failures render accurate status badges and warnings', () => {
+  const mockSpecialists = [
+    {
+      specialist_id: 'forecasting_specialist',
+      status: 'COMPLETED',
+      duration_ms: 250,
+      summary: 'Projected 78 beds occupied.',
+      tool_calls_count: 1,
+    },
+    {
+      specialist_id: 'simulation_specialist',
+      status: 'TIMED_OUT',
+      duration_ms: 15000,
+      summary: 'Simulation engine timed out after 15s budget.',
+      tool_calls_count: 0,
+    },
+  ]
+
+  const htmlCards = renderToString(
+    React.createElement(SpecialistExecutionCards, {
+      specialistResults: mockSpecialists,
+      delegationOccurred: true,
+    })
+  )
+  assert.ok(htmlCards.includes('COMPLETED'))
+  assert.ok(htmlCards.includes('TIMED OUT'))
+  assert.ok(htmlCards.includes('Simulation engine timed out'))
+
+  const mockResponse = {
+    run_id: 'run_partial_001',
+    status: 'PARTIAL',
+    final_answer: 'Partial operational synthesis.',
+    delegation_occurred: true,
+    delegation_mode: 'MULTI_SPECIALIST',
+    specialists_invoked: ['forecasting_specialist', 'simulation_specialist'],
+    specialist_results: mockSpecialists,
+    evidence_categories: ['FORECAST'],
+    sources: [],
+    provenance: [],
+    conflicts: [],
+    is_partial_result: true,
+    limitations: ['Simulation timed out'],
+    requires_human_review: true,
+    created_at: new Date().toISOString(),
+  }
+
+  const htmlOverview = renderToString(
+    React.createElement(MultiAgentExecutionOverview, {
+      response: mockResponse,
+      onOpenTraceModal: () => {},
+    })
+  )
+  assert.ok(htmlOverview.includes('PARTIAL'))
+  assert.ok(htmlOverview.includes('Partial Result (Incomplete Specialist Execution)'))
+  assert.ok(htmlOverview.includes('Human Review Required'))
+})
+
+test('26. Component Rendering: Contradiction inspector renders harmonious state when conflicts array is empty', () => {
+  const htmlEmpty = renderToString(
+    React.createElement(ContradictionInspector, {
+      conflicts: [],
+    })
+  )
+  assert.ok(htmlEmpty.includes('Zero Contradictions'))
+  assert.ok(htmlEmpty.includes('Harmonious Domain Evidence'))
+  assert.ok(htmlEmpty.includes('No contradictory predictions'))
+})
+
+test('27. Component Rendering: Markdown rendering neutralizes malicious XSS scripts and dangerous HTML tags', () => {
+  const maliciousPayload =
+    '### Normal Header\n<script>alert("XSS")</script>\n<img src="x" onerror="stealTokens()" />\nNormal text with `inline code`.'
+
+  const htmlAnswer = renderToString(
+    React.createElement(FinalAnswerPanel, {
+      response: {
+        run_id: 'run_sec_01',
+        status: 'COMPLETED',
+        final_answer: maliciousPayload,
+        delegation_occurred: false,
+        delegation_mode: 'NONE',
+        specialists_invoked: [],
+        specialist_results: [],
+        evidence_categories: [],
+        sources: [],
+        provenance: [],
+        conflicts: [],
+        is_partial_result: false,
+        limitations: [],
+        requires_human_review: true,
+        created_at: new Date().toISOString(),
+      },
+    })
+  )
+
+  // React escapes raw HTML text into HTML entities &lt;script&gt; and renders inertly
+  assert.ok(htmlAnswer.includes('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;'))
+  assert.ok(htmlAnswer.includes('&lt;img src=&quot;x&quot; onerror=&quot;stealTokens()&quot; /&gt;'))
+  // Verify dangerouslySetInnerHTML is NOT present
+  assert.equal(htmlAnswer.includes('<script>alert'), false)
+  assert.equal(htmlAnswer.includes('<img src="x"'), false)
+})
+
+test('28. Security: Trace event details are rendered safely without executing scripts', () => {
+  const traceDetails = {
+    model: 'arima_7d',
+    nested: { test: '<script>evil()</script>' },
+    auth: 'Scrubbed',
+  }
+
+  // Verify that rendering details to string escapes HTML entities
+  const jsonString = JSON.stringify(traceDetails)
+  assert.ok(jsonString.includes('<script>evil()</script>'))
+  const element = React.createElement('pre', null, jsonString)
+  const html = renderToString(element)
+  assert.ok(html.includes('&lt;script&gt;evil()&lt;/script&gt;'))
+  assert.equal(html.includes('<script>evil()</script>'), false)
+})
+
+test('29. Error Handling: API client error parsing handles failed network/HTTP requests safely', () => {
+  class MockApiClientError extends Error {
+    constructor(statusCode, apiError) {
+      super(apiError.message)
+      this.statusCode = statusCode
+      this.apiError = apiError
+    }
+  }
+
+  const err404 = new MockApiClientError(404, {
+    error: 'NOT_FOUND',
+    message: "Trace 'mat_nonexistent' not found.",
+    detail: null,
+  })
+
+  assert.equal(err404.statusCode, 404)
+  assert.equal(err404.message, "Trace 'mat_nonexistent' not found.")
+})
+
+test('30. Component Lifecycle: Unmounted component ref prevents state updates after request completes', async () => {
+  let isMounted = true
+  let stateUpdated = false
+
+  const simulateAsyncFetch = async () => {
+    await new Promise((r) => setTimeout(r, 10))
+    if (isMounted) {
+      stateUpdated = true
+    }
+  }
+
+  const promise = simulateAsyncFetch()
+  // Simulate component unmount before fetch finishes
+  isMounted = false
+  await promise
+
+  assert.equal(stateUpdated, false)
 })

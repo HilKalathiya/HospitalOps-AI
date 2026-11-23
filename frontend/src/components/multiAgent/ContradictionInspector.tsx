@@ -2,13 +2,14 @@ import React from 'react'
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react'
 
 interface ContradictionInspectorProps {
-  conflicts: string[]
+  conflicts?: string[] | null
 }
 
 export const ContradictionInspector: React.FC<ContradictionInspectorProps> = ({
-  conflicts,
+  conflicts = [],
 }) => {
-  const hasConflicts = conflicts && conflicts.length > 0
+  const safeConflicts = Array.isArray(conflicts) ? conflicts : []
+  const hasConflicts = safeConflicts.length > 0
 
   return (
     <div className="bg-[#1d1d1f] rounded-xl border border-line p-5 shadow-sm space-y-3">
@@ -31,7 +32,7 @@ export const ContradictionInspector: React.FC<ContradictionInspectorProps> = ({
               : 'bg-[#8fd6b2]/10 text-[#8fd6b2] border border-[#8fd6b2]/20'
           }`}
         >
-          {hasConflicts ? `${conflicts.length} Contradiction(s) Flagged` : 'Zero Contradictions'}
+          {hasConflicts ? `${safeConflicts.length} Contradiction(s) Flagged` : 'Zero Contradictions'}
         </span>
       </div>
 
@@ -46,7 +47,7 @@ export const ContradictionInspector: React.FC<ContradictionInspectorProps> = ({
           </div>
 
           <div className="space-y-2">
-            {conflicts.map((conflictText, idx) => (
+            {safeConflicts.map((conflictText, idx) => (
               <div
                 key={idx}
                 className="p-3.5 rounded-lg bg-[#171718] border border-line text-xs space-y-1"

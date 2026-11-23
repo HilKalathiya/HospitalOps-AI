@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   Layers,
   ArrowRight,
@@ -35,6 +35,16 @@ export const MultiAgentTransparencyWorkspace: React.FC = () => {
   const [isTraceModalOpen, setIsTraceModalOpen] = useState<boolean>(false)
   const [isCatalogueModalOpen, setIsCatalogueModalOpen] = useState<boolean>(false)
 
+  // Lifecycle & Cancellation Refs
+  const isMountedRef = useRef<boolean>(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const handleSubmit = useCallback(async () => {
     if (!task.trim() || isLoading) return
 
@@ -46,13 +56,19 @@ export const MultiAgentTransparencyWorkspace: React.FC = () => {
         task: task.trim(),
         enable_delegation: delegationPreference,
       })
-      setResponse(result)
+      if (isMountedRef.current) {
+        setResponse(result)
+      }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Multi-agent coordination failed.'
-      setError(message)
+      if (isMountedRef.current) {
+        const message =
+          err instanceof Error ? err.message : 'Multi-agent coordination failed.'
+        setError(message)
+      }
     } finally {
-      setIsLoading(false)
+      if (isMountedRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [task, delegationPreference, isLoading])
 
@@ -139,7 +155,7 @@ export const MultiAgentTransparencyWorkspace: React.FC = () => {
                   <span className="text-xs font-semibold">Forecasting</span>
                 </div>
                 <p className="text-[11px] text-[#929299]">
-                  Analyzes historical census, ARIMA/LSTM admissions forecasts, and ICU demand trends.
+                  Analyzes historical census trends, admissions forecasts, and ICU capacity projections.
                 </p>
               </div>
 
