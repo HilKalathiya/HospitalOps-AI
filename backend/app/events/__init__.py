@@ -43,6 +43,11 @@ from app.events.taxonomy import (
     get_all_event_definitions,
     get_event_definition,
 )
+from app.repositories.events import (
+    EventQueryFilter,
+    InMemoryOperationalEventRepository,
+    OperationalEventRepository,
+)
 
 __all__ = [
     "AdmissionRecordedPayload",
@@ -64,13 +69,16 @@ __all__ = [
     "EventPermissionDeniedError",
     "EventPersistenceError",
     "EventPublisher",
+    "EventQueryFilter",
     "EventSystemError",
     "EventType",
     "EventValidationError",
     "ForecastCompletedPayload",
     "ForecastFailedPayload",
+    "InMemoryOperationalEventRepository",
     "OperationalEvent",
     "OperationalEventPublisher",
+    "OperationalEventRepository",
     "OperationalEventService",
     "OptimizationCompletedPayload",
     "OptimizationFailedPayload",

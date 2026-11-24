@@ -78,7 +78,43 @@ class EventCatalogResponse(BaseModel):
     total: int
 
 
+class EventHealthResponse(BaseModel):
+    """Health and persistence readiness status of the event subsystem."""
+
+    status: str
+    is_durable: bool
+    storage_mode: str
+    registered_event_types: int
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/health",
+    response_model=SuccessResponse[EventHealthResponse],
+    summary="Inspect event subsystem persistence readiness",
+)
+async def get_event_subsystem_health(
+    service: Annotated[OperationalEventService, Depends(get_event_service)],
+) -> SuccessResponse[EventHealthResponse]:
+    """
+    Inspect event subsystem storage durability and readiness.
+    In production, is_durable must be True (MongoDB authoritative).
+    """
+    is_durable = service.repository.is_durable
+    return SuccessResponse(
+        data=EventHealthResponse(
+            status="OK" if is_durable else "DEGRADED_TEST_MODE",
+            is_durable=is_durable,
+            storage_mode="MONGODB" if is_durable else "IN_MEMORY_TEST",
+            registered_event_types=len(get_all_event_definitions()),
+        ),
+        meta=ResponseMeta(
+            request_id=get_request_id(),
+            timestamp=datetime.now(UTC),
+        ),
+    )
 
 
 @router.post(
@@ -96,17 +132,24 @@ async def publish_event(
     Ingest and record a strongly-typed operational event into the system of record.
     Supports atomic idempotency: identical retries return the existing event.
     """
-    # Enforce facility boundary: non-admin users cannot publish under arbitrary facilities
+    # 1. Enforce trusted server-side actor identity (cannot be forged by client)
+    event.actor_id = current_user.user_id
+
+    # 2. Enforce facility boundary: non-admin users cannot publish under arbitrary facilities
     user_facility = getattr(current_user, "facility_id", None) or getattr(current_user, "department_id", None)
-    if current_user.role != Role.ADMIN and user_facility:
+    if current_user.role != Role.ADMIN:
+        if not user_facility:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Non-admin user has no assigned facility or department scope.",
+            )
         if event.facility_id != user_facility and event.facility_id != "default_facility":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"User is restricted to facility '{user_facility}'. Cannot publish to '{event.facility_id}'.",
             )
         # Inherit user's assigned facility
-        if event.facility_id == "default_facility":
-            event.facility_id = user_facility
+        event.facility_id = user_facility
 
     try:
         persisted, is_duplicate = await service.publish_event(event)
@@ -125,8 +168,8 @@ async def publish_event(
     except EventPersistenceError as exc:
         logger.error("Event persistence failure | event_id=%s error=%s", event.event_id, exc)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to persist operational event to store.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Operational event persistence unavailable. Authoritative database connection failed.",
         ) from exc
 
     return SuccessResponse(
@@ -169,6 +212,12 @@ async def query_events(
     """
     Retrieve historical operational events with server-side facility isolation and pagination.
     """
+    if start_time and end_time and start_time > end_time:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_time must be less than or equal to end_time.",
+        )
+
     effective_facility = facility_id
     user_facility = getattr(current_user, "facility_id", None) or getattr(current_user, "department_id", None)
 

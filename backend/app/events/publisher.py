@@ -49,10 +49,11 @@ class OperationalEventPublisher(EventPublisher):
             raise EventValidationError(f"Expected OperationalEvent instance, got {type(event).__name__}")
 
         logger.debug(
-            "Publishing operational event | event_id=%s type=%s source=%s",
+            "Event publish requested | event_id=%s type=%s source=%s correlation_id=%s",
             event.event_id,
             _enum_str(event.event_type),
             event.source,
+            event.correlation_id,
         )
 
         try:
@@ -61,22 +62,29 @@ class OperationalEventPublisher(EventPublisher):
             # Re-raise domain event errors (e.g. EventConflictError, EventPersistenceError)
             raise
         except Exception as exc:
-            logger.exception("Unexpected error in event publisher | event_id=%s error=%s", event.event_id, exc)
+            logger.exception(
+                "Unexpected error in event publisher | event_id=%s correlation_id=%s error=%s",
+                event.event_id,
+                event.correlation_id,
+                exc,
+            )
             raise EventSystemError(f"Unexpected publishing failure: {exc}") from exc
 
         if is_duplicate:
             logger.info(
-                "Idempotent event duplicate processed | event_id=%s type=%s facility=%s",
+                "Idempotent event duplicate recognized | event_id=%s type=%s facility=%s correlation_id=%s",
                 persisted_event.event_id,
                 _enum_str(persisted_event.event_type),
                 persisted_event.facility_id,
+                persisted_event.correlation_id,
             )
         else:
             logger.info(
-                "Operational event published successfully | event_id=%s type=%s facility=%s",
+                "Operational event published successfully | event_id=%s type=%s facility=%s correlation_id=%s",
                 persisted_event.event_id,
                 _enum_str(persisted_event.event_type),
                 persisted_event.facility_id,
+                persisted_event.correlation_id,
             )
 
         return persisted_event, is_duplicate

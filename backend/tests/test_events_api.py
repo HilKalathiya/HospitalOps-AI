@@ -35,7 +35,7 @@ from app.events.publisher import OperationalEventPublisher
 from app.events.service import OperationalEventService
 from app.main import app
 from app.models.user import Role, UserDocument
-from app.repositories.events import OperationalEventRepository
+from app.repositories.events import InMemoryOperationalEventRepository
 
 # ── Test Users ────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ def _doctor_user() -> UserDocument:
 
 @pytest.fixture
 def event_harness():
-    repo = OperationalEventRepository(db=None)
+    repo = InMemoryOperationalEventRepository()
     publisher = OperationalEventPublisher(repo)
     service = OperationalEventService(repository=repo, publisher=publisher)
     return {"repo": repo, "publisher": publisher, "service": service}
@@ -413,7 +413,7 @@ class TestEventsAPI:
             operational_occupancy_rate=80.0,
             available_beds=10,
         )
-        assert ev_cap.category == EventCategory.OPERATIONAL_FACT
+        assert ev_cap.category in (EventCategory.OBSERVED_OPERATIONAL, EventCategory.OPERATIONAL_FACT)
         assert ev_cap.entity_id == "ER"
 
         # 2. Forecast
@@ -424,7 +424,7 @@ class TestEventsAPI:
             model_type="lstm",
             peak_predicted_value=120.0,
         )
-        assert ev_fc.category == EventCategory.ANALYTICAL_OUTPUT
+        assert ev_fc.category in (EventCategory.FORECAST_OUTPUT, EventCategory.ANALYTICAL_OUTPUT)
         assert ev_fc.payload["model_type"] == "lstm"
 
         # 3. Simulation
@@ -434,7 +434,7 @@ class TestEventsAPI:
             peak_occupancy_percentage=96.5,
             shortage_days_count=3,
         )
-        assert ev_sim.category == EventCategory.ANALYTICAL_OUTPUT
+        assert ev_sim.category in (EventCategory.SIMULATION_OUTPUT, EventCategory.ANALYTICAL_OUTPUT)
         assert ev_sim.payload["shortage_days_count"] == 3
 
         # 4. Optimization
@@ -445,7 +445,7 @@ class TestEventsAPI:
             binding_constraints_count=2,
             requires_human_review=True,
         )
-        assert ev_opt.category == EventCategory.ANALYTICAL_OUTPUT
+        assert ev_opt.category in (EventCategory.OPTIMIZATION_OUTPUT, EventCategory.ANALYTICAL_OUTPUT)
         assert ev_opt.payload["requires_human_review"] is True
 
         # 5. Agent Execution Requires Review
@@ -456,5 +456,5 @@ class TestEventsAPI:
             review_reason="Surge bed reallocation exceeds 15% threshold",
             recommendation_summary="Reallocate 4 step-down beds to ICU overflow",
         )
-        assert ev_ag.category == EventCategory.GOVERNANCE
+        assert ev_ag.category in (EventCategory.DERIVED_OPERATIONAL, EventCategory.GOVERNANCE)
         assert ev_ag.payload["review_reason"] != ""

@@ -24,7 +24,11 @@ from app.events.contracts import (
     OperationalEvent,
     _enum_str,
 )
-from app.events.exceptions import EventConflictError, EventPersistenceError
+from app.events.exceptions import (
+    EventConflictError,
+    EventPersistenceError,
+    EventValidationError,
+)
 from app.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -49,21 +53,36 @@ class EventQueryFilter(BaseModel):
 class OperationalEventRepository(BaseRepository):
     """
     Data access layer for the operational_events collection.
-    Supports authoritative MongoDB persistence and in-memory fallback for offline/testing isolation.
+    Supports authoritative MongoDB persistence.
+    In-memory storage is prohibited in production and only available via explicit
+    allow_in_memory=True or InMemoryOperationalEventRepository for isolated testing.
     """
 
     COLLECTION = "operational_events"
 
-    def __init__(self, db: AsyncIOMotorDatabase | None = None) -> None:  # type: ignore[type-arg]
+    def __init__(
+        self,
+        db: AsyncIOMotorDatabase | None = None,  # type: ignore[type-arg]
+        allow_in_memory: bool = False,
+    ) -> None:
         if db is not None:
             super().__init__(db)
-        else:
+            self._allow_in_memory = False
+            self._in_memory_events: dict[str, OperationalEvent] = {}
+        elif allow_in_memory:
             self._db = None  # type: ignore[assignment]
-            logger.warning(
-                "OperationalEventRepository operating in non-durable offline fallback mode (no MongoDB attached)."
+            self._allow_in_memory = True
+            self._in_memory_events = {}
+            import asyncio
+            self._lock = asyncio.Lock()
+            logger.info(
+                "OperationalEventRepository initialized in explicit in-memory test mode."
             )
-        # In-memory store keyed by event_id for offline testing
-        self._in_memory_events: dict[str, OperationalEvent] = {}
+        else:
+            raise EventPersistenceError(
+                "OperationalEventRepository requires an authoritative MongoDB database connection. "
+                "Silent in-memory fallback is prohibited in production to prevent silent data loss and inconsistent state."
+            )
 
     @property
     def is_durable(self) -> bool:
@@ -87,28 +106,39 @@ class OperationalEventRepository(BaseRepository):
             EventConflictError: If event_id exists but incoming payload hash differs.
             EventPersistenceError: If database write encounters an unexpected error.
         """
-        # 1. Offline in-memory fallback
+        # 1. Explicit in-memory test store
         if not self.is_durable:
-            existing = self._in_memory_events.get(event.event_id)
-            if existing is not None:
-                if existing.payload_hash == event.payload_hash:
-                    logger.info(
-                        "Idempotent event duplicate detected in offline cache | event_id=%s type=%s",
-                        event.event_id,
-                        _enum_str(event.event_type),
-                    )
-                    return existing, True
-                raise EventConflictError(
-                    f"Event ID '{event.event_id}' already exists with differing payload content.",
-                    details={"event_id": event.event_id, "existing_type": _enum_str(existing.event_type)},
+            if not self._allow_in_memory:
+                raise EventPersistenceError(
+                    "Operational event persistence failed: No authoritative MongoDB connection."
                 )
-            self._in_memory_events[event.event_id] = event
-            logger.debug(
-                "Persisted operational event in offline cache | event_id=%s type=%s",
-                event.event_id,
-                _enum_str(event.event_type),
-            )
-            return event, False
+            async with self._lock:
+                existing = self._in_memory_events.get(event.event_id)
+                if existing is not None:
+                    if existing.payload_hash == event.payload_hash:
+                        logger.info(
+                            "Idempotent event duplicate detected in offline cache | event_id=%s type=%s",
+                            event.event_id,
+                            _enum_str(event.event_type),
+                        )
+                        return existing, True
+                    # Cross-facility conflict sanitization
+                    if existing.facility_id != event.facility_id:
+                        raise EventConflictError(
+                            f"Event ID '{event.event_id}' already exists with differing tenant ownership or payload.",
+                            details={"event_id": event.event_id},
+                        )
+                    raise EventConflictError(
+                        f"Event ID '{event.event_id}' already exists with differing payload content.",
+                        details={"event_id": event.event_id, "existing_type": _enum_str(existing.event_type)},
+                    )
+                self._in_memory_events[event.event_id] = event
+                logger.debug(
+                    "Persisted operational event in offline cache | event_id=%s type=%s",
+                    event.event_id,
+                    _enum_str(event.event_type),
+                )
+                return event, False
 
         # 2. Authoritative MongoDB persistence
         doc = event.model_dump(mode="json")
@@ -119,11 +149,12 @@ class OperationalEventRepository(BaseRepository):
         try:
             await self.collection.insert_one(doc)
             logger.info(
-                "Persisted operational event | event_id=%s type=%s source=%s facility=%s",
+                "Persisted operational event | event_id=%s type=%s source=%s facility=%s correlation_id=%s",
                 event.event_id,
                 _enum_str(event.event_type),
                 event.source,
                 event.facility_id,
+                event.correlation_id,
             )
             return event, False
         except pymongo.errors.DuplicateKeyError as dup_err:
@@ -151,6 +182,13 @@ class OperationalEventRepository(BaseRepository):
                 _enum_str(event.event_type),
                 _enum_str(existing_event.event_type),
             )
+            # Cross-tenant isolation check: do not leak hash across facilities
+            if existing_event.facility_id != event.facility_id:
+                raise EventConflictError(
+                    f"Event ID '{event.event_id}' already exists with differing tenant ownership or payload.",
+                    details={"event_id": event.event_id},
+                ) from dup_err
+
             raise EventConflictError(
                 f"Event ID '{event.event_id}' already exists with differing payload content.",
                 details={
@@ -173,6 +211,8 @@ class OperationalEventRepository(BaseRepository):
         """
         # 1. Offline in-memory fallback
         if not self.is_durable:
+            if not self._allow_in_memory:
+                raise EventPersistenceError("MongoDB persistence is required.")
             event = self._in_memory_events.get(event_id)
             if event is None:
                 return None
@@ -202,8 +242,13 @@ class OperationalEventRepository(BaseRepository):
         Execute filtered, paginated query on operational events.
         Enforces strict limit and stable descending ordering.
         """
+        if filters.start_time and filters.end_time and filters.start_time > filters.end_time:
+            raise EventValidationError("start_time cannot be greater than end_time.")
+
         # 1. Offline in-memory fallback
         if not self.is_durable:
+            if not self._allow_in_memory:
+                raise EventPersistenceError("MongoDB persistence is required.")
             events = list(self._in_memory_events.values())
 
             # Apply filters
@@ -275,7 +320,7 @@ class OperationalEventRepository(BaseRepository):
             total = await self.collection.count_documents(query)
             cursor = (
                 self.collection.find(query)
-                .sort([("occurred_at", pymongo.DESCENDING), ("_id", pymongo.DESCENDING)])
+                .sort([("occurred_at", pymongo.DESCENDING), ("event_id", pymongo.DESCENDING)])
                 .skip(filters.offset)
                 .limit(filters.limit)
             )
@@ -288,3 +333,13 @@ class OperationalEventRepository(BaseRepository):
         except Exception as exc:
             logger.exception("Failed to query operational events | query=%s error=%s", query, exc)
             raise EventPersistenceError(f"Database query failure: {exc}") from exc
+
+
+class InMemoryOperationalEventRepository(OperationalEventRepository):
+    """
+    Explicit in-memory operational event repository for tests and isolated test environments.
+    Guarantees that test isolation never accidentally downgrades production durability.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(db=None, allow_in_memory=True)

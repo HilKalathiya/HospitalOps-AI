@@ -27,7 +27,11 @@ from app.events.contracts import (
     OperationalEvent,
 )
 from app.events.exceptions import EventConflictError, EventPersistenceError
-from app.repositories.events import EventQueryFilter, OperationalEventRepository
+from app.repositories.events import (
+    EventQueryFilter,
+    InMemoryOperationalEventRepository,
+    OperationalEventRepository,
+)
 
 
 def _make_event(
@@ -65,7 +69,7 @@ class TestEventPersistence:
     @pytest.mark.asyncio
     async def test_01_save_and_retrieve_event(self):
         """Verify successful event persistence and retrieval by event_id."""
-        repo = OperationalEventRepository(db=None)
+        repo = InMemoryOperationalEventRepository()
         event = _make_event("evt_persist_001")
 
         persisted, is_dup = await repo.save_event(event)
@@ -80,7 +84,7 @@ class TestEventPersistence:
     @pytest.mark.asyncio
     async def test_02_idempotent_duplicate_returns_existing(self):
         """Verify that persisting the exact same event twice returns is_duplicate=True without error."""
-        repo = OperationalEventRepository(db=None)
+        repo = InMemoryOperationalEventRepository()
         event = _make_event("evt_idemp_001", occupied_beds=22)
 
         persisted1, is_dup1 = await repo.save_event(event)
@@ -95,7 +99,7 @@ class TestEventPersistence:
     @pytest.mark.asyncio
     async def test_03_conflicting_duplicate_raises_conflict_error(self):
         """Verify that persisting an event with matching event_id but differing payload raises EventConflictError."""
-        repo = OperationalEventRepository(db=None)
+        repo = InMemoryOperationalEventRepository()
         event1 = _make_event("evt_conflict_001", occupied_beds=15)
         await repo.save_event(event1)
 
@@ -108,7 +112,7 @@ class TestEventPersistence:
     @pytest.mark.asyncio
     async def test_04_facility_scoped_retrieval(self):
         """Verify facility tenant boundary on get_by_id (unauthorized facility returns None)."""
-        repo = OperationalEventRepository(db=None)
+        repo = InMemoryOperationalEventRepository()
         event = _make_event("evt_facility_001", facility_id="hospital_alpha")
         await repo.save_event(event)
 
@@ -123,7 +127,7 @@ class TestEventPersistence:
     @pytest.mark.asyncio
     async def test_05_query_filters_and_pagination(self):
         """Verify multi-criteria event query filtering and limit/offset pagination."""
-        repo = OperationalEventRepository(db=None)
+        repo = InMemoryOperationalEventRepository()
         t0 = datetime.now(UTC) - timedelta(hours=2)
 
         # Seed 5 events with staggered times
@@ -196,7 +200,7 @@ class TestEventPersistence:
 
     def test_08_append_only_invariant(self):
         """Verify that OperationalEventRepository provides zero update or delete methods."""
-        repo = OperationalEventRepository(db=None)
+        repo = InMemoryOperationalEventRepository()
         assert not hasattr(repo, "update")
         assert not hasattr(repo, "update_event")
         assert not hasattr(repo, "delete")

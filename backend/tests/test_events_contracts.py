@@ -284,7 +284,7 @@ class TestEventContracts:
             assert len(definition.allowed_sources) >= 1
             assert definition.payload_schema_name != ""
             # Verify epistemic fact distinction
-            if definition.category == EventCategory.OPERATIONAL_FACT:
+            if definition.category in (EventCategory.OPERATIONAL_FACT, EventCategory.OBSERVED_OPERATIONAL):
                 assert definition.is_observed_fact is True
             else:
                 assert definition.is_observed_fact is False

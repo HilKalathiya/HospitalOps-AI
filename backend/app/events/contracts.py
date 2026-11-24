@@ -32,9 +32,11 @@ MAX_CLOCK_SKEW_SECONDS = 300  # 5 minutes future tolerance
 
 # Disallowed sensitive patterns (PHI, credentials, secrets)
 SENSITIVE_KEY_PATTERNS = re.compile(
-    r"(?i)(password|secret|token|api_key|private_key|bearer|ssn|mrn|patient_name|dob|date_of_birth)"
+    r"(?i)(password|secret|token|api_key|apikey|private_key|bearer|ssn|mrn|patient_name|first_name|last_name|full_name|dob|date_of_birth|phone|email|credit_card|national_id)"
 )
 SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+PHONE_REGEX = re.compile(r"\b(?:\+?1[-.]?)?\(?[2-9]\d{2}\)?[-.]?\d{3}[-.]?\d{4}\b")
 
 
 # ── Event Types & Categories ──────────────────────────────────────────────────
@@ -77,9 +79,17 @@ class EventType(str, Enum):
 class EventCategory(str, Enum):
     """
     Epistemic classification of events to prevent category confusion.
-    Facts cannot be confused with predictions, simulations, or proposals.
+    Strictly distinguishes observed reality from analytical projections and governance actions.
     """
 
+    OBSERVED_OPERATIONAL = "OBSERVED_OPERATIONAL"
+    DERIVED_OPERATIONAL = "DERIVED_OPERATIONAL"
+    FORECAST_OUTPUT = "FORECAST_OUTPUT"
+    SIMULATION_OUTPUT = "SIMULATION_OUTPUT"
+    OPTIMIZATION_OUTPUT = "OPTIMIZATION_OUTPUT"
+    AGENT_EXECUTION = "AGENT_EXECUTION"
+
+    # Backward-compatible mappings for legacy references
     OPERATIONAL_FACT = "OPERATIONAL_FACT"
     ANALYTICAL_OUTPUT = "ANALYTICAL_OUTPUT"
     AGENT_DECISION_SUPPORT = "AGENT_DECISION_SUPPORT"
@@ -111,32 +121,50 @@ def _enum_str(val: Any) -> str:
 
 def compute_payload_hash(payload: dict[str, Any]) -> str:
     """
-    Generate a deterministic SHA-256 fingerprint for a payload.
-    Used for idempotency duplicate detection.
+    Generate a deterministic SHA-256 payload integrity checksum for idempotency duplicate detection.
+    Note: This is a content integrity checksum, not a cryptographic tamper-evident audit log.
     """
     try:
-        serialized = json.dumps(payload, sort_keys=True, default=str)
+        serialized = json.dumps(
+            payload,
+            sort_keys=True,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            default=str,
+        )
     except Exception as exc:
         raise EventValidationError(f"Payload cannot be serialized for hashing: {exc}") from exc
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _scrub_and_validate_no_phi(data: Any, path: str = "root") -> None:
-    """Recursively verify that no sensitive fields or regex patterns are present."""
+    """
+    Recursively verify that no sensitive fields or regex patterns are present.
+    Error messages NEVER echo the rejected sensitive values to prevent log leakage.
+    """
     if isinstance(data, dict):
         for k, v in data.items():
-            if SENSITIVE_KEY_PATTERNS.search(str(k)):
+            key_str = str(k)
+            if SENSITIVE_KEY_PATTERNS.search(key_str):
                 raise EventValidationError(
-                    f"Sensitive field name '{k}' prohibited in event payload/metadata at '{path}'"
+                    f"Sensitive field name '{key_str}' prohibited in event payload/metadata at '{path}'"
                 )
-            _scrub_and_validate_no_phi(v, f"{path}.{k}")
-    elif isinstance(data, list):
+            _scrub_and_validate_no_phi(v, f"{path}.{key_str}")
+    elif isinstance(data, list | tuple | set):
         for idx, item in enumerate(data):
             _scrub_and_validate_no_phi(item, f"{path}[{idx}]")
     elif isinstance(data, str):
         if SSN_REGEX.search(data):
             raise EventValidationError(
-                f"Prohibited sensitive pattern (SSN) detected in string at '{path}'"
+                f"Prohibited sensitive pattern (SSN) detected at '{path}'"
+            )
+        if EMAIL_REGEX.search(data):
+            raise EventValidationError(
+                f"Prohibited sensitive pattern (email) detected at '{path}'"
+            )
+        if PHONE_REGEX.search(data):
+            raise EventValidationError(
+                f"Prohibited sensitive pattern (phone) detected at '{path}'"
             )
 
 
@@ -288,21 +316,34 @@ EVENT_PAYLOAD_MAP: dict[EventType, type[BasePayload]] = {
 }
 
 EVENT_CATEGORY_MAP: dict[EventType, EventCategory] = {
-    EventType.OPERATIONS_CAPACITY_UPDATED: EventCategory.OPERATIONAL_FACT,
-    EventType.OPERATIONS_BED_STATUS_CHANGED: EventCategory.OPERATIONAL_FACT,
-    EventType.OPERATIONS_RESOURCE_AVAILABILITY_CHANGED: EventCategory.OPERATIONAL_FACT,
-    EventType.OPERATIONS_ADMISSION_RECORDED: EventCategory.OPERATIONAL_FACT,
-    EventType.OPERATIONS_DISCHARGE_RECORDED: EventCategory.OPERATIONAL_FACT,
-    EventType.OPERATIONS_TRANSFER_RECORDED: EventCategory.OPERATIONAL_FACT,
-    EventType.FORECAST_COMPLETED: EventCategory.ANALYTICAL_OUTPUT,
-    EventType.FORECAST_FAILED: EventCategory.ANALYTICAL_OUTPUT,
-    EventType.SIMULATION_COMPLETED: EventCategory.ANALYTICAL_OUTPUT,
-    EventType.SIMULATION_FAILED: EventCategory.ANALYTICAL_OUTPUT,
-    EventType.OPTIMIZATION_COMPLETED: EventCategory.ANALYTICAL_OUTPUT,
-    EventType.OPTIMIZATION_FAILED: EventCategory.ANALYTICAL_OUTPUT,
-    EventType.AGENT_EXECUTION_COMPLETED: EventCategory.AGENT_DECISION_SUPPORT,
-    EventType.AGENT_EXECUTION_FAILED: EventCategory.AGENT_DECISION_SUPPORT,
-    EventType.AGENT_EXECUTION_REQUIRES_REVIEW: EventCategory.GOVERNANCE,
+    EventType.OPERATIONS_CAPACITY_UPDATED: EventCategory.OBSERVED_OPERATIONAL,
+    EventType.OPERATIONS_BED_STATUS_CHANGED: EventCategory.OBSERVED_OPERATIONAL,
+    EventType.OPERATIONS_RESOURCE_AVAILABILITY_CHANGED: EventCategory.OBSERVED_OPERATIONAL,
+    EventType.OPERATIONS_ADMISSION_RECORDED: EventCategory.OBSERVED_OPERATIONAL,
+    EventType.OPERATIONS_DISCHARGE_RECORDED: EventCategory.OBSERVED_OPERATIONAL,
+    EventType.OPERATIONS_TRANSFER_RECORDED: EventCategory.OBSERVED_OPERATIONAL,
+    EventType.FORECAST_COMPLETED: EventCategory.FORECAST_OUTPUT,
+    EventType.FORECAST_FAILED: EventCategory.FORECAST_OUTPUT,
+    EventType.SIMULATION_COMPLETED: EventCategory.SIMULATION_OUTPUT,
+    EventType.SIMULATION_FAILED: EventCategory.SIMULATION_OUTPUT,
+    EventType.OPTIMIZATION_COMPLETED: EventCategory.OPTIMIZATION_OUTPUT,
+    EventType.OPTIMIZATION_FAILED: EventCategory.OPTIMIZATION_OUTPUT,
+    EventType.AGENT_EXECUTION_COMPLETED: EventCategory.AGENT_EXECUTION,
+    EventType.AGENT_EXECUTION_FAILED: EventCategory.AGENT_EXECUTION,
+    EventType.AGENT_EXECUTION_REQUIRES_REVIEW: EventCategory.DERIVED_OPERATIONAL,
+}
+
+LEGACY_CATEGORY_COMPATIBILITY: dict[str, set[str]] = {
+    "OBSERVED_OPERATIONAL": {"OBSERVED_OPERATIONAL", "OPERATIONAL_FACT"},
+    "OPERATIONAL_FACT": {"OBSERVED_OPERATIONAL", "OPERATIONAL_FACT"},
+    "FORECAST_OUTPUT": {"FORECAST_OUTPUT", "ANALYTICAL_OUTPUT"},
+    "SIMULATION_OUTPUT": {"SIMULATION_OUTPUT", "ANALYTICAL_OUTPUT"},
+    "OPTIMIZATION_OUTPUT": {"OPTIMIZATION_OUTPUT", "ANALYTICAL_OUTPUT"},
+    "ANALYTICAL_OUTPUT": {"FORECAST_OUTPUT", "SIMULATION_OUTPUT", "OPTIMIZATION_OUTPUT", "ANALYTICAL_OUTPUT"},
+    "AGENT_EXECUTION": {"AGENT_EXECUTION", "AGENT_DECISION_SUPPORT"},
+    "AGENT_DECISION_SUPPORT": {"AGENT_EXECUTION", "AGENT_DECISION_SUPPORT"},
+    "DERIVED_OPERATIONAL": {"DERIVED_OPERATIONAL", "GOVERNANCE"},
+    "GOVERNANCE": {"DERIVED_OPERATIONAL", "GOVERNANCE"},
 }
 
 
@@ -353,6 +394,10 @@ class OperationalEvent(HospitalOpsBaseModel):
         default=None,
         description="Identifier of parent event or user action that triggered this event",
     )
+    actor_id: str | None = Field(
+        default=None,
+        description="Authenticated user or system actor identifier that originated the event",
+    )
     payload: dict[str, Any] = Field(
         default_factory=dict,
         description="Event-specific typed data dictionary",
@@ -396,11 +441,24 @@ class OperationalEvent(HospitalOpsBaseModel):
         expected_cat = EVENT_CATEGORY_MAP.get(self.event_type) or (
             EVENT_CATEGORY_MAP.get(EventType(etype_str)) if etype_str in [e.value for e in EventType] else None
         )
-        if expected_cat and cat_str != _enum_str(expected_cat):
-            raise EventValidationError(
-                f"Event type '{etype_str}' must have category '{_enum_str(expected_cat)}', "
-                f"got '{cat_str}'"
-            )
+        if expected_cat:
+            exp_str = _enum_str(expected_cat)
+            allowed = LEGACY_CATEGORY_COMPATIBILITY.get(exp_str, {exp_str})
+            if cat_str not in allowed:
+                if exp_str == "OBSERVED_OPERATIONAL":
+                    cat_display = "'OPERATIONAL_FACT' (OBSERVED_OPERATIONAL)"
+                elif exp_str == "FORECAST_OUTPUT":
+                    cat_display = "'ANALYTICAL_OUTPUT' (FORECAST_OUTPUT)"
+                elif exp_str == "AGENT_EXECUTION":
+                    cat_display = "'AGENT_DECISION_SUPPORT' (AGENT_EXECUTION)"
+                elif exp_str == "DERIVED_OPERATIONAL":
+                    cat_display = "'GOVERNANCE' (DERIVED_OPERATIONAL)"
+                else:
+                    cat_display = f"'{exp_str}'"
+                raise EventValidationError(
+                    f"Event type '{etype_str}' must have category {cat_display}, "
+                    f"got '{cat_str}'"
+                )
 
         # 3. Payload size check
         payload_bytes = len(json.dumps(self.payload, default=str).encode("utf-8"))
@@ -432,8 +490,13 @@ class OperationalEvent(HospitalOpsBaseModel):
                     f"Payload validation failed for event type '{etype_str}': {exc}"
                 ) from exc
 
-        # 7. Compute payload hash if missing
-        if not self.payload_hash:
-            self.payload_hash = compute_payload_hash(self.payload)
+        # 7. Compute or verify payload hash server-side
+        computed_hash = compute_payload_hash(self.payload)
+        if self.payload_hash and self.payload_hash != computed_hash:
+            raise EventValidationError(
+                "Client-supplied payload_hash does not match server-computed payload integrity checksum"
+            )
+        if self.payload_hash != computed_hash:
+            object.__setattr__(self, "payload_hash", computed_hash)
 
         return self

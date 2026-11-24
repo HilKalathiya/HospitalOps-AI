@@ -89,6 +89,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.6.6** | **Multi-Agent UI Decision Cockpit & Transparency Panel** | ✅ Complete | Dedicated Multi-Agent Transparency Workspace (/agents/transparency), supervisor coordination cockpit, 4 domain specialist execution cards, epistemic evidence explorer, contradiction inspector, interactive trace modal, 30/30 frontend tests passed |
 | | **5.6.7** | **Multi-Agent End-to-End Verification & Final Acceptance** | ✅ Complete | Complete 12-step pipeline verification (Scenarios A-H), 8/8 E2E integration tests, 110/110 multi-agent backend tests, 30/30 frontend tests, 0 lint errors, clean build, 3-viewport browser verification |
 | **M6: Real-Time & Event Intelligence** | **6.1** | **Event-Driven Architecture & Event System** | ✅ Complete | OperationalEvent envelope, 15 typed events catalog, deterministic SHA-256 idempotency, append-only MongoDB store, 30/30 tests pass, ADR-019 |
+| | **6.1.1** | **Event System Hardening & Reliability Verification** | ✅ Complete | Prohibit silent fallback, explicit test repo, 6 canonical categories, race-safe idempotency, tamper checksum, JWT actor binding, non-admin facility pinning, PHI scrubbing, /health endpoint, 44/44 tests pass |
 
 ---
 
@@ -1174,4 +1175,37 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Python linter: `ruff check` clean (0 errors, 0 warnings).
   6. **Architecture Documentation:**
      - Created `docs/decisions/ADR-019-event-driven-architecture.md`.
+* **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine).
+
+
+---
+
+## 31. Completed Workstream: Milestone 6, Chunk 6.1.1 (Event System Hardening & Reliability Verification)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Persistence Guarantees & In-Memory Fallback Remediation (`backend/app/repositories/events.py`):**
+     - Prohibited silent in-memory fallback in production: `OperationalEventRepository` requires an authoritative MongoDB connection (`allow_in_memory: bool = False` by default) and raises `EventPersistenceError` fast if unavailable.
+     - Implemented `InMemoryOperationalEventRepository` strictly for unit/integration testing with `asyncio.Lock()` thread/coroutine safety.
+     - Added `GET /api/v1/events/health` endpoint returning durability status, storage mode, and event catalog counts.
+  2. **Event Classification & Epistemic Boundaries (`backend/app/events/contracts.py`, `taxonomy.py`):**
+     - Established 6 canonical categories (`OBSERVED_OPERATIONAL`, `DERIVED_OPERATIONAL`, `FORECAST_OUTPUT`, `SIMULATION_OUTPUT`, `OPTIMIZATION_OUTPUT`, `AGENT_EXECUTION`) with backward-compatible legacy aliasing.
+     - Enriched `EventDefinition` with `producer_status` (`ACTIVE_PRODUCER`, `PRODUCER_STUB`, `RESERVED`) and epistemic `source_of_truth` annotations.
+  3. **Concurrency Race-Safety & Idempotency (`backend/app/repositories/events.py`):**
+     - Handled MongoDB duplicate key race conditions atomically: re-reads stored record on collision to distinguish identical retry (`is_duplicate = True`) from conflicting payload modification (`EventConflictError`).
+     - Hardened cross-facility ID collisions without leaking foreign tenant hash metadata.
+  4. **Payload Content Integrity Checksums (`backend/app/events/contracts.py`):**
+     - Canonicalized JSON serialization (`sort_keys=True`, `separators=(',', ':')`, `ensure_ascii=True`, `default=str`) for SHA-256 calculation.
+     - Clarified terminology as "Payload Content Integrity Checksum" and enforced server-side validation against client manipulation.
+  5. **Authentication, RBAC & Facility Isolation (`backend/app/api/v1/endpoints/events.py`):**
+     - Bound `actor_id = current_user.user_id` server-side from authenticated JWT context, overriding client spoofing.
+     - Pinned non-admin users to their assigned `facility_id` (returns HTTP 403 Forbidden on unassigned facility target).
+     - Validated query parameter ranges (`start_time <= end_time`, HTTP 422 on inverted range) with 100 max limit and stable tie-breaking.
+  6. **Privacy & PHI Scrubbing (`backend/app/events/contracts.py`):**
+     - Multi-layer recursive scanning across nested dicts/lists for sensitive keys and SSN, phone, email regex patterns.
+     - Concealed sensitive values in validation errors (never echoing violation values in response bodies or logs).
+  7. **Comprehensive Hardening Test Suite (`backend/tests/test_events_hardening.py`):**
+     - 14 dedicated hardening tests verifying all 11 audit objectives.
+     - Total event test suite: 44/44 passed across contracts, persistence, API, and hardening suites (100% pass rate).
+     - Linter: `ruff check` 100% clean across all event modules and test files.
 * **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine).
