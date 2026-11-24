@@ -39,8 +39,14 @@ from app.repositories.knowledge import KnowledgeRepository
 from app.repositories.optimizations import OptimizationsRepository
 from app.repositories.patients import PatientsRepository
 from app.repositories.resources import ResourcesRepository
+from app.repositories.rules import (
+    EventProcessingRepository,
+    OperationalRuleRepository,
+    RuleEvaluationRepository,
+)
 from app.repositories.simulations import SimulationsRepository
 from app.repositories.users import UserRepository
+from app.rules.service import OperationalRuleService
 from app.services.admissions import AdmissionService
 from app.services.auth import AuthService
 from app.services.beds import BedService
@@ -125,6 +131,38 @@ def get_event_service(
     repo: Annotated[OperationalEventRepository, Depends(get_event_repository)],
 ) -> OperationalEventService:
     return OperationalEventService(repo)
+
+
+def get_rule_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> OperationalRuleRepository:
+    return OperationalRuleRepository(db)
+
+
+def get_rule_evaluation_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> RuleEvaluationRepository:
+    return RuleEvaluationRepository(db)
+
+
+def get_event_processing_repository(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],  # type: ignore[type-arg]
+) -> EventProcessingRepository:
+    return EventProcessingRepository(db)
+
+
+def get_rule_service(
+    rule_repo: Annotated[OperationalRuleRepository, Depends(get_rule_repository)],
+    eval_repo: Annotated[RuleEvaluationRepository, Depends(get_rule_evaluation_repository)],
+    proc_repo: Annotated[EventProcessingRepository, Depends(get_event_processing_repository)],
+    event_repo: Annotated[OperationalEventRepository, Depends(get_event_repository)],
+) -> OperationalRuleService:
+    return OperationalRuleService(
+        rule_repo=rule_repo,
+        evaluation_repo=eval_repo,
+        processing_repo=proc_repo,
+        event_repo=event_repo,
+    )
 
 
 def get_auth_service(

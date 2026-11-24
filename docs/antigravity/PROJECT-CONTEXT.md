@@ -90,6 +90,7 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
 | | **5.6.7** | **Multi-Agent End-to-End Verification & Final Acceptance** | ✅ Complete | Complete 12-step pipeline verification (Scenarios A-H), 8/8 E2E integration tests, 110/110 multi-agent backend tests, 30/30 frontend tests, 0 lint errors, clean build, 3-viewport browser verification |
 | **M6: Real-Time & Event Intelligence** | **6.1** | **Event-Driven Architecture & Event System** | ✅ Complete | OperationalEvent envelope, 15 typed events catalog, deterministic SHA-256 idempotency, append-only MongoDB store, 30/30 tests pass, ADR-019 |
 | | **6.1.1** | **Event System Hardening & Reliability Verification** | ✅ Complete | Prohibit silent fallback, explicit test repo, 6 canonical categories, race-safe idempotency, tamper checksum, JWT actor binding, non-admin facility pinning, PHI scrubbing, /health endpoint, 44/44 tests pass |
+| | **6.2** | **Real-Time Event Processing & Operational Rule Engine** | ✅ Complete | Declarative AST condition evaluator (no eval/exec), time-window aggregation, epistemic category filtering, distributed consumer with worker lease recovery & backoff quarantine, deduplicated SHA-256 evaluation findings, versioned rules with facility scoping & RBAC, 38/38 tests pass, ADR-020 |
 
 ---
 
@@ -1175,7 +1176,46 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - Python linter: `ruff check` clean (0 errors, 0 warnings).
   6. **Architecture Documentation:**
      - Created `docs/decisions/ADR-019-event-driven-architecture.md`.
-* **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine).
+* **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine) — Completed.
+
+---
+
+## 32. Completed Workstream: Milestone 6, Chunk 6.2 (Real-Time Event Processing & Operational Rule Engine)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Healthcare Safety Invariants & Decision Authority Boundary (`backend/app/rules/contracts.py`, `evaluator.py`):**
+     - Principle: "Events detect what happened. Rules determine what matters. Agents explain what it means. Humans retain authority over operational decisions."
+     - All evaluation findings enforce `requires_human_review = True`. Zero clinical diagnostics, treatment decisions, prescriptions, or clinical risk scores.
+     - Zero automatic operational mutations: engine never writes to or alters beds, admissions, resources, patients, or staffing collections.
+     - Static AST condition validation rejects forbidden clinical attributes (e.g. `patient.diagnosis`, `patient.vitals`, `clinical_score`) and internal runtime fields (`_id`, `__class__`).
+  2. **Declarative Condition AST Evaluator (`backend/app/rules/evaluator.py`):**
+     - Pure Python tree traversal without `eval()`, `exec()`, or dynamic imports.
+     - Supported operators: relational (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`), membership (`in`, `not_in`), existence (`exists`, `does_not_exist`).
+     - Composite boolean tree evaluation (`AND`, `OR`) bounded to depth $\le 3$ and $\le 10$ conditions per node.
+     - Missing fields and nulls explicitly classified as `RuleEvaluationStatus.DATA_MISSING` (never silently assumed 0 or false).
+  3. **Epistemic Category Boundaries & Time-Window Aggregations (`backend/app/rules/contracts.py`, `evaluator.py`):**
+     - Rules explicitly declare `allowed_categories` (from canonical 6 categories) preventing synthetic simulations or forecasts from triggering real-world operational capacity findings.
+     - Time-window sliding evaluations (`COUNT`, `MAX`, `MIN`, `AVG`, `LATEST`) over chronological events with deterministic evidence referencing.
+  4. **At-Least-Once Distributed Consumer with Crash Recovery (`backend/app/rules/consumer.py`, `backend/app/repositories/rules.py`):**
+     - Atomic batch lease claiming with worker ID and expiration timestamp (`lease_expires_at`).
+     - Stale lease recovery automatically reclaims crashed worker jobs.
+     - Exponential backoff retries with transition to `QUARANTINED` upon exceeding `max_retries` (default 3).
+     - Graceful consumer shutdown draining in-flight evaluations.
+  5. **Deduplicated Persisted Findings (`backend/app/repositories/rules.py`):**
+     - Deterministic compound hash: `evaluation_id = sha256(rule_id:version:sorted_source_event_ids)[:24]`.
+     - Unique index on `evaluation_id` prevents duplicate finding generation during at-least-once reprocessing.
+     - Full evidence provenance including source event IDs, observed field values, and human-readable explanation.
+  6. **Immutable Rule Versioning & Multi-Tenant RBAC (`backend/app/rules/service.py`, `backend/app/api/v1/endpoints/rules.py`):**
+     - Rule modifications create immutable archived snapshots in `operational_rule_versions` and increment `version`.
+     - New permissions: `rules.manage` (Admin, Operations Manager) and `rules.read` (Admin, Operations Manager, Doctor).
+     - Non-admin callers automatically scoped to assigned `facility_id` with 403 Forbidden on foreign targets.
+     - 10 secured REST endpoints covering CRUD, version history, status toggle, evaluation queries, consumer health, and batch trigger.
+  7. **Comprehensive Test Suite & Documentation:**
+     - 38/38 tests passed across contracts, evaluator, consumer, and REST API suites.
+     - Total backend tests: 525 passed across all milestones.
+     - Created `docs/decisions/ADR-020-real-time-event-processing-and-rule-engine.md`.
+* **Next Planned Work:** Milestone 6, Chunk 6.3 (Real-Time Operational Monitoring Agent & Notification Center).
 
 
 ---
@@ -1208,4 +1248,43 @@ HospitalOps AI is an **operational decision-support system**, NOT a clinical dia
      - 14 dedicated hardening tests verifying all 11 audit objectives.
      - Total event test suite: 44/44 passed across contracts, persistence, API, and hardening suites (100% pass rate).
      - Linter: `ruff check` 100% clean across all event modules and test files.
-* **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine).
+* **Next Planned Work:** Milestone 6, Chunk 6.2 (Operational Rule Engine) — Completed.
+
+---
+
+## 32. Completed Workstream: Milestone 6, Chunk 6.2 (Real-Time Event Processing & Operational Rule Engine)
+
+* **Status:** Complete & Push-Ready.
+* **Scope Delivered:**
+  1. **Healthcare Safety Invariants & Decision Authority Boundary (`backend/app/rules/contracts.py`, `evaluator.py`):**
+     - Principle: "Events detect what happened. Rules determine what matters. Agents explain what it means. Humans retain authority over operational decisions."
+     - All evaluation findings enforce `requires_human_review = True`. Zero clinical diagnostics, treatment decisions, prescriptions, or clinical risk scores.
+     - Zero automatic operational mutations: engine never writes to or alters beds, admissions, resources, patients, or staffing collections.
+     - Static AST condition validation rejects forbidden clinical attributes (e.g. `patient.diagnosis`, `patient.vitals`, `clinical_score`) and internal runtime fields (`_id`, `__class__`).
+  2. **Declarative Condition AST Evaluator (`backend/app/rules/evaluator.py`):**
+     - Pure Python tree traversal without `eval()`, `exec()`, or dynamic imports.
+     - Supported operators: relational (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`), membership (`in`, `not_in`), existence (`exists`, `does_not_exist`).
+     - Composite boolean tree evaluation (`AND`, `OR`) bounded to depth $\le 3$ and $\le 10$ conditions per node.
+     - Missing fields and nulls explicitly classified as `RuleEvaluationStatus.DATA_MISSING` (never silently assumed 0 or false).
+  3. **Epistemic Category Boundaries & Time-Window Aggregations (`backend/app/rules/contracts.py`, `evaluator.py`):**
+     - Rules explicitly declare `allowed_categories` (from canonical 6 categories) preventing synthetic simulations or forecasts from triggering real-world operational capacity findings.
+     - Time-window sliding evaluations (`COUNT`, `MAX`, `MIN`, `AVG`, `LATEST`) over chronological events with deterministic evidence referencing.
+  4. **At-Least-Once Distributed Consumer with Crash Recovery (`backend/app/rules/consumer.py`, `backend/app/repositories/rules.py`):**
+     - Atomic batch lease claiming with worker ID and expiration timestamp (`lease_expires_at`).
+     - Stale lease recovery automatically reclaims crashed worker jobs.
+     - Exponential backoff retries with transition to `QUARANTINED` upon exceeding `max_retries` (default 3).
+     - Graceful consumer shutdown draining in-flight evaluations.
+  5. **Deduplicated Persisted Findings (`backend/app/repositories/rules.py`):**
+     - Deterministic compound hash: `evaluation_id = sha256(rule_id:version:sorted_source_event_ids)[:24]`.
+     - Unique index on `evaluation_id` prevents duplicate finding generation during at-least-once reprocessing.
+     - Full evidence provenance including source event IDs, observed field values, and human-readable explanation.
+  6. **Immutable Rule Versioning & Multi-Tenant RBAC (`backend/app/rules/service.py`, `backend/app/api/v1/endpoints/rules.py`):**
+     - Rule modifications create immutable archived snapshots in `operational_rule_versions` and increment `version`.
+     - New permissions: `rules.manage` (Admin, Operations Manager) and `rules.read` (Admin, Operations Manager, Doctor).
+     - Non-admin callers automatically scoped to assigned `facility_id` with 403 Forbidden on foreign targets.
+     - 10 secured REST endpoints covering CRUD, version history, status toggle, evaluation queries, consumer health, and batch trigger.
+  7. **Comprehensive Test Suite & Documentation:**
+     - 38/38 tests passed across contracts, evaluator, consumer, and REST API suites.
+     - Total backend tests: 525 passed across all milestones.
+     - Created `docs/decisions/ADR-020-real-time-event-processing-and-rule-engine.md`.
+* **Next Planned Work:** Milestone 6, Chunk 6.3 (Real-Time Operational Monitoring Agent & Notification Center).

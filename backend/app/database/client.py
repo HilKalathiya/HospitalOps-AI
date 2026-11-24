@@ -496,6 +496,84 @@ async def init_indexes() -> None:
         ]
     )
 
+    # ── operational_rules ─────────────────────────────────────────────────────
+    # rule_id: unique rule identifier.
+    # facility_id + is_active: query active rules per facility.
+    # domain + is_active: filter rules by domain.
+    # supported_event_types: multikey index for fast event matching.
+    await db["operational_rules"].create_indexes(
+        [
+            IndexModel([("rule_id", ASCENDING)], unique=True, name="operational_rules_id_unique"),
+            IndexModel(
+                [("facility_id", ASCENDING), ("is_active", ASCENDING)],
+                name="operational_rules_facility_active",
+            ),
+            IndexModel(
+                [("domain", ASCENDING), ("is_active", ASCENDING)],
+                name="operational_rules_domain_active",
+            ),
+            IndexModel(
+                [("supported_event_types", ASCENDING)],
+                name="operational_rules_event_types",
+            ),
+        ]
+    )
+
+    # ── operational_rule_versions ─────────────────────────────────────────────
+    # rule_id + version: unique compound key for historical rule versions.
+    await db["operational_rule_versions"].create_indexes(
+        [
+            IndexModel(
+                [("rule_id", ASCENDING), ("version", ASCENDING)],
+                unique=True,
+                name="operational_rule_versions_id_ver_unique",
+            ),
+        ]
+    )
+
+    # ── rule_evaluations ──────────────────────────────────────────────────────
+    # evaluation_id: unique deterministic identity for evaluation duplicate protection.
+    # facility_id + evaluated_at: scoped time-series retrieval.
+    # rule_id + evaluated_at: trace evaluations by rule.
+    # domain + severity + evaluated_at: severity triage query.
+    # source_event_ids: multikey index for evidence tracing back to source events.
+    await db["rule_evaluations"].create_indexes(
+        [
+            IndexModel([("evaluation_id", ASCENDING)], unique=True, name="rule_evaluations_id_unique"),
+            IndexModel(
+                [("facility_id", ASCENDING), ("evaluated_at", DESCENDING)],
+                name="rule_evaluations_facility_evaluated",
+            ),
+            IndexModel(
+                [("rule_id", ASCENDING), ("evaluated_at", DESCENDING)],
+                name="rule_evaluations_rule_evaluated",
+            ),
+            IndexModel(
+                [("domain", ASCENDING), ("severity", ASCENDING), ("evaluated_at", DESCENDING)],
+                name="rule_evaluations_domain_severity",
+            ),
+            IndexModel([("source_event_ids", ASCENDING)], name="rule_evaluations_source_events"),
+        ]
+    )
+
+    # ── event_processing_records ──────────────────────────────────────────────
+    # event_id: unique event processing record.
+    # status + lease_expires_at: worker lease claim query.
+    # facility_id + status: facility processing queue metrics.
+    await db["event_processing_records"].create_indexes(
+        [
+            IndexModel([("event_id", ASCENDING)], unique=True, name="event_proc_id_unique"),
+            IndexModel(
+                [("status", ASCENDING), ("lease_expires_at", ASCENDING), ("created_at", ASCENDING)],
+                name="event_proc_status_lease",
+            ),
+            IndexModel(
+                [("facility_id", ASCENDING), ("status", ASCENDING)],
+                name="event_proc_facility_status",
+            ),
+        ]
+    )
+
     logger.info("MongoDB indexes initialised for all core collections")
 
 

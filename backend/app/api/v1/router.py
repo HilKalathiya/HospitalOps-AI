@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
     optimization,
     patients,
     resources,
+    rules,
     simulations,
 )
 
@@ -125,4 +126,16 @@ v1_router.include_router(
     events.router,
     prefix="/event",
     tags=["events"],
+)
+
+v1_router.include_router(
+    rules.router,
+    prefix="/rules",
+    tags=["rules"],
+)
+
+v1_router.include_router(
+    rules.router,
+    prefix="/rule",
+    tags=["rules"],
 )
